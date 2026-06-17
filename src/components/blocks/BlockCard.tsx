@@ -1,0 +1,252 @@
+'use client';
+
+// ============================================
+// PROJECT OMNI: GENERIC BLOCK CARD WRAPPER
+// ============================================
+
+import { ReactNode, useState } from 'react';
+import { motion } from 'framer-motion';
+import {
+    X,
+    Maximize2,
+    Minimize2,
+    GripVertical,
+    TrendingUp,
+    Newspaper,
+    LineChart,
+    Globe,
+    Plane,
+    Ship,
+    Activity,
+    BookOpen,
+    Pin,
+    PinOff,
+    Brain
+} from 'lucide-react';
+import { BlockInstance, ConnectionStatus } from '@/core/schemas/block.schema';
+import { useMindStore, useBlockStore } from '@/core/stores';
+import { useWireStore } from '@/core/stores/wireStore';
+import { WireHandle } from '@/canvas/WireHandle';
+import { getInputPorts, getOutputPorts } from '@/core/services/port.service';
+import { cn } from '@/lib/utils';
+
+// Icon mapping
+const BLOCK_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+    TrendingUp,
+    Newspaper,
+    LineChart,
+    Globe,
+    Plane,
+    Ship,
+    Activity,
+    BookOpen
+};
+
+import { type SyntheticListenerMap } from '@dnd-kit/core/dist/hooks/utilities';
+
+interface BlockCardProps {
+    block: BlockInstance;
+    children: ReactNode;
+    onClose?: () => void;
+    onExpand?: () => void;
+    isExpanded?: boolean;
+    isDragging?: boolean;
+    dragListeners?: SyntheticListenerMap;
+}
+
+export function BlockCard({
+    block,
+    children,
+    onClose,
+    onExpand,
+    isExpanded = false,
+    isDragging = false,
+    dragListeners
+}: BlockCardProps) {
+    const [isHovered, setIsHovered] = useState(false);
+
+    const Icon = block.schema.icon
+        ? BLOCK_ICONS[block.schema.icon] || Activity
+        : Activity;
+
+    const statusColor = getStatusColor(block.status);
+
+    // Get ports for this block
+    const inputPorts = getInputPorts(block.schema);
+    const outputPorts = getOutputPorts(block.schema);
+
+    // Focus (pin) state
+    const isPinned = useMindStore(state => state.isPinned(block.instance_id));
+    const pinBlock = useMindStore(state => state.pinBlock);
+    const unpinBlock = useMindStore(state => state.unpinBlock);
+
+    // Check if this block is wired to any persona
+    // Check if this block is wired to any persona (Subscribe to wire store changes)
+    const wires = useWireStore(state => state.wires);
+    const wiresFromBlock = wires.filter(w => w.sourceBlockId === block.instance_id);
+    const wiresToBlock = wires.filter(w => w.targetBlockId === block.instance_id);
+    const hasOutgoingWires = wiresFromBlock.length > 0;
+    const hasIncomingWires = wiresToBlock.length > 0;
+    const isWired = hasOutgoingWires || hasIncomingWires;
+
+    const handleTogglePin = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (isPinned) {
+            unpinBlock(block.instance_id);
+        } else {
+            const success = pinBlock(block.instance_id, block.schema.block_id, block.data);
+            if (!success) {
+                console.warn('Max 5 focused blocks reached');
+            }
+        }
+    };
+
+    return (
+        <motion.div
+            layout
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{
+                opacity: 1,
+                scale: isDragging ? 1.02 : 1,
+                boxShadow: isDragging
+                    ? '0 20px 40px rgba(0, 0, 0, 0.4), 0 0 40px rgba(99, 102, 241, 0.2)'
+                    : undefined
+            }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+            className={cn(
+                "block-card flex flex-col group",
+                isDragging && "ring-2 ring-[var(--citadel-primary)]",
+                isPinned && "ring-1 ring-[var(--mind-aqua-surface)] shadow-[0_0_12px_rgba(99,255,230,0.15)]",
+                !isPinned && isWired && "ring-1 ring-[var(--truth-amber)]/20"
+            )}
+            style={{
+                width: block.dimensions.width,
+                height: block.dimensions.height
+            }}
+        >
+            {/* Ultra-compact Header */}
+            <div className="block-header py-1 px-1.5">
+                <div className="flex items-center gap-1 min-w-0">
+                    {/* Drag Handle */}
+                    <div
+                        className="cursor-grab active:cursor-grabbing text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors flex-shrink-0"
+                        {...dragListeners}
+                    >
+                        <GripVertical className="w-3 h-3" />
+                    </div>
+
+                    {/* Status Dot + Icon */}
+                    <div className="relative flex-shrink-0">
+                        <div
+                            className="w-5 h-5 rounded flex items-center justify-center bg-[var(--citadel-surface)]/50"
+                            style={{ color: statusColor }}
+                        >
+                            <Icon className="w-3 h-3" />
+                        </div>
+                        {/* Connection indicators as tiny dots */}
+                        {hasIncomingWires && (
+                            <div className="absolute -left-1 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-[var(--truth-green)]" />
+                        )}
+                        {hasOutgoingWires && (
+                            <div className="absolute -right-1 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-[var(--truth-amber)]" />
+                        )}
+                    </div>
+
+                    {/* Title - truncated */}
+                    <span className="text-xs font-medium text-[var(--text-secondary)] truncate flex-1">
+                        {block.schema.display_name}
+                    </span>
+
+                    {/* Pinned indicator - compact */}
+                    {isPinned && (
+                        <span className="text-xs text-[var(--mind-aqua-surface)] flex-shrink-0">📍</span>
+                    )}
+                </div>
+
+                {/* Controls - visible on hover */}
+                <div className={cn(
+                    "flex items-center gap-0.5 transition-opacity duration-200 flex-shrink-0",
+                    isHovered ? "opacity-100" : "opacity-0"
+                )}>
+                    {/* Pin/Unpin Button */}
+                    <button
+                        onClick={handleTogglePin}
+                        className={cn(
+                            "btn-ghost p-0.5 rounded",
+                            isPinned
+                                ? "text-[var(--mind-aqua-surface)] hover:bg-[var(--mind-aqua-surface)]/10"
+                                : "hover:text-[var(--mind-aqua-surface)]"
+                        )}
+                        title={isPinned ? 'Unpin' : 'Pin'}
+                    >
+                        {isPinned ? (
+                            <PinOff className="w-3 h-3" />
+                        ) : (
+                            <Pin className="w-3 h-3" />
+                        )}
+                    </button>
+                    {/* Save to Memory Button */}
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            useMindStore.getState().saveToMemory(block.instance_id, block.schema.block_id, block.data);
+                        }}
+                        className="btn-ghost p-0.5 rounded hover:text-[var(--truth-amber)]"
+                        title="Save"
+                    >
+                        <Brain className="w-3 h-3" />
+                    </button>
+                    <button
+                        onClick={onClose}
+                        className="btn-ghost p-0.5 rounded hover:bg-red-500/10 hover:text-red-400"
+                        title="Close"
+                    >
+                        <X className="w-3 h-3" />
+                    </button>
+                </div>
+            </div>
+
+            {/* Content */}
+            <div className="block-content flex-1 overflow-hidden p-0">
+                {children}
+            </div>
+
+            {/* Unified Port Handles (with type indicators and drag functionality) */}
+            <WireHandle
+                blockId={block.instance_id}
+                side="left"
+                ports={inputPorts}
+                connectionCount={wiresToBlock.length}
+            />
+            <WireHandle
+                blockId={block.instance_id}
+                side="right"
+                ports={outputPorts}
+                connectionCount={wiresFromBlock.length}
+            />
+
+            {/* Wire target data for persona blocks */}
+            {block.schema.block_id.startsWith('persona_') && (
+                <div
+                    data-persona-block="true"
+                    data-block-id={block.instance_id}
+                    className="absolute inset-0 pointer-events-none"
+                />
+            )}
+        </motion.div>
+    );
+}
+
+function getStatusColor(status: ConnectionStatus): string {
+    switch (status) {
+        case 'connected': return 'var(--truth-green)';
+        case 'connecting': return 'var(--truth-amber)';
+        case 'error': return 'var(--truth-red)';
+        case 'paused': return 'var(--citadel-secondary)';
+        default: return 'var(--text-muted)';
+    }
+}
+
+export default BlockCard;

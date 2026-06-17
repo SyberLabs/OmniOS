@@ -1,0 +1,792 @@
+// ============================================
+// PROJECT OMNI: MIND STORE
+// Zustand store for the cognitive substrate
+// ============================================
+
+import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import {
+    MindState,
+    MindStatus,
+    LLMConfig,
+    LLMProvider,
+    LLM_DEFAULTS,
+    KnowledgeNode,
+    KnowledgeEdge,
+    KnowledgeNodeType,
+    RelationType,
+    PersonaConfig,
+    ContextPool,
+    ContextEntry,
+    ContextEntryType,
+    createInitialMindState
+} from '../schemas/mind.schema';
+
+// ============================================
+// STORE INTERFACE
+// ============================================
+
+interface MindStore extends MindState {
+    // ==================
+    // Status Management
+    // ==================
+    setStatus: (status: MindStatus, error?: string) => void;
+    initialize: () => Promise<void>;
+
+    // ==================
+    // LLM Configuration
+    // ==================
+    setProvider: (provider: LLMProvider, apiKey?: string) => void;
+    updateLLMConfig: (config: Partial<LLMConfig>) => void;
+
+    // ==================
+    // Knowledge Graph
+    // ==================
+    addNode: (node: Omit<KnowledgeNode, 'id' | 'createdAt' | 'updatedAt'>) => string;
+    updateNode: (nodeId: string, updates: Partial<KnowledgeNode>) => void;
+    removeNode: (nodeId: string) => void;
+    addEdge: (edge: Omit<KnowledgeEdge, 'id' | 'createdAt'>) => string;
+    removeEdge: (edgeId: string) => void;
+    getNode: (nodeId: string) => KnowledgeNode | undefined;
+    getNodesByType: (type: KnowledgeNodeType) => KnowledgeNode[];
+    getConnectedNodes: (nodeId: string, depth?: number) => KnowledgeNode[];
+    clearGraph: () => void;
+
+    // ==================
+    // Personas
+    // ==================
+    setActivePersona: (personaId: string) => void;
+    getActivePersona: () => PersonaConfig | undefined;
+    createPersona: (persona: Omit<PersonaConfig, 'id' | 'createdAt' | 'updatedAt' | 'isBuiltIn'>) => string;
+    updatePersona: (personaId: string, updates: Partial<PersonaConfig>) => void;
+    deletePersona: (personaId: string) => void;
+
+    // ==================
+    // Context Pools
+    // ==================
+    pushContext: (poolId: string, entry: Omit<ContextEntry, 'id' | 'timestamp'>) => string;
+    addToPool: (poolId: string, entry: Omit<ContextEntry, 'id' | 'timestamp'>) => string; // Alias for pushContext
+    getPoolEntries: (poolId: string) => ContextEntry[];
+    clearPool: (poolId: string) => void;
+    createPool: (pool: Omit<ContextPool, 'id' | 'entries' | 'createdAt' | 'updatedAt' | 'isSystem'>) => string;
+    deletePool: (poolId: string) => void;
+    subscribePersonaToPool: (personaId: string, poolId: string) => void;
+    unsubscribePersonaFromPool: (personaId: string, poolId: string) => void;
+
+    // ==================
+    // Focus Management
+    // ==================
+    pinBlock: (blockId: string, blockType: string, data: unknown) => boolean;
+    unpinBlock: (blockId: string) => void;
+    isPinned: (blockId: string) => boolean;
+    getPinnedBlocks: () => ContextEntry[];
+    clearFocus: () => void;
+    saveToMemory: (blockId: string, blockType: string, data: unknown) => void;
+    clearEphemeralContext: () => void;
+
+    // ==================
+    // Mind-Shell Sync
+    // ==================
+    extractBlockEntities: (blockId: string, blockType: string, data: unknown) => void;
+    updateAwareness: (blockType: string, summary: string) => void;
+}
+
+// ============================================
+// UTILITY FUNCTIONS
+// ============================================
+
+function generateId(prefix: string): string {
+    return `${prefix}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+}
+
+/**
+ * Prune entries based on strategy
+ */
+function pruneEntries(
+    entries: ContextEntry[],
+    maxEntries: number,
+    strategy: 'fifo' | 'importance' | 'recency' | 'hybrid'
+): ContextEntry[] {
+    if (entries.length <= maxEntries) return entries;
+
+    const toRemove = entries.length - maxEntries;
+
+    switch (strategy) {
+        case 'fifo':
+            // Remove oldest first
+            return entries.slice(toRemove);
+
+        case 'recency':
+            // Sort by timestamp, keep most recent
+            return [...entries]
+                .sort((a, b) => b.timestamp - a.timestamp)
+                .slice(0, maxEntries);
+
+        case 'importance':
+            // Sort by importance, keep highest
+            return [...entries]
+                .sort((a, b) => b.importance - a.importance)
+                .slice(0, maxEntries);
+
+        case 'hybrid':
+            // Combined score of recency and importance
+            const now = Date.now();
+            const maxAge = Math.max(...entries.map(e => now - e.timestamp));
+            return [...entries]
+                .sort((a, b) => {
+                    const scoreA = a.importance * 0.6 + (1 - (now - a.timestamp) / maxAge) * 0.4;
+                    const scoreB = b.importance * 0.6 + (1 - (now - b.timestamp) / maxAge) * 0.4;
+                    return scoreB - scoreA;
+                })
+                .slice(0, maxEntries);
+
+        default:
+            return entries.slice(toRemove);
+    }
+}
+
+// ============================================
+// STORE IMPLEMENTATION
+// ============================================
+
+export const useMindStore = create<MindStore>()(
+    persist(
+        (set, get) => ({
+            // Initial state
+            ...createInitialMindState(),
+
+            // ==================
+            // Status Management
+            // ==================
+            setStatus: (status, error) => set({ status, lastError: error }),
+
+            initialize: async () => {
+                set({ status: 'initializing' });
+                try {
+                    // Clear focus pool on init to prevent stale data
+                    set(state => ({
+                        contextPools: state.contextPools.map(pool =>
+                            pool.id === 'focus'
+                                ? { ...pool, entries: [], updatedAt: Date.now() }
+                                : pool
+                        )
+                    }));
+
+                    // In the future, this could:
+                    // - Load embeddings
+                    // - Connect to local LLM
+                    // - Restore graph from IndexedDB
+                    await new Promise(resolve => setTimeout(resolve, 500)); // Simulate init
+                    set({ status: 'ready' });
+                } catch (error) {
+                    set({
+                        status: 'error',
+                        lastError: (error as Error).message
+                    });
+                }
+            },
+
+            // ==================
+            // LLM Configuration
+            // ==================
+            setProvider: (provider, apiKey) => {
+                const defaults = LLM_DEFAULTS[provider];
+                set({
+                    llmConfig: {
+                        ...defaults,
+                        apiKey: apiKey || get().llmConfig.apiKey
+                    }
+                });
+            },
+
+            updateLLMConfig: (config) => set(state => ({
+                llmConfig: { ...state.llmConfig, ...config }
+            })),
+
+            // ==================
+            // Knowledge Graph
+            // ==================
+            addNode: (node) => {
+                const id = generateId('node');
+                const now = Date.now();
+                const newNode: KnowledgeNode = {
+                    ...node,
+                    id,
+                    createdAt: now,
+                    updatedAt: now
+                };
+
+                set(state => ({
+                    graph: {
+                        ...state.graph,
+                        nodes: [...state.graph.nodes, newNode],
+                        lastUpdated: now
+                    }
+                }));
+
+                return id;
+            },
+
+            updateNode: (nodeId, updates) => {
+                const now = Date.now();
+                set(state => ({
+                    graph: {
+                        ...state.graph,
+                        nodes: state.graph.nodes.map(n =>
+                            n.id === nodeId ? { ...n, ...updates, updatedAt: now } : n
+                        ),
+                        lastUpdated: now
+                    }
+                }));
+            },
+
+            removeNode: (nodeId) => {
+                set(state => ({
+                    graph: {
+                        ...state.graph,
+                        nodes: state.graph.nodes.filter(n => n.id !== nodeId),
+                        edges: state.graph.edges.filter(
+                            e => e.sourceId !== nodeId && e.targetId !== nodeId
+                        ),
+                        lastUpdated: Date.now()
+                    }
+                }));
+            },
+
+            addEdge: (edge) => {
+                const id = generateId('edge');
+                const newEdge: KnowledgeEdge = {
+                    ...edge,
+                    id,
+                    createdAt: Date.now()
+                };
+
+                set(state => ({
+                    graph: {
+                        ...state.graph,
+                        edges: [...state.graph.edges, newEdge],
+                        lastUpdated: Date.now()
+                    }
+                }));
+
+                return id;
+            },
+
+            removeEdge: (edgeId) => {
+                set(state => ({
+                    graph: {
+                        ...state.graph,
+                        edges: state.graph.edges.filter(e => e.id !== edgeId),
+                        lastUpdated: Date.now()
+                    }
+                }));
+            },
+
+            getNode: (nodeId) => get().graph.nodes.find(n => n.id === nodeId),
+
+            getNodesByType: (type) => get().graph.nodes.filter(n => n.type === type),
+
+            getConnectedNodes: (nodeId, depth = 1) => {
+                const { nodes, edges } = get().graph;
+                const visited = new Set<string>();
+                const result: KnowledgeNode[] = [];
+
+                function traverse(currentId: string, currentDepth: number) {
+                    if (currentDepth > depth || visited.has(currentId)) return;
+                    visited.add(currentId);
+
+                    const connectedEdges = edges.filter(
+                        e => e.sourceId === currentId || e.targetId === currentId
+                    );
+
+                    for (const edge of connectedEdges) {
+                        const neighborId = edge.sourceId === currentId ? edge.targetId : edge.sourceId;
+                        const neighbor = nodes.find(n => n.id === neighborId);
+                        if (neighbor && !visited.has(neighbor.id)) {
+                            result.push(neighbor);
+                            traverse(neighbor.id, currentDepth + 1);
+                        }
+                    }
+                }
+
+                traverse(nodeId, 0);
+                return result;
+            },
+
+            clearGraph: () => set(state => ({
+                graph: {
+                    nodes: [],
+                    edges: [],
+                    lastUpdated: Date.now()
+                }
+            })),
+
+            // ==================
+            // Personas
+            // ==================
+            setActivePersona: (personaId) => set({ activePersonaId: personaId }),
+
+            getActivePersona: () => {
+                const state = get();
+                return state.personas.find(p => p.id === state.activePersonaId);
+            },
+
+            createPersona: (persona) => {
+                const id = generateId('persona');
+                const now = Date.now();
+                const newPersona: PersonaConfig = {
+                    ...persona,
+                    id,
+                    isBuiltIn: false,
+                    createdAt: now,
+                    updatedAt: now
+                };
+
+                set(state => ({
+                    personas: [...state.personas, newPersona]
+                }));
+
+                return id;
+            },
+
+            updatePersona: (personaId, updates) => {
+                set(state => ({
+                    personas: state.personas.map(p =>
+                        p.id === personaId ? { ...p, ...updates, updatedAt: Date.now() } : p
+                    )
+                }));
+            },
+
+            deletePersona: (personaId) => {
+                const state = get();
+                const persona = state.personas.find(p => p.id === personaId);
+
+                // Don't allow deleting built-in personas
+                if (persona?.isBuiltIn) return;
+
+                set(state => ({
+                    personas: state.personas.filter(p => p.id !== personaId),
+                    activePersonaId: state.activePersonaId === personaId
+                        ? 'analyst'
+                        : state.activePersonaId
+                }));
+            },
+
+            // ==================
+            // Context Pools
+            // ==================
+            pushContext: (poolId, entry) => {
+                const id = generateId('ctx');
+                const now = Date.now();
+                const newEntry: ContextEntry = {
+                    ...entry,
+                    id,
+                    timestamp: now
+                };
+
+                set(state => ({
+                    contextPools: state.contextPools.map(pool => {
+                        if (pool.id !== poolId) return pool;
+
+                        // Add new entry
+                        let entries = [...pool.entries, newEntry];
+
+                        // Enforce 30-item limit for observations (FIFO)
+                        if (poolId === 'observations' && entries.length > 30) {
+                            entries = entries.slice(entries.length - 30);
+                        } else {
+                            // Use standard pruning for other pools
+                            entries = pruneEntries(
+                                entries,
+                                pool.maxEntries,
+                                pool.pruneStrategy
+                            );
+                        }
+
+                        return {
+                            ...pool,
+                            entries,
+                            updatedAt: now
+                        };
+                    })
+                }));
+
+                return id;
+            },
+
+            // Alias for pushContext - used by MindEngine
+            addToPool: (poolId, entry) => get().pushContext(poolId, entry),
+
+            getPoolEntries: (poolId) => {
+                const pool = get().contextPools.find(p => p.id === poolId);
+                return pool?.entries || [];
+            },
+
+            clearEphemeralContext: () => {
+                const EPHEMERAL_POOLS = ['observations', 'predictions', 'directives', 'inferences'];
+                set(state => ({
+                    contextPools: state.contextPools.map(pool =>
+                        EPHEMERAL_POOLS.includes(pool.id)
+                            ? { ...pool, entries: [], updatedAt: Date.now() }
+                            : pool
+                    )
+                }));
+            },
+
+            clearPool: (poolId) => {
+                set(state => ({
+                    contextPools: state.contextPools.map(pool =>
+                        pool.id === poolId
+                            ? { ...pool, entries: [], updatedAt: Date.now() }
+                            : pool
+                    )
+                }));
+            },
+
+            createPool: (pool) => {
+                const id = generateId('pool');
+                const now = Date.now();
+                const newPool: ContextPool = {
+                    ...pool,
+                    id,
+                    entries: [],
+                    isSystem: false,
+                    createdAt: now,
+                    updatedAt: now
+                };
+
+                set(state => ({
+                    contextPools: [...state.contextPools, newPool]
+                }));
+
+                return id;
+            },
+
+            deletePool: (poolId) => {
+                const pool = get().contextPools.find(p => p.id === poolId);
+
+                // Don't allow deleting system pools
+                if (pool?.isSystem) return;
+
+                set(state => ({
+                    contextPools: state.contextPools.filter(p => p.id !== poolId)
+                }));
+            },
+
+            subscribePersonaToPool: (personaId, poolId) => {
+                set(state => ({
+                    contextPools: state.contextPools.map(pool =>
+                        pool.id === poolId && !pool.subscribers.includes(personaId)
+                            ? { ...pool, subscribers: [...pool.subscribers, personaId] }
+                            : pool
+                    )
+                }));
+            },
+
+            unsubscribePersonaFromPool: (personaId, poolId) => {
+                set(state => ({
+                    contextPools: state.contextPools.map(pool =>
+                        pool.id === poolId
+                            ? { ...pool, subscribers: pool.subscribers.filter(id => id !== personaId) }
+                            : pool
+                    )
+                }));
+            },
+
+            // ==================
+            // Focus Management
+            // ==================
+            pinBlock: (blockId, blockType, data) => {
+                const { contextPools, pushContext, isPinned } = get();
+
+                // Check if already pinned
+                if (isPinned(blockId)) {
+                    return false;
+                }
+
+                // Check focus pool limit
+                const focusPool = contextPools.find(p => p.id === 'focus');
+                if (focusPool && focusPool.entries.length >= 5) {
+                    console.warn('Focus pool at max capacity (5 blocks)');
+                    return false;
+                }
+
+                // Create full data entry for focus pool
+                const fullContent = formatBlockDataForFocus(blockType, data);
+                pushContext('focus', {
+                    type: 'observation',
+                    content: fullContent,
+                    importance: 1.0, // High importance for focused blocks
+                    sourceBlockId: blockId,
+                    metadata: { blockType, pinnedAt: Date.now() }
+                });
+
+                return true;
+            },
+
+            unpinBlock: (blockId) => {
+                set(state => ({
+                    contextPools: state.contextPools.map(pool =>
+                        pool.id === 'focus'
+                            ? { ...pool, entries: pool.entries.filter(e => e.sourceBlockId !== blockId), updatedAt: Date.now() }
+                            : pool
+                    )
+                }));
+            },
+
+            isPinned: (blockId) => {
+                const focusPool = get().contextPools.find(p => p.id === 'focus');
+                return focusPool?.entries.some(e => e.sourceBlockId === blockId) || false;
+            },
+
+            getPinnedBlocks: () => {
+                const focusPool = get().contextPools.find(p => p.id === 'focus');
+                return focusPool?.entries || [];
+            },
+
+            clearFocus: () => {
+                set(state => ({
+                    contextPools: state.contextPools.map(pool =>
+                        pool.id === 'focus'
+                            ? { ...pool, entries: [], updatedAt: Date.now() }
+                            : pool
+                    )
+                }));
+            },
+
+            saveToMemory: (blockId, blockType, data) => {
+                const { pushContext } = get();
+                // Use detailed format for memory
+                const content = formatBlockDataForFocus(blockType, data);
+
+                pushContext('memory', {
+                    type: 'memory',
+                    content: `[Snapshot] ${content}`,
+                    importance: 1.0,
+                    sourceBlockId: blockId,
+                    metadata: { blockType, savedAt: Date.now() }
+                });
+            },
+
+            // ==================
+            // Mind-Shell Sync
+            // ==================
+            extractBlockEntities: (blockId, blockType, data) => {
+                const { addNode } = get();
+
+                // Extract entities for knowledge graph
+                const entities = extractEntities(blockType, data);
+                for (const entity of entities) {
+                    addNode({
+                        type: 'entity',
+                        label: entity.label,
+                        description: entity.description,
+                        properties: entity.properties,
+                        sourceBlockId: blockId,
+                        confidence: entity.confidence || 0.8
+                    });
+                }
+            },
+
+            updateAwareness: (blockType, summary) => {
+                set(state => {
+                    const poolIndex = state.contextPools.findIndex(p => p.id === 'observations');
+                    if (poolIndex === -1) return {};
+
+                    const pool = state.contextPools[poolIndex];
+                    const existingEntryIndex = pool.entries.findIndex(e =>
+                        e.metadata?.isAwareness === true && e.metadata?.blockType === blockType
+                    );
+
+                    let newEntries = [...pool.entries];
+
+                    if (existingEntryIndex >= 0) {
+                        // Update existing awareness entry
+                        newEntries[existingEntryIndex] = {
+                            ...newEntries[existingEntryIndex],
+                            content: summary,
+                            timestamp: Date.now()
+                        };
+                    } else {
+                        // Create new awareness entry
+                        newEntries.push({
+                            id: crypto.randomUUID(),
+                            type: 'observation',
+                            content: summary,
+                            importance: 0.3, // Lower importance for background awareness
+                            timestamp: Date.now(),
+                            metadata: { isAwareness: true, blockType }
+                        });
+                    }
+
+                    const newPools = [...state.contextPools];
+                    newPools[poolIndex] = { ...pool, entries: newEntries };
+
+                    return { contextPools: newPools };
+                });
+            }
+        }),
+        {
+            name: 'omni-mind',
+            storage: createJSONStorage(() => localStorage),
+            partialize: (state) => ({
+                llmConfig: state.llmConfig,
+                graph: state.graph,
+                personas: state.personas,
+                activePersonaId: state.activePersonaId,
+                contextPools: state.contextPools
+            }),
+            // Merge persisted state with fresh state to ensure new built-in pools exist
+            merge: (persistedState, currentState) => {
+                const persisted = persistedState as Partial<MindStore> | undefined;
+                if (!persisted) return currentState;
+
+                // Ensure all built-in pools exist (handles schema migrations)
+                const freshPools = currentState.contextPools;
+                const persistedPools = persisted.contextPools || [];
+
+                // Add any missing built-in pools
+                const mergedPools = [...persistedPools];
+                for (const freshPool of freshPools) {
+                    if (!mergedPools.find(p => p.id === freshPool.id)) {
+                        mergedPools.push(freshPool);
+                    }
+                }
+
+                return {
+                    ...currentState,
+                    ...persisted,
+                    contextPools: mergedPools
+                };
+            }
+        }
+    )
+);
+
+// ============================================
+// HELPER FUNCTIONS
+// ============================================
+
+/**
+ * Summarize block data for context pool
+ */
+/**
+ * Summarize block data for context pool
+ */
+export function summarizeBlockData(blockType: string, data: unknown): string {
+    if (!data) return `[${blockType}] No data available`;
+
+    switch (blockType) {
+        case 'polymarket':
+            const markets = data as Array<{ question: string; outcomes: Array<{ name: string; probability: number }> }>;
+            if (!markets.length) return '[Polymarket] No markets loaded';
+            return `[Polymarket] ${markets.length} markets tracked. Top: "${markets[0]?.question}" - ${markets[0]?.outcomes[0]?.name}: ${(markets[0]?.outcomes[0]?.probability * 100).toFixed(1)}%`;
+
+        case 'newsapi':
+            const articles = data as Array<{ title: string; source: { name: string } }>;
+            if (!articles.length) return '[News] No articles loaded';
+            return `[News] ${articles.length} articles. Latest: "${articles[0]?.title}" (${articles[0]?.source?.name})`;
+
+        default:
+            return `[${blockType}] Data updated`;
+    }
+}
+
+/**
+ * Extract entities from block data for knowledge graph
+ */
+function extractEntities(
+    blockType: string,
+    data: unknown
+): Array<{ label: string; description?: string; properties: Record<string, unknown>; confidence?: number }> {
+    const entities: Array<{ label: string; description?: string; properties: Record<string, unknown>; confidence?: number }> = [];
+
+    switch (blockType) {
+        case 'polymarket':
+            const markets = data as Array<{ id: string; question: string; category?: string }>;
+            for (const market of markets.slice(0, 5)) {
+                entities.push({
+                    label: market.question.slice(0, 50),
+                    description: market.question,
+                    properties: {
+                        marketId: market.id,
+                        category: market.category,
+                        type: 'prediction_market'
+                    },
+                    confidence: 0.9
+                });
+            }
+            break;
+
+        case 'newsapi':
+            const articles = data as Array<{ title: string; source: { name: string }; url: string }>;
+            for (const article of articles.slice(0, 5)) {
+                entities.push({
+                    label: article.title.slice(0, 50),
+                    description: article.title,
+                    properties: {
+                        source: article.source?.name,
+                        url: article.url,
+                        type: 'news_article'
+                    },
+                    confidence: 0.85
+                });
+            }
+            break;
+    }
+
+    return entities;
+}
+
+/**
+ * Format full block data for focus pool (deep analysis)
+ */
+function formatBlockDataForFocus(blockType: string, data: unknown): string {
+    if (!data) return `[${blockType}] No data available`;
+
+    switch (blockType) {
+        case 'polymarket': {
+            const markets = data as Array<{
+                question: string;
+                outcomes: Array<{ name: string; probability: number }>;
+                volume?: number;
+                endDate?: string;
+            }>;
+            if (!markets.length) return '[Polymarket] No markets loaded';
+
+            const formatted = markets.slice(0, 10).map(m => {
+                const outcomes = m.outcomes?.map(o =>
+                    `  - ${o.name}: ${(o.probability * 100).toFixed(1)}%`
+                ).join('\n') || '  No outcomes';
+                return `📊 ${m.question}\n${outcomes}${m.volume ? `\n  Volume: $${m.volume.toLocaleString()}` : ''}`;
+            }).join('\n\n');
+
+            return `[POLYMARKET FOCUS - ${markets.length} markets]\n\n${formatted}`;
+        }
+
+        case 'newsapi': {
+            const articles = data as Array<{
+                title: string;
+                source: { name: string };
+                description?: string;
+                publishedAt?: string;
+            }>;
+            if (!articles.length) return '[News] No articles loaded';
+
+            const formatted = articles.slice(0, 10).map(a =>
+                `📰 ${a.title}\n  Source: ${a.source?.name || 'Unknown'}${a.description ? `\n  ${a.description.slice(0, 200)}...` : ''}`
+            ).join('\n\n');
+
+            return `[NEWS FOCUS - ${articles.length} articles]\n\n${formatted}`;
+        }
+
+        default:
+            try {
+                return `[${blockType.toUpperCase()} FOCUS]\n${JSON.stringify(data, null, 2).slice(0, 2000)}`;
+            } catch {
+                return `[${blockType}] Data format unknown`;
+            }
+    }
+}
+
+export default useMindStore;

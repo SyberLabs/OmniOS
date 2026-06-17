@@ -1,0 +1,43 @@
+// ============================================
+// PROJECT OMNI: CORE SERVICES
+// ============================================
+
+export { LLMService, getLLMService, createLLMService } from './llm.service';
+export type { LLMMessage, LLMOptions, LLMResponse, LLMAdapter } from './llm.service';
+
+export { MindEngine, getMindEngine } from './mind.engine';
+export type { ThinkResult } from './mind.engine';
+
+export {
+    getPersonaSystemPrompt,
+    buildAnalysisPrompt,
+    parseInsightsFromResponse,
+    MIND_CONTEXT
+} from './persona.prompts';
+export type { BlockDataSummary, ExtractedInsight } from './persona.prompts';
+
+export { captureShellSnapshot, formatSnapshotForLLM } from './shell.snapshot';
+export type { ShellSnapshot, BlockSnapshotData } from './shell.snapshot';
+
+export {
+    arePortsCompatible,
+    isTypeCompatible,
+    getCompatibilityError,
+    convertData,
+    convertWireData,
+    findPort,
+    getInputPorts,
+    getOutputPorts,
+    getDefaultInputPort,
+    getDefaultOutputPort,
+    validateWire,
+    createJsonOutputPort,
+    createTextOutputPort,
+    createMediaOutputPort,
+    createAnyInputPort,
+    createJsonInputPort,
+    createTextInputPort
+} from './port.service';
+export type { WireValidation } from './port.service';
+
+export { evaluateMasterRule, RuleEngineService } from './ruleEngine.service';

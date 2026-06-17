@@ -1,0 +1,171 @@
+// ============================================
+// PROJECT OMNI: WIRE STORE
+// Manages data connections between blocks
+// ============================================
+
+import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import { DataWire, WireFilters, WireStatus, WireType, DEFAULT_WIRE_FILTERS } from '../schemas/wire.schema';
+import { useBlockStore } from './index';
+
+interface WireStoreState {
+    /** All wires in the system */
+    wires: DataWire[];
+
+    /** Add a new wire connection */
+    addWire: (sourceBlockId: string, targetBlockId: string, filters?: Partial<WireFilters>, shellId?: string) => string;
+
+    /** Remove a wire */
+    removeWire: (wireId: string) => void;
+
+    /** Remove all wires connected to a block */
+    removeWiresForBlock: (blockId: string) => void;
+
+    /** Update wire filters */
+    updateWireFilters: (wireId: string, filters: Partial<WireFilters>) => void;
+
+    /** Update wire status */
+    updateWireStatus: (wireId: string, status: WireStatus, errorMessage?: string) => void;
+
+    /** Record a data transfer */
+    recordTransfer: (wireId: string) => void;
+
+    /** Get wires where block is source */
+    getWiresFromBlock: (blockId: string) => DataWire[];
+
+    /** Get wires where block is target (persona) */
+    getWiresToBlock: (blockId: string) => DataWire[];
+
+    /** Check if wire exists between two blocks */
+    wireExists: (sourceBlockId: string, targetBlockId: string) => boolean;
+
+    /** Get a specific wire */
+    getWire: (wireId: string) => DataWire | undefined;
+
+    /** Get all wires for a specific shell */
+    getWiresByShell: (shellId: string) => DataWire[];
+}
+
+export const useWireStore = create<WireStoreState>()(
+    persist(
+        (set, get) => ({
+            wires: [],
+
+            addWire: (sourceBlockId, targetBlockId, filters, shellId) => {
+                // Don't create duplicate wires
+                if (get().wireExists(sourceBlockId, targetBlockId)) {
+                    const existing = get().wires.find(
+                        w => w.sourceBlockId === sourceBlockId && w.targetBlockId === targetBlockId
+                    );
+                    return existing?.id || '';
+                }
+
+                const wireId = `wire_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                const newWire: DataWire = {
+                    id: wireId,
+                    sourceBlockId,
+                    targetBlockId,
+                    wireType: 'push', // Default: auto-send on source update
+                    filters: { ...DEFAULT_WIRE_FILTERS, ...filters },
+                    status: 'active',
+                    shellId: shellId || useBlockStore.getState().activeShellId  // Use active shell when not specified
+                };
+
+                set(state => ({
+                    wires: [...state.wires, newWire]
+                }));
+
+                return wireId;
+            },
+
+            removeWire: (wireId) => {
+                set(state => ({
+                    wires: state.wires.filter(w => w.id !== wireId)
+                }));
+            },
+
+            removeWiresForBlock: (blockId) => {
+                set(state => ({
+                    wires: state.wires.filter(
+                        w => w.sourceBlockId !== blockId && w.targetBlockId !== blockId
+                    )
+                }));
+            },
+
+            updateWireFilters: (wireId, filters) => {
+                set(state => ({
+                    wires: state.wires.map(w =>
+                        w.id === wireId
+                            ? { ...w, filters: { ...w.filters, ...filters } }
+                            : w
+                    )
+                }));
+            },
+
+            updateWireStatus: (wireId, status, errorMessage) => {
+                set(state => ({
+                    wires: state.wires.map(w =>
+                        w.id === wireId
+                            ? { ...w, status, errorMessage }
+                            : w
+                    )
+                }));
+            },
+
+            recordTransfer: (wireId) => {
+                set(state => ({
+                    wires: state.wires.map(w =>
+                        w.id === wireId
+                            ? { ...w, lastTransfer: Date.now(), status: 'active' }
+                            : w
+                    )
+                }));
+            },
+
+            getWiresFromBlock: (blockId) => {
+                return get().wires.filter(w => w.sourceBlockId === blockId);
+            },
+
+            getWiresToBlock: (blockId) => {
+                return get().wires.filter(w => w.targetBlockId === blockId);
+            },
+
+            wireExists: (sourceBlockId, targetBlockId) => {
+                return get().wires.some(
+                    w => w.sourceBlockId === sourceBlockId && w.targetBlockId === targetBlockId
+                );
+            },
+
+            getWire: (wireId) => {
+                return get().wires.find(w => w.id === wireId);
+            },
+
+            getWiresByShell: (shellId) => {
+                return get().wires.filter(w => w.shellId === shellId);
+            }
+        }),
+        {
+            name: 'omni-wires',
+            version: 2,
+            storage: createJSONStorage(() => localStorage),
+            partialize: (state) => ({
+                wires: state.wires
+            }),
+            migrate: (persistedState: any, version: number) => {
+                const wires = persistedState?.wires || [];
+
+                // Migration from version 0/1 to version 2
+                // Ensure all wires have shellId and wireType
+                return {
+                    wires: wires.map((wire: any) => ({
+                        ...wire,
+                        shellId: wire.shellId || 'root',
+                        wireType: wire.wireType || 'push'
+                    }))
+                };
+            }
+        }
+    )
+);
+
+export default useWireStore;
