@@ -9,6 +9,7 @@ import {
     runComplete,
     runStream,
     isProviderConfigured,
+    checkProviderAvailable,
     type ServerLLMProvider,
     type ServerLLMRequest,
     type LLMMessage
@@ -96,6 +97,23 @@ export async function POST(request: NextRequest) {
         raw = await request.json();
     } catch {
         return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+    }
+
+    // Lightweight availability probe (mode: 'ping') — checks key presence for
+    // cloud providers and actually pings Ollama for local, WITHOUT running a
+    // real completion. Always 200 with { available } so the client can branch
+    // cleanly instead of misreading a failed generation as "available".
+    const rawObj = (raw && typeof raw === 'object') ? (raw as Record<string, unknown>) : {};
+    if (rawObj.mode === 'ping') {
+        const provider = rawObj.provider as ServerLLMProvider;
+        if (!VALID_PROVIDERS.includes(provider)) {
+            return NextResponse.json({ available: false, error: 'Unsupported provider' }, { status: 200 });
+        }
+        const baseUrl = provider === 'local' && typeof rawObj.baseUrl === 'string' ? rawObj.baseUrl : undefined;
+        const available = await checkProviderAvailable({
+            provider, model: '', messages: [], baseUrl
+        });
+        return NextResponse.json({ available }, { status: 200 });
     }
 
     const parsed = parseBody(raw);

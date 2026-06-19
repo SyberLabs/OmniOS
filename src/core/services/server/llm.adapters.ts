@@ -187,17 +187,39 @@ async function googleComplete(req: ServerLLMRequest): Promise<LLMResponse> {
 // PUBLIC ENTRY POINTS
 // ============================================
 
-/** Whether the server has what it needs to serve this provider. */
+/** Whether the server has what it needs to serve this provider (sync, no I/O). */
 export function isProviderConfigured(provider: ServerLLMProvider): boolean {
     switch (provider) {
         case 'local':
-            return true; // availability is determined at call time
+            return true; // reachability is checked separately (see checkProviderAvailable)
         case 'anthropic':
             return !!process.env.ANTHROPIC_API_KEY;
         case 'google':
             return !!process.env.GOOGLE_API_KEY;
         default:
             return false;
+    }
+}
+
+/**
+ * Lightweight availability check. For cloud providers this is just key
+ * presence; for local it actually pings Ollama's /api/tags (cheap, no
+ * generation). Used by the route's `mode: 'ping'` so the client can probe
+ * availability without triggering a real (and possibly failing) completion.
+ */
+export async function checkProviderAvailable(req: ServerLLMRequest): Promise<boolean> {
+    if (req.provider !== 'local') {
+        return isProviderConfigured(req.provider);
+    }
+    const baseUrl = req.baseUrl || process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
+    try {
+        const response = await fetch(`${baseUrl}/api/tags`, {
+            method: 'GET',
+            signal: AbortSignal.timeout(2000)
+        });
+        return response.ok;
+    } catch {
+        return false;
     }
 }
 

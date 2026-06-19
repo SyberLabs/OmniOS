@@ -46,9 +46,9 @@ export class LLMService {
     }
 
     /**
-     * Best-effort availability probe. For local (Ollama) this attempts a tiny
-     * request; for cloud providers the server validates key presence and
-     * returns 503 if unconfigured. We treat a non-503 as "available".
+     * Lightweight availability probe. Uses the route's `mode: 'ping'` which
+     * checks key presence for cloud providers and pings Ollama for local —
+     * WITHOUT running a real completion. Returns the server's `available` flag.
      */
     async isAvailable(): Promise<boolean> {
         try {
@@ -56,16 +56,14 @@ export class LLMService {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
+                    mode: 'ping',
                     provider: this.config.provider,
-                    model: this.config.model,
-                    baseUrl: this.config.baseUrl,
-                    messages: [{ role: 'user', content: 'ping' }],
-                    options: { maxTokens: 1 }
+                    baseUrl: this.config.baseUrl
                 })
             });
-            // 503 = provider not configured server-side; anything else means
-            // the provider is reachable/configured enough to attempt.
-            return res.status !== 503;
+            if (!res.ok) return false;
+            const data = await res.json().catch(() => ({ available: false }));
+            return data.available === true;
         } catch {
             return false;
         }
