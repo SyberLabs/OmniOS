@@ -4,6 +4,7 @@
 // ============================================
 
 import { SystemType, LifeSystem, SystemAttribute } from './core.schema';
+import { evaluateBooleanCondition, evaluateNumericExpression } from './safeExpression';
 
 // Re-export for convenience
 export type { SystemType } from './core.schema';
@@ -514,13 +515,9 @@ function calculateEffect(value: number, effect: AttributeEffect): number {
 
         case 'custom':
             if (effect.customExpression) {
-                try {
-                    // Safe evaluation with limited scope
-                    const fn = new Function('value', `return ${effect.customExpression}`);
-                    return fn(value) * effect.coefficient;
-                } catch {
-                    return 0;
-                }
+                // Safe, allowlist-only evaluation over a single `value` var.
+                // No arbitrary JS — see safeExpression.ts.
+                return evaluateNumericExpression(effect.customExpression, { value }) * effect.coefficient;
             }
             return 0;
 
@@ -533,25 +530,16 @@ function calculateEffect(value: number, effect: AttributeEffect): number {
  * Evaluate a condition expression against attributes
  */
 function evaluateCondition(condition: string, attrMap: Map<string, number>): boolean {
-    try {
-        // Build variable context
-        const context: Record<string, number> = {};
-        for (const [id, value] of attrMap) {
-            // Convert attribute IDs to valid JS identifiers
-            const varName = id.replace(/[^a-zA-Z0-9_]/g, '_');
-            context[varName] = value;
-        }
-
-        // Create function with context
-        const varNames = Object.keys(context);
-        const varValues = Object.values(context);
-        const fn = new Function(...varNames, `return ${condition}`);
-
-        return Boolean(fn(...varValues));
-    } catch {
-        console.warn(`Failed to evaluate condition: ${condition}`);
-        return false;
+    // Build variable context (sanitize attribute IDs to valid identifiers).
+    const context: Record<string, number> = {};
+    for (const [id, value] of attrMap) {
+        const varName = id.replace(/[^a-zA-Z0-9_]/g, '_');
+        context[varName] = value;
     }
+
+    // Safe, allowlist-only evaluation — no arbitrary JS. See safeExpression.ts.
+    // Fail-closed: any unparseable / out-of-grammar condition returns false.
+    return evaluateBooleanCondition(condition, context);
 }
 
 // ============================================

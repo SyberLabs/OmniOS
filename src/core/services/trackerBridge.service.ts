@@ -5,6 +5,7 @@
 
 import { SystemType, SystemAttribute } from '../schemas/core.schema';
 import { DomainTracker } from '../schemas/domain.schema';
+import { evaluateExpression } from '../schemas/safeExpression';
 
 // ============================================
 // TRACKER TO ATTRIBUTE MAPPING
@@ -300,11 +301,12 @@ export function transformTrackerValue(
             return value * 10;
 
         case 'custom':
-            // Evaluate custom formula
+            // Evaluate custom formula safely (no arbitrary JS — see safeExpression.ts).
+            // Preserve original behavior: fall back to the raw value on any error.
             if (mapping.customFormula) {
                 try {
-                    const fn = new Function('value', 'target', `return ${mapping.customFormula}`);
-                    return Math.min(100, Math.max(0, fn(value, target)));
+                    const result = evaluateExpression(mapping.customFormula, { value, target });
+                    return Math.min(100, Math.max(0, result));
                 } catch {
                     return value;
                 }
