@@ -54,7 +54,17 @@ finalized in step 2.)
 
 ## Build steps
 
-### Step 1 — Template format + registry (the reusable core)
+### Step 1 — Template format + registry (the reusable core) ✅ DONE (2026-06-19)
+Built `src/core/shells/templates.ts`: `ShellTemplate`/`TemplateBlock`/`TemplateConnection`
+types (templates use local `ref`s remapped to fresh instance ids on instantiate),
+`SHELL_TEMPLATES` with the Investor shell (10 blocks, 11 wires), `getShellTemplate`, and
+`validateTemplate`/`validateAllTemplates`. Integrity test (`templates.test.ts`, 7 tests)
+validates the Investor shell against the **real** `blockRegistry` — fails loudly if a template
+names an unknown block or wires a missing ref. 49 tests / tsc / lint / build all green.
+_Note: chose NOT to persist built-ins into the shell store (avoids localStorage re-seed dupes);
+Step 3 instantiates from the static `SHELL_TEMPLATES` source instead._
+
+<details><summary>original step 1 notes</summary>
 - Define `SHELL_TEMPLATES: ShellTemplate[]` in `src/core/shells/templates.ts` (new).
   - A `ShellTemplate` is a `ShellConfig`-shaped definition with `type:'template'`,
     `isTemplate:true`, a `templateTags` list, and `blocks` referencing **registry block_ids**
@@ -64,8 +74,13 @@ finalized in step 2.)
 - Seed built-in templates into the shell store on init (mirror how system shells seed). Built-ins
   are presented but never mutated; they live alongside user shells as `type:'template'`.
 - **Verify:** templates appear in `ShellPanel`'s existing Templates section.
+</details>
 
-### Step 2 — Author the Investor template (the content)
+> **Note:** Step 2 (authoring the Investor template content) was completed together with
+> Step 1 — the template is fully defined in `templates.ts`. Remaining: Step 3 (instantiate
+> action) and Step 4 (store presentation).
+
+### Step 2 — Author the Investor template (the content) ✅ DONE (folded into Step 1)
 - Lay out the 10 blocks with sensible positions (grouped: macro cluster, markets cluster,
   signals cluster, personas on the right).
 - Define the default wires (data → Analyst → Strategist) using the existing `connections` shape.
