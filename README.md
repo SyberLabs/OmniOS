@@ -1,5 +1,9 @@
 # OmniOS
 
+<p align="center">
+  <img src="https://i.imgur.com/EMmdEJY.png" width="600">
+</p>
+
 Spatial cognitive workspace for composing data, AI personas, notes, and analytical blocks on a typed canvas.
 
 ## Summary
