@@ -61,11 +61,16 @@ and check the change makes sense for *both* the outward and inward use cases.
 **Status:** the stabilize-and-secure arc (Phases 1–5) landed here. LLM path server-side,
 graceful degradation verified, tests cover normalizers/ports/snapshot.
 
-**Current focus:** _(set when this front goes active)_
+**⭐ ACTIVE FRONT (since 2026-06-19).**
+
+**Current focus: Shell Store** — preconfigured, opinionated shell templates that solve the
+blank-canvas problem and make the Citadel valuable on first open. First template: **Investor
+Shell** (ships on existing blocks). Plan: `CITADEL_SHELL_STORE_PLAN.md`.
 
 **Backlog (unordered):**
-- Make ONE complete loop excellent end-to-end (e.g. "Morning Briefing": Polymarket + News
-  → Analyst → crystallize → Strategist). Use it as the quality bar.
+- Shell Store templates beyond Investor: Researcher (needs arxiv block), Creative (needs
+  interactive-tool block kind). See the "ladder" in the plan.
+- Make ONE complete loop excellent end-to-end (the Investor shell *is* this loop's first form).
 - Memory crystallization (insight → new wired block) — still unfinished from vision.md.
 - Persona-to-persona wiring.
 - Port UI visualization (indicators, type colors, tooltips).
@@ -89,7 +94,9 @@ weighted effects + rules → score + breakdown + alerts). `SYSTEM_SURVEY` is the
 **already-wired no-code authoring path** (plain-language Q → `effectModifier` rewrites the
 math). Eval/`new Function` security flaw fixed (safe parser).
 
-**Current focus:** _(set when this front goes active)_
+**💤 PARKED (since 2026-06-19)** — Citadel is the active front. Backlog held here, out of head.
+
+**Current focus:** _(parked — resume by setting active)_
 
 **Backlog (unordered):**
 - **Authoring-UI gap:** `SystemEditor` only tunes; add structured add/remove effect + rule
