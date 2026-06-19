@@ -13,7 +13,7 @@ export async function fetchPolymarketData(): Promise<{
     markets: PolymarketMarket[];
     error?: string;
 }> {
-    const { useMockData, apiKeys } = useSettingsStore.getState();
+    const { useMockData } = useSettingsStore.getState();
 
     // Use mock data if enabled
     if (useMockData) {
@@ -22,12 +22,11 @@ export async function fetchPolymarketData(): Promise<{
         return { markets };
     }
 
-    // Call our Next.js API route
+    // Call our Next.js API route (Polymarket's public Gamma API needs no key).
     try {
         const response = await fetch('/api/polymarket', {
             headers: {
-                'Content-Type': 'application/json',
-                ...(apiKeys.polymarket && { 'x-api-key': apiKeys.polymarket })
+                'Content-Type': 'application/json'
             }
         });
 
@@ -63,7 +62,7 @@ export async function fetchNewsData(options?: {
     articles: NewsArticle[];
     error?: string;
 }> {
-    const { useMockData, apiKeys } = useSettingsStore.getState();
+    const { useMockData } = useSettingsStore.getState();
 
     // Use mock data if enabled
     if (useMockData) {
@@ -72,17 +71,9 @@ export async function fetchNewsData(options?: {
         return { articles };
     }
 
-    // Check if API key is configured
-    if (!apiKeys.newsapi || apiKeys.newsapi === 'NEWSAPI_KEY_PLACEHOLDER') {
-        console.warn('[API Service] NewsAPI key not configured, using mock data');
-        const articles = await fetchMockNews();
-        return {
-            articles,
-            error: 'NewsAPI key not configured'
-        };
-    }
-
-    // Call our Next.js API route
+    // Call our Next.js API route. The NewsAPI key lives server-side (process.env);
+    // the client never sends it. If unconfigured the route returns 503 and we
+    // fall back to mock data below.
     try {
         const params = new URLSearchParams();
         if (options?.query) params.append('query', options.query);
@@ -90,8 +81,7 @@ export async function fetchNewsData(options?: {
 
         const response = await fetch(`/api/news?${params.toString()}`, {
             headers: {
-                'Content-Type': 'application/json',
-                'x-api-key': apiKeys.newsapi
+                'Content-Type': 'application/json'
             }
         });
 
@@ -131,18 +121,15 @@ export async function testPolymarketConnection(): Promise<boolean> {
 }
 
 /**
- * Test NewsAPI connection with API key
+ * Test NewsAPI connection. The key is read server-side from process.env;
+ * the client sends no key. A 503 indicates the server is missing NEWSAPI_KEY.
  */
-export async function testNewsConnection(apiKey: string): Promise<{
+export async function testNewsConnection(): Promise<{
     success: boolean;
     error?: string;
 }> {
     try {
-        const response = await fetch('/api/news?query=test', {
-            headers: {
-                'x-api-key': apiKey
-            }
-        });
+        const response = await fetch('/api/news?query=test');
         const data = await response.json();
 
         return {

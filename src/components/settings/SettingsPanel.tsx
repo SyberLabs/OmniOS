@@ -13,9 +13,7 @@ import {
     Database,
     TestTube,
     Check,
-    AlertCircle,
-    Eye,
-    EyeOff
+    AlertCircle
 } from 'lucide-react';
 import { useSettingsStore } from '@/core/stores';
 import { testNewsConnection, testPolymarketConnection } from '@/core/services/api.service';
@@ -27,13 +25,7 @@ interface SettingsPanelProps {
 }
 
 export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
-    const { useMockData, apiKeys, updateApiKey, toggleMockData } = useSettingsStore();
-
-    const [newsApiKey, setNewsApiKey] = useState(apiKeys.newsapi || '');
-    const [polymarketApiKey, setPolymarketApiKey] = useState(apiKeys.polymarket || '');
-
-    const [showNewsKey, setShowNewsKey] = useState(false);
-    const [showPolymarketKey, setShowPolymarketKey] = useState(false);
+    const { useMockData, toggleMockData } = useSettingsStore();
 
     const [testingNews, setTestingNews] = useState(false);
     const [testingPolymarket, setTestingPolymarket] = useState(false);
@@ -41,26 +33,9 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
     const [newsTestResult, setNewsTestResult] = useState<{ success: boolean; message: string } | null>(null);
     const [polymarketTestResult, setPolymarketTestResult] = useState<{ success: boolean; message: string } | null>(null);
 
-    const handleSaveNewsKey = () => {
-        updateApiKey('newsapi', newsApiKey);
-        setNewsTestResult({ success: true, message: 'API key saved' });
-        setTimeout(() => setNewsTestResult(null), 3000);
-    };
-
-    const handleSavePolymarketKey = () => {
-        updateApiKey('polymarket', polymarketApiKey);
-        setPolymarketTestResult({ success: true, message: 'API key saved' });
-        setTimeout(() => setPolymarketTestResult(null), 3000);
-    };
-
     const handleTestNews = async () => {
-        if (!newsApiKey || newsApiKey === 'NEWSAPI_KEY_PLACEHOLDER') {
-            setNewsTestResult({ success: false, message: 'Please enter an API key first' });
-            return;
-        }
-
         setTestingNews(true);
-        const result = await testNewsConnection(newsApiKey);
+        const result = await testNewsConnection();
         setTestingNews(false);
 
         setNewsTestResult({
@@ -165,7 +140,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                                 </div>
                             </div>
 
-                            {/* NewsAPI Configuration */}
+                            {/* NewsAPI Configuration — server-side via .env */}
                             <div className="space-y-3">
                                 <div className="flex items-center gap-2">
                                     <Key className="w-4 h-4 text-[var(--truth-amber)]" />
@@ -175,59 +150,30 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                                 </div>
 
                                 <div className="space-y-3 p-4 bg-[var(--citadel-surface)] rounded-lg border border-[var(--citadel-border)]">
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-medium text-[var(--text-secondary)]">
-                                            API Key
-                                        </label>
-                                        <div className="relative">
-                                            <input
-                                                type={showNewsKey ? 'text' : 'password'}
-                                                value={newsApiKey}
-                                                onChange={(e) => setNewsApiKey(e.target.value)}
-                                                placeholder="Enter your NewsAPI key"
-                                                className="w-full px-3 py-2 pr-10 bg-[var(--citadel-bg)] border border-[var(--citadel-border)] rounded-lg text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--citadel-primary)]/50"
-                                            />
-                                            <button
-                                                onClick={() => setShowNewsKey(!showNewsKey)}
-                                                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-[var(--citadel-elevated)] rounded"
-                                            >
-                                                {showNewsKey ? (
-                                                    <EyeOff className="w-4 h-4 text-[var(--text-muted)]" />
-                                                ) : (
-                                                    <Eye className="w-4 h-4 text-[var(--text-muted)]" />
-                                                )}
-                                            </button>
-                                        </div>
-                                        <p className="text-xs text-[var(--text-muted)]">
-                                            Get your API key from{' '}
-                                            <a
-                                                href="https://newsapi.org/"
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="text-[var(--citadel-primary)] hover:underline"
-                                            >
-                                                newsapi.org
-                                            </a>
-                                        </p>
-                                    </div>
+                                    <p className="text-xs text-[var(--text-muted)] leading-relaxed">
+                                        NewsAPI is configured on the server. Set{' '}
+                                        <code className="px-1 py-0.5 rounded bg-[var(--citadel-bg)] text-[var(--text-primary)]">NEWSAPI_KEY</code>{' '}
+                                        in your <code className="px-1 py-0.5 rounded bg-[var(--citadel-bg)] text-[var(--text-primary)]">.env</code> file
+                                        (get a key from{' '}
+                                        <a
+                                            href="https://newsapi.org/"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-[var(--citadel-primary)] hover:underline"
+                                        >
+                                            newsapi.org
+                                        </a>
+                                        ). Keys are never stored in the browser.
+                                    </p>
 
-                                    <div className="flex gap-2">
-                                        <button
-                                            onClick={handleSaveNewsKey}
-                                            disabled={!newsApiKey || newsApiKey === apiKeys.newsapi}
-                                            className="flex-1 px-3 py-2 bg-[var(--citadel-primary)] hover:bg-[var(--citadel-primary-glow)] disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors"
-                                        >
-                                            Save Key
-                                        </button>
-                                        <button
-                                            onClick={handleTestNews}
-                                            disabled={testingNews || !newsApiKey || newsApiKey === 'NEWSAPI_KEY_PLACEHOLDER'}
-                                            className="flex-1 px-3 py-2 bg-[var(--truth-amber)] hover:bg-[var(--truth-amber)]/80 disabled:opacity-50 disabled:cursor-not-allowed text-black text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
-                                        >
-                                            <TestTube className="w-4 h-4" />
-                                            {testingNews ? 'Testing...' : 'Test Connection'}
-                                        </button>
-                                    </div>
+                                    <button
+                                        onClick={handleTestNews}
+                                        disabled={testingNews}
+                                        className="w-full px-3 py-2 bg-[var(--truth-amber)] hover:bg-[var(--truth-amber)]/80 disabled:opacity-50 disabled:cursor-not-allowed text-black text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
+                                    >
+                                        <TestTube className="w-4 h-4" />
+                                        {testingNews ? 'Testing...' : 'Test Connection'}
+                                    </button>
 
                                     {newsTestResult && (
                                         <motion.div
@@ -299,8 +245,10 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                             {/* Info Box */}
                             <div className="p-4 bg-[var(--citadel-primary)]/5 border border-[var(--citadel-primary)]/20 rounded-lg">
                                 <p className="text-xs text-[var(--text-muted)] leading-relaxed">
-                                    <strong className="text-[var(--citadel-primary)]">💡 Tip:</strong> API keys are stored locally in your browser.
-                                    Toggle "Use Mock Data" to test the interface with demo data before configuring real APIs.
+                                    <strong className="text-[var(--citadel-primary)]">💡 Tip:</strong> API keys are configured
+                                    server-side via <code className="px-1 py-0.5 rounded bg-[var(--citadel-bg)] text-[var(--text-primary)]">.env</code> and
+                                    are never stored in the browser. Toggle "Use Mock Data" to explore the interface with demo
+                                    data before configuring real APIs.
                                 </p>
                             </div>
                         </div>

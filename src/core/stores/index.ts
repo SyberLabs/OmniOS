@@ -571,9 +571,12 @@ export const useSettingsStore = create<SettingsState>()(
     persist(
         (set) => ({
             useMockData: true, // Default to mock mode
+            // NewsAPI/Polymarket keys now live server-side (process.env); these
+            // client-side fields are retained only for legacy/other providers and
+            // default to undefined so no placeholder secrets are persisted.
             apiKeys: {
-                polymarket: 'POLYMARKET_API_KEY_PLACEHOLDER',
-                newsapi: 'NEWSAPI_KEY_PLACEHOLDER',
+                polymarket: undefined,
+                newsapi: undefined,
                 tradingview: undefined,
                 flightaware: undefined,
                 marinetraffic: undefined,

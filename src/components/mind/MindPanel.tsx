@@ -840,37 +840,20 @@ function GraphView({ graph }: GraphViewProps) {
 
 interface SettingsViewProps {
     llmConfig: { provider: LLMProvider; model: string; temperature: number };
-    onProviderChange: (provider: LLMProvider, apiKey?: string) => void;
+    onProviderChange: (provider: LLMProvider) => void;
 }
 
 function SettingsView({ llmConfig, onProviderChange }: SettingsViewProps) {
-    const [apiKey, setApiKey] = useState('');
-    const [showKey, setShowKey] = useState(false);
-    const [savedMessage, setSavedMessage] = useState<string | null>(null);
-
-    const providers: { id: LLMProvider; name: string; icon: string; needsKey: boolean; keyUrl?: string }[] = [
+    const providers: { id: LLMProvider; name: string; icon: string; needsKey: boolean; envVar?: string }[] = [
         { id: 'local', name: 'Local (Ollama)', icon: '🏠', needsKey: false },
-        { id: 'openai', name: 'OpenAI', icon: '🤖', needsKey: true, keyUrl: 'https://platform.openai.com/api-keys' },
-        { id: 'anthropic', name: 'Anthropic', icon: '🧠', needsKey: true, keyUrl: 'https://console.anthropic.com/settings/keys' },
-        { id: 'google', name: 'Google Gemini', icon: '🔮', needsKey: true, keyUrl: 'https://aistudio.google.com/app/apikey' },
-        { id: 'deepseek', name: 'DeepSeek', icon: '🔍', needsKey: true, keyUrl: 'https://platform.deepseek.com/api_keys' }
+        { id: 'anthropic', name: 'Anthropic', icon: '🧠', needsKey: true, envVar: 'ANTHROPIC_API_KEY' },
+        { id: 'google', name: 'Google Gemini', icon: '🔮', needsKey: true, envVar: 'GOOGLE_API_KEY' }
     ];
 
     const currentProvider = providers.find(p => p.id === llmConfig.provider);
     const needsApiKey = currentProvider?.needsKey ?? false;
 
-    const handleSaveKey = () => {
-        if (apiKey.trim()) {
-            onProviderChange(llmConfig.provider, apiKey.trim());
-            setSavedMessage('✓ API Key saved!');
-            setTimeout(() => setSavedMessage(null), 2000);
-            // Don't clear the key display, just indicate it's saved
-        }
-    };
-
     const handleProviderSelect = (providerId: LLMProvider) => {
-        setApiKey(''); // Clear key when switching providers
-        setSavedMessage(null);
         onProviderChange(providerId);
     };
 
@@ -895,49 +878,21 @@ function SettingsView({ llmConfig, onProviderChange }: SettingsViewProps) {
                 </div>
             </section>
 
-            {/* API Key Input - only for providers that need it */}
+            {/* API Key — configured server-side via environment variables.
+                Keys are never entered or stored in the browser. */}
             {needsApiKey && (
                 <section className="settings-section">
                     <h3 className="settings-title">API Key</h3>
                     <div className="api-key-section">
-                        <div className="api-key-input-row">
-                            <input
-                                type={showKey ? 'text' : 'password'}
-                                value={apiKey}
-                                onChange={(e) => setApiKey(e.target.value)}
-                                placeholder={`Enter ${currentProvider?.name} API key...`}
-                                className="api-key-input"
-                            />
-                            <button
-                                onClick={() => setShowKey(!showKey)}
-                                className="btn-ghost api-key-toggle"
-                                title={showKey ? 'Hide key' : 'Show key'}
-                            >
-                                {showKey ? '👁️' : '👁️‍🗨️'}
-                            </button>
-                        </div>
-                        <div className="api-key-actions">
-                            <button
-                                onClick={handleSaveKey}
-                                disabled={!apiKey.trim()}
-                                className="btn-primary api-key-save"
-                            >
-                                Save Key
-                            </button>
-                            {currentProvider?.keyUrl && (
-                                <a
-                                    href={currentProvider.keyUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="btn-ghost api-key-get"
-                                >
-                                    Get API Key →
-                                </a>
-                            )}
-                        </div>
-                        {savedMessage && (
-                            <div className="api-key-saved">{savedMessage}</div>
-                        )}
+                        <p className="text-xs text-[var(--text-muted)] leading-relaxed">
+                            {currentProvider?.name} is configured on the server. Set
+                            {' '}
+                            <code className="px-1 py-0.5 rounded bg-[var(--citadel-surface)] text-[var(--text-primary)]">
+                                {currentProvider?.envVar}
+                            </code>
+                            {' '}in your <code className="px-1 py-0.5 rounded bg-[var(--citadel-surface)] text-[var(--text-primary)]">.env</code> file.
+                            Keys are never stored in the browser.
+                        </p>
                     </div>
                 </section>
             )}

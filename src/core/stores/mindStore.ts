@@ -36,7 +36,7 @@ interface MindStore extends MindState {
     // ==================
     // LLM Configuration
     // ==================
-    setProvider: (provider: LLMProvider, apiKey?: string) => void;
+    setProvider: (provider: LLMProvider) => void;
     updateLLMConfig: (config: Partial<LLMConfig>) => void;
 
     // ==================
@@ -189,14 +189,10 @@ export const useMindStore = create<MindStore>()(
             // ==================
             // LLM Configuration
             // ==================
-            setProvider: (provider, apiKey) => {
-                const defaults = LLM_DEFAULTS[provider];
-                set({
-                    llmConfig: {
-                        ...defaults,
-                        apiKey: apiKey || get().llmConfig.apiKey
-                    }
-                });
+            setProvider: (provider) => {
+                // Cloud provider keys live server-side (process.env); nothing
+                // secret is stored here. Selecting a provider just swaps defaults.
+                set({ llmConfig: { ...LLM_DEFAULTS[provider] } });
             },
 
             updateLLMConfig: (config) => set(state => ({
@@ -653,9 +649,26 @@ export const useMindStore = create<MindStore>()(
                     }
                 }
 
+                // Migrate persisted LLM config: drop any persisted apiKey (keys
+                // are now server-side only) and reset removed providers
+                // (openai/deepseek) to the default local provider.
+                const validProviders: LLMProvider[] = ['local', 'anthropic', 'google'];
+                const persistedLLM = persisted.llmConfig as (LLMConfig & { apiKey?: string }) | undefined;
+                let mergedLLM = currentState.llmConfig;
+                if (persistedLLM) {
+                    if (validProviders.includes(persistedLLM.provider)) {
+                        const { apiKey: _drop, ...rest } = persistedLLM;
+                        mergedLLM = { ...currentState.llmConfig, ...rest };
+                    } else {
+                        // Removed/unknown provider → fall back to local defaults
+                        mergedLLM = { ...LLM_DEFAULTS.local };
+                    }
+                }
+
                 return {
                     ...currentState,
                     ...persisted,
+                    llmConfig: mergedLLM,
                     contextPools: mergedPools
                 };
             }

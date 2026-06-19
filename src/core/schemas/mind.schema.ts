@@ -8,18 +8,24 @@
 // ============================================
 
 /**
- * Supported LLM providers
+ * Supported LLM providers.
+ *
+ * Local (Ollama) runs offline with no key. Anthropic and Google are cloud
+ * providers whose API keys live server-side (read from process.env by the
+ * /api/llm route); keys are never stored client-side. See IMPLEMENTATION_PLAN.md.
  */
-export type LLMProvider = 'local' | 'openai' | 'anthropic' | 'google' | 'deepseek';
+export type LLMProvider = 'local' | 'anthropic' | 'google';
 
 /**
- * LLM provider configuration
+ * LLM provider configuration.
+ *
+ * NOTE: intentionally contains NO apiKey. Cloud provider keys are held
+ * server-side in environment variables and injected by the /api/llm route.
  */
 export interface LLMConfig {
     provider: LLMProvider;
     model: string;
-    apiKey?: string;
-    baseUrl?: string;  // For local/custom endpoints
+    baseUrl?: string;  // For local/custom endpoints (e.g. Ollama)
     temperature: number;
     maxTokens: number;
 }
@@ -27,7 +33,7 @@ export interface LLMConfig {
 /**
  * Default configurations for each provider
  */
-export const LLM_DEFAULTS: Record<LLMProvider, Omit<LLMConfig, 'apiKey'>> = {
+export const LLM_DEFAULTS: Record<LLMProvider, LLMConfig> = {
     local: {
         provider: 'local',
         model: 'tinyllama',
@@ -35,28 +41,15 @@ export const LLM_DEFAULTS: Record<LLMProvider, Omit<LLMConfig, 'apiKey'>> = {
         temperature: 0.7,
         maxTokens: 2048
     },
-    openai: {
-        provider: 'openai',
-        model: 'gpt-4o-mini',
-        temperature: 0.7,
-        maxTokens: 4096
-    },
     anthropic: {
         provider: 'anthropic',
-        model: 'claude-3-haiku-20240307',
+        model: 'claude-haiku-4-5-20251001',
         temperature: 0.7,
         maxTokens: 4096
     },
     google: {
         provider: 'google',
         model: 'gemini-2.0-flash-exp',
-        temperature: 0.7,
-        maxTokens: 4096
-    },
-    deepseek: {
-        provider: 'deepseek',
-        model: 'deepseek-chat',
-        baseUrl: 'https://api.deepseek.com',
         temperature: 0.7,
         maxTokens: 4096
     }

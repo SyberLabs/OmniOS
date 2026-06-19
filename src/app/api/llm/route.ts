@@ -1,0 +1,136 @@
+// ============================================
+// PROJECT OMNI: LLM PROXY ROUTE
+// Server-side proxy for LLM calls. Keys are read from process.env here and
+// never shipped to the client. See IMPLEMENTATION_PLAN.md (Phase 3).
+// ============================================
+
+import { NextRequest, NextResponse } from 'next/server';
+import {
+    runComplete,
+    runStream,
+    isProviderConfigured,
+    type ServerLLMProvider,
+    type ServerLLMRequest,
+    type LLMMessage
+} from '@/core/services/server/llm.adapters';
+
+export const runtime = 'nodejs';
+
+const VALID_PROVIDERS: ServerLLMProvider[] = ['local', 'anthropic', 'google'];
+const VALID_ROLES = new Set(['system', 'user', 'assistant']);
+
+const MAX_MESSAGES = 100;
+const MAX_TOTAL_CHARS = 200_000;
+const MAX_OUTPUT_TOKENS = 8192;
+
+interface ParsedBody {
+    provider: ServerLLMProvider;
+    model: string;
+    messages: LLMMessage[];
+    options?: { temperature?: number; maxTokens?: number };
+    baseUrl?: string;
+    stream?: boolean;
+}
+
+/** Validate + clamp the request body. Returns an error string on failure. */
+function parseBody(raw: unknown): { ok: true; body: ParsedBody } | { ok: false; error: string } {
+    if (!raw || typeof raw !== 'object') return { ok: false, error: 'Invalid request body' };
+    const b = raw as Record<string, unknown>;
+
+    const provider = b.provider as ServerLLMProvider;
+    if (!VALID_PROVIDERS.includes(provider)) {
+        return { ok: false, error: `Unsupported provider: ${String(b.provider)}` };
+    }
+
+    const model = typeof b.model === 'string' && b.model.trim() ? b.model.trim() : '';
+    if (!model && provider !== 'local') {
+        return { ok: false, error: 'Missing model' };
+    }
+
+    if (!Array.isArray(b.messages) || b.messages.length === 0) {
+        return { ok: false, error: 'messages must be a non-empty array' };
+    }
+    if (b.messages.length > MAX_MESSAGES) {
+        return { ok: false, error: `Too many messages (max ${MAX_MESSAGES})` };
+    }
+
+    let totalChars = 0;
+    const messages: LLMMessage[] = [];
+    for (const m of b.messages as unknown[]) {
+        if (!m || typeof m !== 'object') return { ok: false, error: 'Invalid message' };
+        const msg = m as Record<string, unknown>;
+        if (typeof msg.role !== 'string' || !VALID_ROLES.has(msg.role)) {
+            return { ok: false, error: `Invalid message role: ${String(msg.role)}` };
+        }
+        if (typeof msg.content !== 'string') {
+            return { ok: false, error: 'Message content must be a string' };
+        }
+        totalChars += msg.content.length;
+        messages.push({ role: msg.role as LLMMessage['role'], content: msg.content });
+    }
+    if (totalChars > MAX_TOTAL_CHARS) {
+        return { ok: false, error: 'Request too large' };
+    }
+
+    const rawOptions = (b.options as Record<string, unknown>) || {};
+    const options: ParsedBody['options'] = {};
+    if (typeof rawOptions.temperature === 'number') {
+        options.temperature = Math.min(2, Math.max(0, rawOptions.temperature));
+    }
+    if (typeof rawOptions.maxTokens === 'number') {
+        options.maxTokens = Math.min(MAX_OUTPUT_TOKENS, Math.max(1, Math.floor(rawOptions.maxTokens)));
+    }
+
+    // baseUrl is only honored for the local provider (Ollama).
+    const baseUrl = provider === 'local' && typeof b.baseUrl === 'string' ? b.baseUrl : undefined;
+
+    return {
+        ok: true,
+        body: { provider, model, messages, options, baseUrl, stream: b.stream === true }
+    };
+}
+
+export async function POST(request: NextRequest) {
+    let raw: unknown;
+    try {
+        raw = await request.json();
+    } catch {
+        return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+    }
+
+    const parsed = parseBody(raw);
+    if (!parsed.ok) {
+        return NextResponse.json({ error: parsed.error }, { status: 400 });
+    }
+    const { provider, model, messages, options, baseUrl, stream } = parsed.body;
+
+    if (!isProviderConfigured(provider)) {
+        return NextResponse.json(
+            { error: `${provider} is not configured on the server. Set the corresponding API key in .env.` },
+            { status: 503 }
+        );
+    }
+
+    const req: ServerLLMRequest = { provider, model, messages, options, baseUrl };
+
+    try {
+        if (stream) {
+            const body = await runStream(req);
+            return new Response(body, {
+                headers: {
+                    'Content-Type': 'text/plain; charset=utf-8',
+                    'Cache-Control': 'no-store'
+                }
+            });
+        }
+        const result = await runComplete(req);
+        return NextResponse.json(result);
+    } catch (err) {
+        // Never reflect raw upstream errors (may contain keys/PII). Log server-side.
+        console.error('[api/llm] provider call failed:', err);
+        return NextResponse.json(
+            { error: 'LLM provider request failed. Check server logs.' },
+            { status: 502 }
+        );
+    }
+}

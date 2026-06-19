@@ -3,7 +3,7 @@
 // ============================================
 
 export { LLMService, getLLMService, createLLMService } from './llm.service';
-export type { LLMMessage, LLMOptions, LLMResponse, LLMAdapter } from './llm.service';
+export type { LLMMessage, LLMOptions, LLMResponse } from './llm.service';
 
 export { MindEngine, getMindEngine } from './mind.engine';
 export type { ThinkResult } from './mind.engine';

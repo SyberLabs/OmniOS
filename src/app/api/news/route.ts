@@ -10,20 +10,21 @@ import { NextRequest, NextResponse } from 'next/server';
  */
 export async function GET(request: NextRequest) {
     try {
-        const apiKey = request.headers.get('x-api-key');
+        // Key is read server-side from the environment; it is never sent by the client.
+        const apiKey = process.env.NEWSAPI_KEY;
         const searchParams = request.nextUrl.searchParams;
-        const query = searchParams.get('query') || 'technology';
+        const query = (searchParams.get('query') || 'technology').slice(0, 500);
         const category = searchParams.get('category');
-        const language = searchParams.get('language') || 'en';
+        const language = (searchParams.get('language') || 'en').slice(0, 10);
 
         if (!apiKey) {
             return NextResponse.json(
                 {
                     success: false,
-                    error: 'API key required. Please configure your NewsAPI key in settings.',
+                    error: 'NewsAPI is not configured on the server. Set NEWSAPI_KEY in .env.',
                     timestamp: Date.now()
                 },
-                { status: 401 }
+                { status: 503 }
             );
         }
 

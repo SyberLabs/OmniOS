@@ -179,12 +179,12 @@ Only after Phases 1–4 are green. Tracked but not scheduled here:
 | 1.3 | Normalizer null→undefined (3 files) | ✅ | `metrics: metrics ?? undefined` at call sites in bls/fred/worldbank |
 | 1.4 | Green build confirmation | ✅ | `tsc --noEmit` 0 errors; `next build` succeeds (compiled 9.0s, 8 routes) |
 | 2 | CI / regression gate | ✅ | Added `typecheck` script + `.github/workflows/ci.yml`. Typecheck + build are **blocking**; lint is **non-blocking** (`continue-on-error`) because repo has 61 pre-existing lint errors — becomes blocking after Phase 5. Verified typecheck/build green locally. ⚠️ CI won't exercise real code until the untracked `src/` tree is committed (see note). |
-| 3.0 | Trim providers to 3 (Anthropic/Local/Gemini) + update Claude model | ⬜ | Drop OpenAI + DeepSeek |
-| 3.1 | Env scaffolding | ⬜ | |
-| 3.2 | Server-side LLM route | ⬜ | |
-| 3.3 | Server-side data routes | ⬜ | |
-| 3.4 | Settings UI migration | ⬜ | Depends on Open Question 1 |
-| 3.5 | Route input hardening | ⬜ | |
+| 3.0 | Trim providers to 3 (Anthropic/Local/Gemini) + update Claude model | ✅ | Dropped OpenAI+DeepSeek from `LLMProvider`/`LLM_DEFAULTS`; removed `apiKey` from `LLMConfig`; Claude default → `claude-haiku-4-5-20251001`. Added migration in mindStore `merge` to drop persisted keys + reset removed providers. |
+| 3.1 | Env scaffolding | ✅ | Added `.env.example` (ANTHROPIC/GOOGLE/NEWSAPI keys + OLLAMA_BASE_URL) and a README Configuration section. |
+| 3.2 | Server-side LLM route | ✅ | New `src/core/services/server/llm.adapters.ts` (`server-only`, reads process.env) + `/api/llm` route. Rewrote client `llm.service.ts` as a thin proxy with the **same public interface** — all 6 callers untouched. Streaming proxied as a text stream. |
+| 3.3 | Server-side data routes (scoped) | ✅ | **Scoped per decision:** NewsAPI route now reads `process.env.NEWSAPI_KEY` (removed client `x-api-key`); Polymarket/Metaculus are keyless. Stripped placeholder secrets from settings store. Full ~30-provider gateway proxying deferred (see follow-ups). |
+| 3.4 | Settings UI migration | ✅ | MindPanel + SettingsPanel: removed all client-side key inputs, replaced with "configured via .env" notices; dropped dead state/handlers; `setProvider` no longer takes a key. |
+| 3.5 | Route input hardening | ✅ | `/api/llm`: provider/role allowlists, message count + total-char caps, temp/token clamping, baseUrl honored only for local, upstream errors never reflected to client. |
 | 4 | Vitest harness | ⬜ | |
 | 5 | Hygiene cleanup | ⬜ | |
 | 6 | Feature work | ⬜ | Gated on Phases 1–4 |
@@ -193,4 +193,10 @@ Only after Phases 1–4 are green. Tracked but not scheduled here:
 - **2026-06-18** — Plan created from initial survey. No code changes yet.
 - **2026-06-18** — Resolved decisions: local-first single-user deployment; keep Anthropic + Local (Ollama) + Google (Gemini), drop OpenAI + DeepSeek. Added step 3.0 (provider trim + Claude model update).
 - **2026-06-18** — **Phase 1 complete.** Fixed all 8 build-blocking TS errors. Fixing the MetaculusView import unmasked 9 further pre-existing errors in that file (it had been silently excluded from typechecking due to the unresolvable import) — all resolved. `tsc --noEmit` clean; `next build` green. 8 files changed; no behavior changes intended. Ready to commit.
+- **2026-06-18** — Branched `fix/build-and-security` off `master`. Committed `3589a80`: imported the full untracked app source + Phase 1/2 changes in one commit (the entire `src/` tree had never been committed beyond the initial scaffold). `.claude/` added to `.gitignore`. Working tree clean. Not yet pushed (no remote configured / awaiting confirmation).
 - **2026-06-18** — **Phase 2 complete.** Added `typecheck` npm script + GitHub Actions CI (`.github/workflows/ci.yml`). Blocking: typecheck + build (both green). Non-blocking: lint — repo has **61 lint errors / 135 warnings** pre-existing, so making lint blocking now would render CI useless; it flips to blocking after Phase 5 cleanup. **Note:** the repo is still at the single "Initial commit" with most of `src/` untracked — CI will only meaningfully run once that tree is committed.
+- **2026-06-18** — **Phase 3 complete.** Secrets moved off the client. LLM calls now proxy through `/api/llm` (keys in `process.env`, never bundled); verified the client `.next/static` bundle contains **no key values** (only env-var *names* as UI labels). Providers trimmed to Local/Anthropic/Gemini; Claude model updated. NewsAPI key moved server-side (scoped). Settings UIs show "configured via .env" instead of key inputs. `tsc` + `build` green. **Decision:** data-route scope limited to NewsAPI+Polymarket (per user) — full gateway proxying deferred. **New finding:** a dormant `gateway/normalizers/llm.ts` path exists (registered, not invoked by any block) that would call `api.openai.com` client-side with a localStorage key — captured as a follow-up below, not a live exposure.
+
+### Deferred follow-ups (post-Phase 3)
+- **Full gateway key proxying:** the `ApiGateway` still fetches ~30 keyed third-party providers directly from the browser with keys persisted in `apiStore` (localStorage). Same pattern as the NewsAPI fix, repeated. Build a generic `/api/gateway/[provider]` route + migrate `apiStore` off client-stored keys.
+- **Dormant gateway `llmNormalizer`:** `src/core/gateway/normalizers/llm.ts` + the `openai`/`anthropic`/`google`/`groq` entries in `API_CATALOG` form a second client-side LLM path (defaults to `api.openai.com`, key from localStorage). Currently **unreachable** (no block calls `apiGateway.fetch('llm', …)`). Either remove it or route it through `/api/llm`.
