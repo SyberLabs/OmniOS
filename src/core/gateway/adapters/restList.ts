@@ -1,0 +1,174 @@
+﻿// ============================================
+// PROJECT OMNI: GENERIC REST LIST ADAPTER
+// Config-driven connector for JSON list APIs
+// ============================================
+
+import {
+    ApiProvider,
+    RestListAdapterConfig
+} from '@/core/schemas/api.schema';
+import {
+    ApiTypeDefinition,
+    OmniItem,
+    createOmniData,
+    createOmniError
+} from '../omnidata.schema';
+
+function getValueByPath(obj: unknown, path?: string): unknown {
+    if (!path) return undefined;
+    const segments = path.split('.');
+    let current: any = obj;
+    for (const segment of segments) {
+        if (current == null) return undefined;
+        current = current[segment];
+    }
+    return current;
+}
+
+function toTimestamp(value: unknown): number | undefined {
+    if (typeof value === 'number') return value;
+    if (typeof value === 'string') {
+        const parsed = Date.parse(value);
+        return Number.isNaN(parsed) ? undefined : parsed;
+    }
+    return undefined;
+}
+
+function toTags(value: unknown): string[] | undefined {
+    if (Array.isArray(value)) {
+        return value.map(v => String(v)).filter(Boolean);
+    }
+    if (typeof value === 'string') {
+        return value ? [value] : undefined;
+    }
+    return undefined;
+}
+
+function buildItems(raw: unknown, config: RestListAdapterConfig, providerId: string): OmniItem[] {
+    const listSource = config.itemsPath ? getValueByPath(raw, config.itemsPath) : raw;
+    const itemsArray = Array.isArray(listSource)
+        ? listSource
+        : Array.isArray((listSource as any)?.items)
+            ? (listSource as any).items
+            : [];
+
+    return itemsArray.map((item: any, index: number) => {
+        const idValue = getValueByPath(item, config.itemMap.id);
+        const titleValue = getValueByPath(item, config.itemMap.title);
+        const descriptionValue = getValueByPath(item, config.itemMap.description);
+        const urlValue = getValueByPath(item, config.itemMap.url);
+        const imageValue = getValueByPath(item, config.itemMap.image);
+        const timestampValue = getValueByPath(item, config.itemMap.timestamp);
+        const tagsValue = getValueByPath(item, config.itemMap.tags);
+
+        const metadata: Record<string, unknown> = {};
+        if (config.metadataMap) {
+            Object.entries(config.metadataMap).forEach(([key, path]) => {
+                metadata[key] = getValueByPath(item, path);
+            });
+        }
+
+        return {
+            id: String(idValue ?? `${providerId}-${Date.now()}-${index}`),
+            title: String(titleValue ?? 'Untitled'),
+            description: descriptionValue != null ? String(descriptionValue) : undefined,
+            url: urlValue != null ? String(urlValue) : undefined,
+            image: imageValue != null ? String(imageValue) : undefined,
+            timestamp: toTimestamp(timestampValue),
+            tags: toTags(tagsValue),
+            metadata: Object.keys(metadata).length > 0 ? metadata : undefined
+        };
+    });
+}
+
+export function createRestListAdapter(
+    provider: ApiProvider,
+    config: RestListAdapterConfig
+): ApiTypeDefinition<unknown> {
+    return {
+        category: config.category || 'custom',
+        displayName: provider.name,
+        cacheTtlMs: config.cacheTtlMs ?? 5 * 60 * 1000,
+        rateLimitMs: config.rateLimitMs ?? 1000,
+
+        fetchFn: async (apiKey, params) => {
+            if (provider.requiresAuth && !apiKey) {
+                return {
+                    error: {
+                        code: 'NO_API_KEY',
+                        message: `${provider.name} requires an API key. Add one in the API Dashboard.`
+                    }
+                };
+            }
+
+            const url = new URL(config.path, provider.baseUrl);
+            const mergedParams: Record<string, string | number | boolean> = {
+                ...(config.defaultParams || {})
+            };
+            Object.entries(params || {}).forEach(([key, value]) => {
+                if (value !== undefined && value !== null) {
+                    mergedParams[key] = value as string | number | boolean;
+                }
+            });
+
+            Object.entries(mergedParams).forEach(([key, value]) => {
+                url.searchParams.set(key, String(value));
+            });
+
+            const shouldInjectAuth = !!apiKey && (provider.requiresAuth || !!config.auth);
+
+            // Auth injection
+            if (shouldInjectAuth && config.auth?.in === 'query') {
+                const paramName = config.auth.name || 'api_key';
+                url.searchParams.set(paramName, apiKey);
+            }
+
+            const headers: Record<string, string> = {
+                ...(config.headers || {})
+            };
+
+            if (shouldInjectAuth && config.auth?.in === 'header') {
+                const headerName = config.auth.name || 'Authorization';
+                const prefix = config.auth.prefix || '';
+                headers[headerName] = `${prefix}${apiKey}`;
+            }
+
+            try {
+                const response = await fetch(url.toString(), {
+                    method: config.method || 'GET',
+                    headers
+                });
+
+                const data = await response.json();
+                return data;
+            } catch (error) {
+                return {
+                    error: {
+                        code: 'FETCH_ERROR',
+                        message: error instanceof Error ? error.message : 'Unknown error'
+                    }
+                };
+            }
+        },
+
+        normalizeFn: (raw) => {
+            if ((raw as any)?.error) {
+                return createOmniError(provider.id, config.category || 'custom', {
+                    code: (raw as any).error?.code || 'API_ERROR',
+                    message: (raw as any).error?.message || 'Unknown error',
+                    retryable: true
+                });
+            }
+
+            const items = buildItems(raw, config, provider.id);
+            return createOmniData(provider.id, config.category || 'custom', { items }, config.cacheTtlMs);
+        }
+    };
+}
+
+export default createRestListAdapter;
+
+
+
+
+

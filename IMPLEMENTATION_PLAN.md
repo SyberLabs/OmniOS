@@ -1,0 +1,196 @@
+# OMNI_OS — Implementation & Remediation Plan
+
+> Created: 2026-06-18 · Owner: engineering · Status: **In progress**
+>
+> This plan addresses the findings from the 2026-06-18 project survey. It is ordered by
+> dependency and risk: unblock the build first, harden security second, establish a safety
+> net third, then resume feature work. The **Progress** section at the bottom is the living
+> record — update it as each step lands.
+
+---
+
+## Guiding Principles
+
+1. **Green build before anything else.** No feature work proceeds until `next build` passes.
+2. **Smallest correct change.** Match surrounding code style; no opportunistic refactors mixed into fixes.
+3. **One concern per commit.** Build fixes, security migration, and tests land as separate, reviewable units.
+4. **Verify, don't assume.** Each phase ends with a concrete verification command and an observed result.
+
+---
+
+## Phase 0 — Baseline & Safety Net
+
+**Goal:** Capture the current state so regressions are detectable and work is reversible.
+
+| # | Step | Detail | Verify |
+|---|------|--------|--------|
+| 0.1 | Record baseline error count | `npx tsc --noEmit` → expect **8 errors**. Save output. | Output captured |
+| 0.2 | Confirm clean working tree intent | Decide whether to branch off `master`. Recommend `git checkout -b fix/build-and-security`. | Branch created |
+| 0.3 | Snapshot lint state | `npm run lint` → record warnings/errors so cleanup later is measurable. | Output captured |
+
+**Exit criteria:** baseline numbers recorded; working on a feature branch.
+
+---
+
+## Phase 1 — Unblock the Build (Critical)
+
+**Goal:** `next build` and `npx tsc --noEmit` both pass with zero errors.
+**Why first:** `next.config.ts` does not set `ignoreBuildErrors`, so these 8 errors hard-block any production build and any deploy.
+
+### 1.1 Fix broken module import (1 error)
+- **File:** [src/components/blocks/MetaculusView.tsx](src/components/blocks/MetaculusView.tsx#L17)
+- **Problem:** imports `@/core/schemas/omnidata.schema` which does not exist.
+- **Fix:** change the import path to `@/core/gateway/omnidata.schema` (where `OmniItem`, `ApiStatus` actually live). Cross-check the symbols are exported from that module; if `ApiStatus` is named differently there, align the import.
+- **Verify:** `npx tsc --noEmit` no longer reports `MetaculusView.tsx(17,...)`.
+
+### 1.2 Fix params index-signature errors (4 errors)
+- **Files:** [AlphaVantageBlock.ts](src/blocks/truth/AlphaVantageBlock.ts#L16), [BlsBlock.ts](src/blocks/truth/BlsBlock.ts), [FredBlock.ts](src/blocks/truth/FredBlock.ts), [WorldBankBlock.ts](src/blocks/truth/WorldBankBlock.ts)
+- **Problem:** each `*BlockParams` interface is passed to `useOmniData` whose `params` is typed `Record<string, unknown>`. A plain interface lacks an index signature, so assignment fails.
+- **Fix (preferred):** add an index signature to each params interface, e.g.:
+  ```ts
+  export interface AlphaVantageBlockParams {
+      symbol?: string;
+      function?: string;
+      [key: string]: unknown; // satisfies Record<string, unknown>
+  }
+  ```
+  Apply the same one-line addition to the other three. (Alternative — change `useOmniData`'s param type — is riskier and broader; prefer the local fix unless we want a single canonical `OmniParams` type.)
+- **Verify:** `tsc` no longer reports the four `truth/*Block.ts` errors.
+
+### 1.3 Fix normalizer null-vs-undefined errors (3 errors)
+- **Files:** [normalizers/bls.ts:181](src/core/gateway/normalizers/bls.ts#L181), [normalizers/fred.ts:155-157](src/core/gateway/normalizers/fred.ts#L155), [normalizers/worldbank.ts:142](src/core/gateway/normalizers/worldbank.ts#L142)
+- **Problem:** `buildMetrics()` can return `OmniMetrics | null`, but `createOmniData`'s payload expects `OmniMetrics | undefined`.
+- **Fix:** normalize the empty case to `undefined`. Either have `buildMetrics` return `OmniMetrics | undefined`, or coalesce at the call site: `metrics: metrics ?? undefined`. Pick whichever keeps the three files consistent (check what `coingecko`/other normalizers already do and match it).
+- **Verify:** `tsc` no longer reports the three normalizer errors.
+
+### 1.4 Full green-build confirmation
+- **Verify:**
+  - `npx tsc --noEmit` → **0 errors**
+  - `npm run build` → completes successfully
+- **Exit criteria:** clean typecheck + successful production build. **Commit:** `fix: resolve 8 TypeScript build-blocking errors`.
+
+---
+
+## Phase 2 — CI / Regression Gate
+
+**Goal:** Make it impossible to silently re-break the build.
+
+| # | Step | Detail |
+|---|------|--------|
+| 2.1 | Add `typecheck` script | Add `"typecheck": "tsc --noEmit"` to [package.json](package.json) scripts. |
+| 2.2 | Add CI workflow | `.github/workflows/ci.yml`: on push/PR run `npm ci`, `npm run typecheck`, `npm run build` (blocking) + `npm run lint` (non-blocking until Phase 5). |
+| 2.3 | (Optional) pre-commit | Lightweight hook or document the local command in README. |
+
+**Exit criteria:** CI fails on a deliberately introduced type error (verified once, then reverted). **Commit:** `ci: add typecheck + build gate`.
+
+---
+
+## Phase 3 — Secrets Off the Client (Security)
+
+**Goal:** No API keys or LLM keys are shipped to, stored in, or sent from the browser. All keyed calls are proxied server-side.
+**Context:** Today LLM keys live in `llmConfig.apiKey` (persisted to `localStorage` under `omni-mind`) and are sent directly from the browser by [llm.service.ts](src/core/services/llm.service.ts). NewsAPI/Polymarket keys are passed from the client via `x-api-key`.
+
+### 3.0 Trim providers to the chosen three
+- **Remove** the OpenAI and DeepSeek adapters from [llm.service.ts](src/core/services/llm.service.ts) and any provider enums/UI options (`LLMProvider`, settings dropdowns, `LLM_DEFAULTS`). Keep **Anthropic, Local (Ollama), Google (Gemini)**.
+- **Update the Anthropic default model** from the outdated `claude-3-haiku-20240307` to a current Claude model (e.g. a current Haiku/Sonnet id) in the adapter + `LLM_DEFAULTS`.
+- **Verify:** provider picker shows only the three; `tsc` still green.
+
+### 3.1 Environment scaffolding
+- Create `.env.example` documenting required vars for the **three kept providers**: `ANTHROPIC_API_KEY`, `GOOGLE_API_KEY`, plus optional `OLLAMA_BASE_URL`; and data APIs `NEWSAPI_KEY`, `POLYMARKET_API_KEY`. (No `OPENAI_API_KEY` / `DEEPSEEK_API_KEY`.)
+- Confirm `.env*` stays gitignored (it already is). Add a README section on configuration.
+- **Single-operator model:** keys are read from `process.env` server-side only; document that this is a local-first / single-user deployment and that public hosting requires adding auth first.
+
+### 3.2 Server-side LLM route
+- Create `src/app/api/llm/route.ts` (POST). It receives `{ provider, model, messages, options }`, reads the matching key from `process.env`, and performs the provider call server-side. Move the adapter logic from [llm.service.ts](src/core/services/llm.service.ts) into a server module (`src/core/services/server/llm.adapters.ts`) so it never bundles into client code.
+- Keep a thin client `llm.service.ts` that just `fetch('/api/llm', ...)`. Preserve the streaming path (proxy a `ReadableStream` through the route for Ollama/OpenAI streaming).
+- Update [mind.engine.ts](src/core/services/mind.engine.ts) and any callers (`coreMind.engine.ts`, `systemMind.engine.ts`) — interface should stay the same so changes are localized.
+
+### 3.3 Server-side third-party data routes
+- Route the gateway's keyed providers through server endpoints rather than browser fetches. The `restList` adapter and `ApiGateway.fetch` should call our own `/api/gateway/[provider]` route (or per-provider routes) which inject keys from `process.env`. Non-keyed/public APIs may remain client-side if CORS permits.
+- Remove the `x-api-key`-from-client pattern in [api.service.ts](src/core/services/api.service.ts); the Next routes read keys from env instead of headers.
+
+### 3.4 Migrate settings UI (local-first model)
+- Since deployment is **local-first single-user**, secrets live in `.env` (server-side), not in the UI. Remove provider-LLM key inputs from the Settings panel (or convert them to a read-only "configured via .env" status indicator). Stop persisting any provider key to `localStorage`.
+- Drop `apiKey` from the persisted `omni-mind` `llmConfig` partialize set so existing browsers stop retaining it.
+- Strip placeholder secrets (`POLYMARKET_API_KEY_PLACEHOLDER`, etc.) from the default store state.
+
+### 3.5 SSRF / input hardening on routes
+- All new `/api/*` routes: validate `provider`/`model` against an allowlist; cap `messages`/`maxTokens`; never reflect raw upstream errors containing keys.
+
+**Exit criteria:** grep confirms no provider key reaches client bundles; `omni-mind` localStorage no longer contains `apiKey`; LLM + news + polymarket still work end-to-end through server routes. **Commit:** `security: proxy LLM and keyed APIs through server routes`.
+
+---
+
+## Phase 4 — Test Harness (Quality)
+
+**Goal:** A safety net around the pure logic most likely to break.
+
+| # | Step | Detail |
+|---|------|--------|
+| 4.1 | Add Vitest | Install `vitest` + config; add `"test": "vitest"` script. |
+| 4.2 | Test normalizers | Unit-test each `src/core/gateway/normalizers/*` with a captured raw sample → asserts shape, empty-input, and the null/undefined metrics path from 1.3. |
+| 4.3 | Test port/wire logic | Cover `port.service.ts` (`validateWire`, `convertWireData`, compatibility matrix) and `wire.service.ts`. |
+| 4.4 | Test shell snapshot | `shell.snapshot.ts` `captureShellSnapshot` / `formatSnapshotForLLM` with a fixture store. |
+| 4.5 | Wire into CI | Add `npm test` to the Phase 2 workflow. |
+
+**Exit criteria:** `npm test` green in CI; normalizer + port + snapshot logic covered. **Commit:** `test: add vitest suite for normalizers, ports, snapshot`.
+
+---
+
+## Phase 5 — Hygiene Cleanup (Low risk)
+
+| # | Step | Detail |
+|---|------|--------|
+| 5.1 | Remove debug logs | Strip per-render `console.log` from blocks (e.g. [CoinGeckoBlock.ts](src/blocks/truth/CoinGeckoBlock.ts)) or gate behind a `DEBUG` flag. |
+| 5.2 | Tighten `any` in routes | Add minimal response interfaces in [api/polymarket](src/app/api/polymarket/route.ts) / [api/news](src/app/api/news/route.ts) parsing. |
+| 5.3 | Consolidate data path | Decide whether legacy `api.service.ts` is retired in favor of `ApiGateway`; document the canonical path. |
+
+**Exit criteria:** lint warning count reduced from Phase 0 baseline; one documented data-fetch path.
+
+---
+
+## Phase 6 — Resume Feature Work (per vision.md / life_systems.md)
+
+Only after Phases 1–4 are green. Tracked but not scheduled here:
+- Memory crystallization loop (insight → new wired block).
+- Persona-to-persona wiring.
+- Port UI visualization (indicators, type colors, tooltips).
+- Complete Life Systems domains (career/finance/relationships/mind/environment/time).
+
+---
+
+## Resolved Decisions (2026-06-18)
+
+1. **Deployment model: Local-first single-user.** Matches the existing design (all state in `localStorage`, default provider is local Ollama, no auth/DB). Phase 3 uses **env-based server proxying for a single operator** — no key vault, no per-user auth.
+   - **Constraint baked in:** local-first is the *only* supported model. Hosting this publicly would expose the single operator's env keys to every visitor, so **public hosting must add auth first** — out of scope until explicitly requested.
+2. **Provider scope: keep 3 — Anthropic, Local (Ollama), Google (Gemini).** **Drop OpenAI and DeepSeek** adapters (easy to re-add later via the adapter pattern). Also: the Anthropic adapter currently hardcodes the outdated `claude-3-haiku-20240307` — update its default to a current Claude model during Phase 3.
+
+---
+
+## Progress
+
+> Update this table as steps land. Status: ⬜ not started · 🟡 in progress · ✅ done · ⛔ blocked
+
+| Phase | Step | Status | Notes / Date |
+|-------|------|--------|--------------|
+| 0 | Baseline & safety net | ✅ | Survey done 2026-06-18; baseline = 8 TS errors |
+| 1.1 | MetaculusView import fix | ✅ | Fixing the import unmasked 9 hidden errors in the file (it was unresolvable before). Root cause: component typed against wrong `ApiStatus` + raw `unknown` metadata. Fixed: import `OmniItem` from `@/core/gateway`, status prop retyped `ApiStatus`→`ConnectionStatus`, `'fetching'`→`'connecting'`, metadata reads cast to concrete types. |
+| 1.2 | Params index-signature (4 blocks) | ✅ | Added `[key: string]: unknown` to Alpha/Bls/Fred/WorldBank params |
+| 1.3 | Normalizer null→undefined (3 files) | ✅ | `metrics: metrics ?? undefined` at call sites in bls/fred/worldbank |
+| 1.4 | Green build confirmation | ✅ | `tsc --noEmit` 0 errors; `next build` succeeds (compiled 9.0s, 8 routes) |
+| 2 | CI / regression gate | ✅ | Added `typecheck` script + `.github/workflows/ci.yml`. Typecheck + build are **blocking**; lint is **non-blocking** (`continue-on-error`) because repo has 61 pre-existing lint errors — becomes blocking after Phase 5. Verified typecheck/build green locally. ⚠️ CI won't exercise real code until the untracked `src/` tree is committed (see note). |
+| 3.0 | Trim providers to 3 (Anthropic/Local/Gemini) + update Claude model | ⬜ | Drop OpenAI + DeepSeek |
+| 3.1 | Env scaffolding | ⬜ | |
+| 3.2 | Server-side LLM route | ⬜ | |
+| 3.3 | Server-side data routes | ⬜ | |
+| 3.4 | Settings UI migration | ⬜ | Depends on Open Question 1 |
+| 3.5 | Route input hardening | ⬜ | |
+| 4 | Vitest harness | ⬜ | |
+| 5 | Hygiene cleanup | ⬜ | |
+| 6 | Feature work | ⬜ | Gated on Phases 1–4 |
+
+### Changelog
+- **2026-06-18** — Plan created from initial survey. No code changes yet.
+- **2026-06-18** — Resolved decisions: local-first single-user deployment; keep Anthropic + Local (Ollama) + Google (Gemini), drop OpenAI + DeepSeek. Added step 3.0 (provider trim + Claude model update).
+- **2026-06-18** — **Phase 1 complete.** Fixed all 8 build-blocking TS errors. Fixing the MetaculusView import unmasked 9 further pre-existing errors in that file (it had been silently excluded from typechecking due to the unresolvable import) — all resolved. `tsc --noEmit` clean; `next build` green. 8 files changed; no behavior changes intended. Ready to commit.
+- **2026-06-18** — **Phase 2 complete.** Added `typecheck` npm script + GitHub Actions CI (`.github/workflows/ci.yml`). Blocking: typecheck + build (both green). Non-blocking: lint — repo has **61 lint errors / 135 warnings** pre-existing, so making lint blocking now would render CI useless; it flips to blocking after Phase 5 cleanup. **Note:** the repo is still at the single "Initial commit" with most of `src/` untracked — CI will only meaningfully run once that tree is committed.

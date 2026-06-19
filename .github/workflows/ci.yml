@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+
+jobs:
+  build:
+    name: Typecheck & Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Blocking gates — these protect the green build (Phase 1).
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+
+      # Non-blocking for now: the repo has pre-existing lint errors
+      # (61 errors / 135 warnings as of 2026-06-18). Lint is surfaced here
+      # for visibility and will become a blocking gate after the Phase 5
+      # hygiene cleanup. See IMPLEMENTATION_PLAN.md.
+      - name: Lint (non-blocking)
+        run: npm run lint
+        continue-on-error: true

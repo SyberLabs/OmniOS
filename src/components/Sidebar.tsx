@@ -1,0 +1,285 @@
+'use client';
+
+// ============================================
+// PROJECT OMNI: ARMORY SIDEBAR
+// ============================================
+
+import { motion } from 'framer-motion';
+import {
+    Search,
+    TrendingUp,
+    Newspaper,
+    LineChart,
+    Globe,
+    Plane,
+    Ship,
+    Activity,
+    BookOpen,
+    ChevronDown,
+    ChevronRight,
+    FileText,
+    Code,
+    MessageSquare,
+    Image,
+    Cpu,
+    Heart,
+    Briefcase,
+    Wallet,
+    Home,
+    Clock,
+    User,
+    Calculator,
+    Hexagon,
+    Maximize
+} from 'lucide-react';
+import { useState } from 'react';
+import { blockRegistry } from '@/core/registry/BlockRegistry';
+import { OmniBlockSchema, BlockCategory } from '@/core/schemas/block.schema';
+import { useBlockStore, useUIStore } from '@/core/stores';
+import { cn } from '@/lib/utils';
+
+// Icon mapping
+const CATEGORY_ICONS: Record<BlockCategory, React.ReactNode> = {
+    truth: <TrendingUp className="w-4 h-4" />,
+    pulse: <Newspaper className="w-4 h-4" />,
+    physicality: <Globe className="w-4 h-4" />,
+    model: <Activity className="w-4 h-4" />,
+    workspace: <FileText className="w-4 h-4" />,
+    system: <Cpu className="w-4 h-4" />,
+    health: <Heart className="w-4 h-4" />,
+    career: <Briefcase className="w-4 h-4" />,
+    finance: <Wallet className="w-4 h-4" />,
+    mind_system: <Activity className="w-4 h-4" />,
+    relationships: <User className="w-4 h-4" />,
+    environment: <Home className="w-4 h-4" />,
+    time: <Clock className="w-4 h-4" />
+};
+
+const BLOCK_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+    TrendingUp,
+    Newspaper,
+    LineChart,
+    Globe,
+    Plane,
+    Ship,
+    Activity,
+    BookOpen,
+    FileText,
+    Code,
+    MessageSquare,
+    Image,
+    Cpu,
+    Heart,
+    Briefcase,
+    Wallet,
+    Home,
+    Clock,
+    User: User,
+    Users: User,
+    Brain: Activity,
+    Calculator,
+    Hexagon,
+    Maximize: Maximize
+};
+
+const CATEGORY_LABELS: Record<BlockCategory, string> = {
+    truth: 'Truth Blocks',
+    pulse: 'Pulse Blocks',
+    physicality: 'Physicality Blocks',
+    model: 'Model Blocks',
+    workspace: 'Workspace Blocks',
+    system: 'System Blocks',
+    health: 'Health Blocks',
+    career: 'Career Blocks',
+    finance: 'Finance Blocks',
+    mind_system: 'Mind Blocks',
+    relationships: 'Relationships Blocks',
+    environment: 'Environment Blocks',
+    time: 'Time Blocks'
+};
+
+const CATEGORY_DESCRIPTIONS: Record<BlockCategory, string> = {
+    truth: 'Prediction markets & financials',
+    pulse: 'Narrative & sentiment',
+    physicality: 'Real-world telemetry',
+    model: 'AI models & biomarkers',
+    workspace: 'Notes, code, chat & media',
+    system: 'Life Systems & Core Calculator',
+    health: 'Body, mind & spirit wellness',
+    career: 'Work, growth & networking',
+    finance: 'Income, expenses & wealth',
+    mind_system: 'Cognition, emotions & consciousness',
+    relationships: 'Family, friends & community',
+    environment: 'Living, digital & natural spaces',
+    time: 'Present, future & legacy'
+};
+
+export function Sidebar() {
+    const [searchQuery, setSearchQuery] = useState('');
+    const [expandedCategories, setExpandedCategories] = useState<BlockCategory[]>(['workspace', 'health']);
+
+    const allBlocks = blockRegistry.getAll();
+    const filteredBlocks = searchQuery
+        ? blockRegistry.search(searchQuery)
+        : allBlocks;
+
+    // Group blocks by category
+    const blocksByCategory = filteredBlocks.reduce((acc, block) => {
+        if (!acc[block.category]) acc[block.category] = [];
+        acc[block.category].push(block);
+        return acc;
+    }, {} as Record<BlockCategory, OmniBlockSchema[]>);
+
+    const toggleCategory = (category: BlockCategory) => {
+        setExpandedCategories(prev =>
+            prev.includes(category)
+                ? prev.filter(c => c !== category)
+                : [...prev, category]
+        );
+    };
+
+    return (
+        <aside className="sidebar">
+            {/* Header */}
+            <div className="sidebar-header">
+                <h2 className="text-lg font-semibold text-[var(--text-primary)]">The Armory</h2>
+                <p className="text-xs text-[var(--text-muted)] mt-0.5">Drag blocks to your Canvas</p>
+            </div>
+
+            {/* Search */}
+            <div className="px-4 py-3 border-b border-[var(--citadel-border)]">
+                <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
+                    <input
+                        type="text"
+                        placeholder="Search blocks..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full pl-9 pr-4 py-2 bg-[var(--citadel-elevated)] border border-[var(--citadel-border)] rounded-lg text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--citadel-primary)]"
+                    />
+                </div>
+            </div>
+
+            {/* Block Categories */}
+            <div className="sidebar-content space-y-2">
+                {(['workspace', 'health', 'career', 'finance', 'mind_system', 'relationships', 'environment', 'time', 'system', 'model', 'truth', 'pulse', 'physicality'] as BlockCategory[]).map(category => {
+                    const blocks = blocksByCategory[category] || [];
+                    const isExpanded = expandedCategories.includes(category);
+
+                    return (
+                        <div key={category} className="rounded-lg overflow-hidden">
+                            {/* Category Header */}
+                            <button
+                                onClick={() => toggleCategory(category)}
+                                className="w-full flex items-center gap-2 px-3 py-2 bg-[var(--citadel-elevated)] hover:bg-[var(--citadel-border)]/30 transition-colors"
+                            >
+                                <span className="text-[var(--text-secondary)]">
+                                    {CATEGORY_ICONS[category]}
+                                </span>
+                                <div className="flex-1 text-left">
+                                    <span className="text-sm font-medium text-[var(--text-primary)]">
+                                        {CATEGORY_LABELS[category]}
+                                    </span>
+                                    <span className="text-xs text-[var(--text-muted)] ml-2">
+                                        ({blocks.length})
+                                    </span>
+                                </div>
+                                {isExpanded ? (
+                                    <ChevronDown className="w-4 h-4 text-[var(--text-muted)]" />
+                                ) : (
+                                    <ChevronRight className="w-4 h-4 text-[var(--text-muted)]" />
+                                )}
+                            </button>
+
+                            {/* Category Blocks */}
+                            {isExpanded && (
+                                <motion.div
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: 'auto', opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }}
+                                    className="bg-[var(--citadel-surface)] border-t border-[var(--citadel-border)]"
+                                >
+                                    {blocks.length === 0 ? (
+                                        <p className="px-3 py-2 text-xs text-[var(--text-muted)]">
+                                            {CATEGORY_DESCRIPTIONS[category]}
+                                        </p>
+                                    ) : (
+                                        blocks.map(block => (
+                                            <BlockItem key={block.block_id} block={block} />
+                                        ))
+                                    )}
+                                </motion.div>
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
+        </aside>
+    );
+}
+
+// ============================================
+// INDIVIDUAL BLOCK ITEM
+// ============================================
+
+interface BlockItemProps {
+    block: OmniBlockSchema;
+}
+
+function BlockItem({ block }: BlockItemProps) {
+    const { addBlock } = useBlockStore();
+    const { setDraggingBlock } = useUIStore();
+
+    const Icon = block.icon ? BLOCK_ICONS[block.icon] || Activity : Activity;
+
+    const handleDragStart = (e: React.DragEvent) => {
+        setDraggingBlock(block.block_id);
+        e.dataTransfer.setData('text/plain', block.block_id);
+        e.dataTransfer.effectAllowed = 'copy';
+    };
+
+    const handleDragEnd = () => {
+        setDraggingBlock(null);
+    };
+
+    const handleClick = () => {
+        // Quick-add to canvas at a default position
+        const offset = Math.random() * 100;
+        addBlock(block, { x: 320 + offset, y: 80 + offset });
+    };
+
+    return (
+        <div
+            draggable
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+            onClick={handleClick}
+            className={cn(
+                "cursor-grab active:cursor-grabbing",
+                "border-b border-[var(--citadel-border)]/50 last:border-b-0"
+            )}
+        >
+            <motion.div
+                whileHover={{ x: 4 }}
+                className={cn(
+                    "flex items-center gap-3 px-3 py-2.5",
+                    "hover:bg-[var(--citadel-elevated)] transition-colors"
+                )}
+            >
+                <div className="w-8 h-8 rounded-lg bg-[var(--citadel-primary)]/10 flex items-center justify-center text-[var(--citadel-primary)]">
+                    <Icon className="w-4 h-4" />
+                </div>
+                <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-[var(--text-primary)] truncate">
+                        {block.display_name}
+                    </p>
+                    <p className="text-xs text-[var(--text-muted)] truncate">
+                        {block.description}
+                    </p>
+                </div>
+            </motion.div>
+        </div>
+    );
+}
+
+export default Sidebar;
