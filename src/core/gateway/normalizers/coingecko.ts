@@ -10,6 +10,7 @@ import {
     createOmniData,
     createOmniError
 } from '../omnidata.schema';
+import { debug } from '../../debug';
 
 /**
  * CoinGecko coin data from /coins/markets endpoint
@@ -62,14 +63,14 @@ export const coingeckoNormalizer: ApiTypeDefinition<CoinGeckoRawResponse> = {
         const limit = (params?.limit as number) || 50;
         const currency = (params?.currency as string) || 'usd';
 
-        console.log('[CoinGecko] 🎯 Starting fetch...', { limit, currency });
+        debug('[CoinGecko] 🎯 Starting fetch...', { limit, currency });
 
         try {
             // CoinGecko public API - no auth needed
             // Using /coins/markets for rich market data
             const url = `https://api.coingecko.com/api/v3/coins/markets?vs_currency=${currency}&order=market_cap_desc&per_page=${limit}&page=1&sparkline=false&price_change_percentage=24h`;
 
-            console.log('[CoinGecko] 📡 Fetching from:', url);
+            debug('[CoinGecko] 📡 Fetching from:', url);
 
             const response = await fetch(url, {
                 headers: {
@@ -77,12 +78,12 @@ export const coingeckoNormalizer: ApiTypeDefinition<CoinGeckoRawResponse> = {
                 }
             });
 
-            console.log('[CoinGecko] 📥 Response status:', response.status, response.statusText);
+            debug('[CoinGecko] 📥 Response status:', response.status, response.statusText);
 
             if (!response.ok) {
                 // CoinGecko returns 429 for rate limits
                 if (response.status === 429) {
-                    console.log('[CoinGecko] ⚠️ Rate limited');
+                    debug('[CoinGecko] ⚠️ Rate limited');
                     return { error: 'Rate limited - please wait before retrying' };
                 }
                 throw new Error(`CoinGecko API error: ${response.status}`);
@@ -90,13 +91,13 @@ export const coingeckoNormalizer: ApiTypeDefinition<CoinGeckoRawResponse> = {
 
             const data = await response.json();
 
-            console.log('[CoinGecko] ✅ Data received:', {
+            debug('[CoinGecko] ✅ Data received:', {
                 isArray: Array.isArray(data),
                 count: Array.isArray(data) ? data.length : 0
             });
 
             if (Array.isArray(data) && data.length > 0) {
-                console.log('[CoinGecko] 🔍 First coin:', {
+                debug('[CoinGecko] 🔍 First coin:', {
                     id: data[0].id,
                     name: data[0].name,
                     price: data[0].current_price,
@@ -112,7 +113,7 @@ export const coingeckoNormalizer: ApiTypeDefinition<CoinGeckoRawResponse> = {
     },
 
     normalizeFn: (raw) => {
-        console.log('[CoinGecko] 🔄 Normalizing response...');
+        debug('[CoinGecko] 🔄 Normalizing response...');
 
         // Handle error response
         if (!Array.isArray(raw) && 'error' in raw && raw.error) {
@@ -125,10 +126,10 @@ export const coingeckoNormalizer: ApiTypeDefinition<CoinGeckoRawResponse> = {
         }
 
         const coins = raw as CoinGeckoCoin[];
-        console.log('[CoinGecko] 📊 Processing', coins.length, 'coins');
+        debug('[CoinGecko] 📊 Processing', coins.length, 'coins');
 
         if (coins.length === 0) {
-            console.log('[CoinGecko] ⚠️ No coins received');
+            debug('[CoinGecko] ⚠️ No coins received');
             return createOmniData('coingecko', 'market_data', { items: [] }, 60000);
         }
 
@@ -171,9 +172,9 @@ export const coingeckoNormalizer: ApiTypeDefinition<CoinGeckoRawResponse> = {
             };
         });
 
-        console.log('[CoinGecko] ✅ Normalized', items.length, 'items');
+        debug('[CoinGecko] ✅ Normalized', items.length, 'items');
         if (items.length > 0) {
-            console.log('[CoinGecko] 🔍 First normalized item:', {
+            debug('[CoinGecko] 🔍 First normalized item:', {
                 id: items[0].id,
                 title: items[0].title,
                 price: items[0].metadata?.price,

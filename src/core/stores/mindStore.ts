@@ -594,7 +594,7 @@ export const useMindStore = create<MindStore>()(
                         e.metadata?.isAwareness === true && e.metadata?.blockType === blockType
                     );
 
-                    let newEntries = [...pool.entries];
+                    const newEntries = [...pool.entries];
 
                     if (existingEntryIndex >= 0) {
                         // Update existing awareness entry

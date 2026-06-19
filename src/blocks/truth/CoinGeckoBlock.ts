@@ -6,6 +6,7 @@
 import { useEffect, useMemo } from 'react';
 import { useBlockStore, useSettingsStore } from '@/core/stores';
 import { useOmniData } from '@/core/hooks';
+import { debug } from '@/core/debug';
 
 /**
  * CoinGecko cryptocurrency data for block display
@@ -65,7 +66,7 @@ export function useCoinGeckoBlock(instanceId: string) {
     const { useMockData } = useSettingsStore();
     const block = getBlock(instanceId);
 
-    console.log('[CoinGeckoBlock] 🚀 Hook initialized', { instanceId, useMockData });
+    debug('[CoinGeckoBlock] 🚀 Hook initialized', { instanceId, useMockData });
 
     // Use the new API Gateway hook
     const {
@@ -79,7 +80,7 @@ export function useCoinGeckoBlock(instanceId: string) {
         refreshInterval: useMockData ? 10000 : 60000  // 1 min refresh for live data
     });
 
-    console.log('[CoinGeckoBlock] 📥 useOmniData returned:', {
+    debug('[CoinGeckoBlock] 📥 useOmniData returned:', {
         itemsCount: items.length,
         isLoading,
         error,
@@ -89,7 +90,7 @@ export function useCoinGeckoBlock(instanceId: string) {
     // Convert OmniData items to crypto assets
     const assets = useMemo(() => {
         const converted = omniItemsToCryptoAssets(items);
-        console.log('[CoinGeckoBlock] 🔄 Converted to assets:', converted.length);
+        debug('[CoinGeckoBlock] 🔄 Converted to assets:', converted.length);
         return converted;
     }, [items]);
 

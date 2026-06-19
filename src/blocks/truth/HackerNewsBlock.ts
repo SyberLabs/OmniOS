@@ -6,6 +6,7 @@
 import { useEffect, useMemo } from 'react';
 import { useBlockStore, useSettingsStore } from '@/core/stores';
 import { useOmniData } from '@/core/hooks';
+import { debug } from '@/core/debug';
 
 /**
  * Hacker News story for block display
@@ -59,7 +60,7 @@ export function useHackerNewsBlock(instanceId: string) {
     const { useMockData } = useSettingsStore();
     const block = getBlock(instanceId);
 
-    console.log('[HackerNewsBlock] 🚀 Hook initialized', { instanceId, useMockData });
+    debug('[HackerNewsBlock] 🚀 Hook initialized', { instanceId, useMockData });
 
     const {
         items,
@@ -72,7 +73,7 @@ export function useHackerNewsBlock(instanceId: string) {
         refreshInterval: useMockData ? 30000 : 300000  // 5 min refresh for live data
     });
 
-    console.log('[HackerNewsBlock] 📥 useOmniData returned:', {
+    debug('[HackerNewsBlock] 📥 useOmniData returned:', {
         itemsCount: items.length,
         isLoading,
         error,
@@ -81,7 +82,7 @@ export function useHackerNewsBlock(instanceId: string) {
 
     const stories = useMemo(() => {
         const converted = omniItemsToHNStories(items);
-        console.log('[HackerNewsBlock] 🔄 Converted to stories:', converted.length);
+        debug('[HackerNewsBlock] 🔄 Converted to stories:', converted.length);
         return converted;
     }, [items]);
 

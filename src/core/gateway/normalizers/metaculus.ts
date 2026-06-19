@@ -9,6 +9,7 @@ import {
     createOmniData,
     createOmniError
 } from '../omnidata.schema';
+import { debug } from '../../debug';
 
 /**
  * Raw Metaculus API Question structure
@@ -99,19 +100,19 @@ export const metaculusNormalizer: ApiTypeDefinition<MetaculusResponse> = {
         const limit = (params?.limit as number) || 20;
         const search = (params?.search as string) || '';
 
-        console.log('[Metaculus] 🎯 Starting fetch...', { limit, search });
+        debug('[Metaculus] 🎯 Starting fetch...', { limit, search });
 
         try {
             let proxyUrl = `/api/metaculus?limit=${limit}`;
             if (search) proxyUrl += `&search=${encodeURIComponent(search)}`;
 
-            console.log('[Metaculus] 📡 Using local proxy:', proxyUrl);
+            debug('[Metaculus] 📡 Using local proxy:', proxyUrl);
 
             const response = await fetch(proxyUrl);
 
             if (response.ok) {
                 const data = await response.json();
-                console.log('[Metaculus] ✅ Proxy succeeded:', {
+                debug('[Metaculus] ✅ Proxy succeeded:', {
                     resultCount: data.results?.length || 0
                 });
                 return data;
@@ -126,7 +127,7 @@ export const metaculusNormalizer: ApiTypeDefinition<MetaculusResponse> = {
     },
 
     normalizeFn: (raw) => {
-        console.log('[Metaculus] 🔄 Normalizing response...');
+        debug('[Metaculus] 🔄 Normalizing response...');
 
         if (raw.error) {
             return createOmniError('metaculus', 'prediction_market', {
@@ -203,7 +204,7 @@ export const metaculusNormalizer: ApiTypeDefinition<MetaculusResponse> = {
             };
         });
 
-        console.log(`[Metaculus] ✅ Normalized ${items.length} items`);
+        debug(`[Metaculus] ✅ Normalized ${items.length} items`);
 
         return createOmniData('metaculus', 'prediction_market', { items }, 60000);
     }

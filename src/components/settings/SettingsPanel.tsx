@@ -208,7 +208,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
 
                                 <div className="space-y-3 p-4 bg-[var(--citadel-surface)] rounded-lg border border-[var(--citadel-border)]">
                                     <p className="text-xs text-[var(--text-muted)]">
-                                        Polymarket uses a public API that doesn't require authentication for basic access.
+                                        Polymarket uses a public API that doesn&apos;t require authentication for basic access.
                                     </p>
 
                                     <button
@@ -247,7 +247,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                                 <p className="text-xs text-[var(--text-muted)] leading-relaxed">
                                     <strong className="text-[var(--citadel-primary)]">💡 Tip:</strong> API keys are configured
                                     server-side via <code className="px-1 py-0.5 rounded bg-[var(--citadel-bg)] text-[var(--text-primary)]">.env</code> and
-                                    are never stored in the browser. Toggle "Use Mock Data" to explore the interface with demo
+                                    are never stored in the browser. Toggle &quot;Use Mock Data&quot; to explore the interface with demo
                                     data before configuring real APIs.
                                 </p>
                             </div>

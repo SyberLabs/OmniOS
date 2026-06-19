@@ -11,6 +11,7 @@ import {
     createOmniData,
     createOmniError
 } from '../omnidata.schema';
+import { debug } from '../../debug';
 
 /**
  * Raw Polymarket Gamma API market response
@@ -66,25 +67,25 @@ export const polymarketNormalizer: ApiTypeDefinition<PolymarketRawResponse> = {
     fetchFn: async (_apiKey, params) => {
         const limit = (params?.limit as number) || 50;
 
-        console.log('[Polymarket] 🎯 Starting fetch...', { limit });
+        debug('[Polymarket] 🎯 Starting fetch...', { limit });
 
         // Use the local Next.js API route which proxies to Gamma API server-side
         // This bypasses CORS restrictions
         try {
             const proxyUrl = `/api/polymarket?limit=${limit}`;
-            console.log('[Polymarket] 📡 Using local proxy:', proxyUrl);
+            debug('[Polymarket] 📡 Using local proxy:', proxyUrl);
 
             const response = await fetch(proxyUrl);
 
             if (response.ok) {
                 const data = await response.json();
-                console.log('[Polymarket] ✅ Proxy succeeded:', {
+                debug('[Polymarket] ✅ Proxy succeeded:', {
                     success: data.success,
                     marketCount: data.markets?.length || 0
                 });
 
                 if (data.success && data.markets?.length > 0) {
-                    console.log('[Polymarket] 🔍 First market:', {
+                    debug('[Polymarket] 🔍 First market:', {
                         id: data.markets[0].id,
                         question: data.markets[0].question?.substring(0, 50)
                     });
@@ -93,21 +94,21 @@ export const polymarketNormalizer: ApiTypeDefinition<PolymarketRawResponse> = {
                 }
             }
 
-            console.log('[Polymarket] ⚠️ Proxy returned:', response.status);
+            debug('[Polymarket] ⚠️ Proxy returned:', response.status);
         } catch (proxyError) {
-            console.log('[Polymarket] ⚠️ Proxy failed:', proxyError);
+            debug('[Polymarket] ⚠️ Proxy failed:', proxyError);
         }
 
         // Fallback to direct CLOB API (may have stale data)
         try {
             const clobUrl = `https://clob.polymarket.com/markets?limit=${limit}&closed=false`;
-            console.log('[Polymarket] 📡 Trying CLOB API fallback:', clobUrl);
+            debug('[Polymarket] 📡 Trying CLOB API fallback:', clobUrl);
 
             const response = await fetch(clobUrl);
 
             if (response.ok) {
                 const data = await response.json();
-                console.log('[Polymarket] ✅ CLOB API succeeded:', data.data?.length || 0, 'markets');
+                debug('[Polymarket] ✅ CLOB API succeeded:', data.data?.length || 0, 'markets');
                 return data;
             }
 
@@ -119,7 +120,7 @@ export const polymarketNormalizer: ApiTypeDefinition<PolymarketRawResponse> = {
     },
 
     normalizeFn: (raw) => {
-        console.log('[Polymarket] 🔄 Normalizing response...');
+        debug('[Polymarket] 🔄 Normalizing response...');
 
         // Handle error response
         if (!Array.isArray(raw) && 'error' in raw && raw.error) {
@@ -136,15 +137,15 @@ export const polymarketNormalizer: ApiTypeDefinition<PolymarketRawResponse> = {
             ? raw
             : (raw as { data?: PolymarketGammaMarket[] }).data || [];
 
-        console.log('[Polymarket] 📊 Processing', markets.length, 'markets');
+        debug('[Polymarket] 📊 Processing', markets.length, 'markets');
 
         if (markets.length === 0) {
-            console.log('[Polymarket] ⚠️ No markets received');
+            debug('[Polymarket] ⚠️ No markets received');
             return createOmniData('polymarket', 'prediction_market', { items: [] }, 60000);
         }
 
         // Log first market structure
-        console.log('[Polymarket] 🔍 First market keys:', Object.keys(markets[0]));
+        debug('[Polymarket] 🔍 First market keys:', Object.keys(markets[0]));
 
         // Take first 50 markets
         const items: OmniItem[] = markets.slice(0, 50).map((market, index) => {
@@ -153,8 +154,8 @@ export const polymarketNormalizer: ApiTypeDefinition<PolymarketRawResponse> = {
 
             // Log token structure for first market
             if (index === 0) {
-                console.log('[Polymarket] 🔍 First market outcomes:', JSON.stringify(market.outcomes)?.substring(0, 300));
-                console.log('[Polymarket] 🔍 First market tokens:', market.tokens ? JSON.stringify(market.tokens).substring(0, 300) : 'undefined');
+                debug('[Polymarket] 🔍 First market outcomes:', JSON.stringify(market.outcomes)?.substring(0, 300));
+                debug('[Polymarket] 🔍 First market tokens:', market.tokens ? JSON.stringify(market.tokens).substring(0, 300) : 'undefined');
             }
 
             // Proxy API returns already processed outcomes with probability
@@ -162,7 +163,7 @@ export const polymarketNormalizer: ApiTypeDefinition<PolymarketRawResponse> = {
                 // Ensure probability is a number
                 const rawProb = market.outcomes[0].probability;
                 probability = typeof rawProb === 'string' ? parseFloat(rawProb) : rawProb;
-                if (index === 0) console.log('[Polymarket] ✅ Using outcomes.probability:', probability);
+                if (index === 0) debug('[Polymarket] ✅ Using outcomes.probability:', probability);
             }
             // Gamma API: outcomePrices is a JSON string like "[0.65, 0.35]"
             else if (market.outcomePrices) {
@@ -174,7 +175,7 @@ export const polymarketNormalizer: ApiTypeDefinition<PolymarketRawResponse> = {
                         probability = parseFloat(prices[0]);
                     }
                 } catch {
-                    console.log('[Polymarket] ⚠️ Could not parse outcomePrices:', market.outcomePrices);
+                    debug('[Polymarket] ⚠️ Could not parse outcomePrices:', market.outcomePrices);
                 }
             }
             // CLOB API: tokens array with price field
@@ -217,9 +218,9 @@ export const polymarketNormalizer: ApiTypeDefinition<PolymarketRawResponse> = {
             };
         });
 
-        console.log('[Polymarket] ✅ Normalized', items.length, 'items');
+        debug('[Polymarket] ✅ Normalized', items.length, 'items');
         if (items.length > 0) {
-            console.log('[Polymarket] 🔍 First normalized item:', {
+            debug('[Polymarket] 🔍 First normalized item:', {
                 id: items[0].id.substring(0, 20) + '...',
                 title: items[0].title.substring(0, 40) + '...',
                 probability: items[0].metadata?.probability

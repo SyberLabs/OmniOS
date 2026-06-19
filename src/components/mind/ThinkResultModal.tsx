@@ -101,7 +101,7 @@ export function ThinkResultModal({
                             <div className="think-modal-title">
                                 <span className="think-modal-emoji">{personaEmoji}</span>
                                 <div>
-                                    <h2>{personaName}'s Response</h2>
+                                    <h2>{personaName}&apos;s Response</h2>
                                     <span className="think-modal-subtitle">Mind Analysis Complete</span>
                                 </div>
                             </div>

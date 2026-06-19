@@ -10,6 +10,7 @@ import {
     createOmniData,
     createOmniError
 } from '../omnidata.schema';
+import { debug } from '../../debug';
 
 /**
  * Hacker News story item
@@ -44,12 +45,12 @@ export const hackernewsNormalizer: ApiTypeDefinition<HackerNewsRawResponse> = {
         const limit = (params?.limit as number) || 30;
         const storyType = (params?.type as string) || 'top';  // top, new, best, ask, show, job
 
-        console.log('[HackerNews] 🎯 Starting fetch...', { limit, storyType });
+        debug('[HackerNews] 🎯 Starting fetch...', { limit, storyType });
 
         try {
             // Step 1: Get story IDs
             const endpoint = `https://hacker-news.firebaseio.com/v0/${storyType}stories.json`;
-            console.log('[HackerNews] 📡 Fetching story IDs from:', endpoint);
+            debug('[HackerNews] 📡 Fetching story IDs from:', endpoint);
 
             const idsResponse = await fetch(endpoint);
             if (!idsResponse.ok) {
@@ -57,7 +58,7 @@ export const hackernewsNormalizer: ApiTypeDefinition<HackerNewsRawResponse> = {
             }
 
             const storyIds: number[] = await idsResponse.json();
-            console.log('[HackerNews] 📋 Got', storyIds.length, 'story IDs, fetching top', limit);
+            debug('[HackerNews] 📋 Got', storyIds.length, 'story IDs, fetching top', limit);
 
             // Step 2: Fetch individual stories (in parallel, limited to requested count)
             const storyPromises = storyIds.slice(0, limit).map(async (id) => {
@@ -70,10 +71,10 @@ export const hackernewsNormalizer: ApiTypeDefinition<HackerNewsRawResponse> = {
             const stories = await Promise.all(storyPromises);
             const validStories = stories.filter((s): s is HNStory => s !== null && s.type === 'story');
 
-            console.log('[HackerNews] ✅ Fetched', validStories.length, 'stories');
+            debug('[HackerNews] ✅ Fetched', validStories.length, 'stories');
 
             if (validStories.length > 0) {
-                console.log('[HackerNews] 🔍 Top story:', {
+                debug('[HackerNews] 🔍 Top story:', {
                     title: validStories[0].title?.substring(0, 50),
                     score: validStories[0].score,
                     comments: validStories[0].descendants
@@ -88,7 +89,7 @@ export const hackernewsNormalizer: ApiTypeDefinition<HackerNewsRawResponse> = {
     },
 
     normalizeFn: (raw) => {
-        console.log('[HackerNews] 🔄 Normalizing response...');
+        debug('[HackerNews] 🔄 Normalizing response...');
 
         // Handle error response
         if (!Array.isArray(raw) && 'error' in raw && raw.error) {
@@ -101,10 +102,10 @@ export const hackernewsNormalizer: ApiTypeDefinition<HackerNewsRawResponse> = {
         }
 
         const stories = raw as HNStory[];
-        console.log('[HackerNews] 📊 Processing', stories.length, 'stories');
+        debug('[HackerNews] 📊 Processing', stories.length, 'stories');
 
         if (stories.length === 0) {
-            console.log('[HackerNews] ⚠️ No stories received');
+            debug('[HackerNews] ⚠️ No stories received');
             return createOmniData('hackernews', 'news', { items: [] }, 300000);
         }
 
@@ -152,7 +153,7 @@ export const hackernewsNormalizer: ApiTypeDefinition<HackerNewsRawResponse> = {
             };
         });
 
-        console.log('[HackerNews] ✅ Normalized', items.length, 'items');
+        debug('[HackerNews] ✅ Normalized', items.length, 'items');
 
         return createOmniData('hackernews', 'news', { items }, 300000);
     }

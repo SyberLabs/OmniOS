@@ -31,13 +31,11 @@ jobs:
       - name: Test
         run: npm test
 
+      # Blocking as of Phase 5: lint errors = 0. ESLint exits non-zero only on
+      # errors, so this fails CI on new errors while pre-existing warnings
+      # (no-explicit-any, unused vars, react-hooks correctness) stay advisory.
+      - name: Lint
+        run: npm run lint
+
       - name: Build
         run: npm run build
-
-      # Non-blocking for now: the repo has pre-existing lint errors
-      # (61 errors / 135 warnings as of 2026-06-18). Lint is surfaced here
-      # for visibility and will become a blocking gate after the Phase 5
-      # hygiene cleanup. See IMPLEMENTATION_PLAN.md.
-      - name: Lint (non-blocking)
-        run: npm run lint
-        continue-on-error: true

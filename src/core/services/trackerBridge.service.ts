@@ -389,13 +389,13 @@ export function aggregateTrackersToAttributes(
         const negativeContribs = data.contributions.filter(c => c.mapping.weight < 0);
 
         // Weighted average for positive contributions
-        let totalPositiveWeight = positiveContribs.reduce((sum, c) => sum + c.mapping.weight, 0);
-        let positiveValue = totalPositiveWeight > 0
+        const totalPositiveWeight = positiveContribs.reduce((sum, c) => sum + c.mapping.weight, 0);
+        const positiveValue = totalPositiveWeight > 0
             ? positiveContribs.reduce((sum, c) => sum + (c.transformedValue * c.mapping.weight), 0) / totalPositiveWeight
             : 0;
 
         // Subtract negative contributions (like meditation reducing stress)
-        let negativeReduction = negativeContribs.reduce((sum, c) =>
+        const negativeReduction = negativeContribs.reduce((sum, c) =>
             sum + (c.transformedValue * Math.abs(c.mapping.weight)), 0
         );
 

@@ -5,6 +5,7 @@
 import { PolymarketMarket, NewsArticle } from '../schemas/block.schema';
 import { useSettingsStore } from '../stores';
 import { fetchMockMarkets, fetchMockNews } from '@/data/mockData';
+import { debug } from '@/core/debug';
 
 /**
  * Fetch Polymarket data - switches between real and mock based on settings
@@ -17,7 +18,7 @@ export async function fetchPolymarketData(): Promise<{
 
     // Use mock data if enabled
     if (useMockData) {
-        console.log('[API Service] Using mock Polymarket data');
+        debug('[API Service] Using mock Polymarket data');
         const markets = await fetchMockMarkets();
         return { markets };
     }
@@ -36,14 +37,14 @@ export async function fetchPolymarketData(): Promise<{
             throw new Error(data.error || 'Failed to fetch Polymarket data');
         }
 
-        console.log('[API Service] Fetched real Polymarket data:', data.markets.length, 'markets');
+        debug('[API Service] Fetched real Polymarket data:', data.markets.length, 'markets');
         return { markets: data.markets };
 
     } catch (error) {
         console.error('[API Service] Polymarket API error:', error);
 
         // Fallback to mock data on error
-        console.log('[API Service] Falling back to mock data');
+        debug('[API Service] Falling back to mock data');
         const markets = await fetchMockMarkets();
         return {
             markets,
@@ -66,7 +67,7 @@ export async function fetchNewsData(options?: {
 
     // Use mock data if enabled
     if (useMockData) {
-        console.log('[API Service] Using mock News data');
+        debug('[API Service] Using mock News data');
         const articles = await fetchMockNews();
         return { articles };
     }
@@ -91,14 +92,14 @@ export async function fetchNewsData(options?: {
             throw new Error(data.error || 'Failed to fetch news data');
         }
 
-        console.log('[API Service] Fetched real News data:', data.articles.length, 'articles');
+        debug('[API Service] Fetched real News data:', data.articles.length, 'articles');
         return { articles: data.articles };
 
     } catch (error) {
         console.error('[API Service] NewsAPI error:', error);
 
         // Fallback to mock data on error
-        console.log('[API Service] Falling back to mock data');
+        debug('[API Service] Falling back to mock data');
         const articles = await fetchMockNews();
         return {
             articles,

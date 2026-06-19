@@ -256,7 +256,7 @@ export function PersonaBlockView({ instanceId }: PersonaBlockViewProps) {
                                 <label className="flex items-center justify-between">
                                     <div>
                                         <p className="text-sm text-[var(--text-primary)]">Global Observations</p>
-                                        <p className="text-xs text-[var(--text-muted)]">Import Shell Mind's observations</p>
+                                        <p className="text-xs text-[var(--text-muted)]">Import Shell Mind&apos;s observations</p>
                                     </div>
                                     <input
                                         type="checkbox"
@@ -338,7 +338,7 @@ export function PersonaBlockView({ instanceId }: PersonaBlockViewProps) {
 
                             <div className="mt-4 pt-3 border-t border-[var(--citadel-border)]">
                                 <p className="text-xs text-[var(--text-muted)]">
-                                    💡 Enable these to combine explicit wire connections with Shell Mind's global awareness
+                                    💡 Enable these to combine explicit wire connections with Shell Mind&apos;s global awareness
                                 </p>
                             </div>
                         </motion.div>

@@ -6,6 +6,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { apiGateway, OmniData, OmniItem } from '../gateway';
 import { useApiStore } from '../stores/apiStore';
+import { debug } from '../debug';
 
 interface UseOmniDataOptions {
     /** Fetch immediately on mount */
@@ -58,23 +59,23 @@ export function useOmniData(
     // Get API key from apiStore
     const getApiKey = useApiStore(state => state.getApiKey);
 
-    console.log('[useOmniData] 🎣 Hook called', { apiId, blockId, immediate, hasParams: !!params });
+    debug('[useOmniData] 🎣 Hook called', { apiId, blockId, immediate, hasParams: !!params });
 
     const refresh = useCallback(async () => {
-        console.log('[useOmniData] 🔄 Refresh triggered for', apiId);
+        debug('[useOmniData] 🔄 Refresh triggered for', apiId);
         setIsLoading(true);
 
         // Ensure API key is set in gateway
         const apiKey = getApiKey(apiId);
-        console.log('[useOmniData] 🔑 API key lookup:', { apiId, hasKey: !!apiKey });
+        debug('[useOmniData] 🔑 API key lookup:', { apiId, hasKey: !!apiKey });
         if (apiKey) {
             apiGateway.setApiKey(apiId, apiKey);
         }
 
         try {
-            console.log('[useOmniData] 📡 Calling apiGateway.fetch...');
+            debug('[useOmniData] 📡 Calling apiGateway.fetch...');
             const result = await apiGateway.fetch(apiId, params);
-            console.log('[useOmniData] ✅ Gateway returned:', {
+            debug('[useOmniData] ✅ Gateway returned:', {
                 hasItems: !!result.items,
                 itemsCount: result.items?.length || 0,
                 hasError: !!result.error,

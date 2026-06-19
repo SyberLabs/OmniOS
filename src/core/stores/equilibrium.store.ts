@@ -107,7 +107,7 @@ export const useEquilibriumStore = create<EquilibriumStateStore>()(
                 const activeAlerts = alerts.filter(a => !a.isDismissed);
                 
                 // Base entropy from active alerts severity
-                let entropyScore = activeAlerts.reduce((acc, alert) => {
+                const entropyScore = activeAlerts.reduce((acc, alert) => {
                     const weight = alert.severity === 'emergency' ? 40 : 
                                    alert.severity === 'critical' ? 25 : 
                                    alert.severity === 'warning' ? 10 : 2;

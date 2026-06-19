@@ -42,7 +42,7 @@ export function ContextCaptureModal({ isOpen, onClose, selectedText }: ContextCa
                 </div>
 
                 <div className="bg-black/40 rounded p-3 border border-white/5 max-h-[200px] overflow-y-auto text-sm text-gray-300 font-mono italic">
-                    "{selectedText}"
+                    &quot;{selectedText}&quot;
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 mt-2">

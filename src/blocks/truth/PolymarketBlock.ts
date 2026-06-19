@@ -8,6 +8,7 @@ import { PolymarketMarket } from '@/core/schemas/block.schema';
 import { useBlockStore, useSettingsStore } from '@/core/stores';
 import { useOmniData } from '@/core/hooks';
 import { generateProbabilityUpdate } from '@/data/mockData';
+import { debug } from '@/core/debug';
 
 /**
  * Convert OmniData items to PolymarketMarket format
@@ -53,7 +54,7 @@ export function usePolymarketBlock(instanceId: string) {
     const { useMockData } = useSettingsStore();
     const block = getBlock(instanceId);
 
-    console.log('[PolymarketBlock] 🚀 Hook initialized', { instanceId, useMockData });
+    debug('[PolymarketBlock] 🚀 Hook initialized', { instanceId, useMockData });
 
     // Use the new API Gateway hook
     const {
@@ -67,7 +68,7 @@ export function usePolymarketBlock(instanceId: string) {
         refreshInterval: useMockData ? 5000 : 60000  // Faster in mock mode
     });
 
-    console.log('[PolymarketBlock] 📥 useOmniData returned:', {
+    debug('[PolymarketBlock] 📥 useOmniData returned:', {
         itemsCount: items.length,
         isLoading,
         error,
@@ -77,7 +78,7 @@ export function usePolymarketBlock(instanceId: string) {
     // Convert OmniData items to markets and update block store
     const markets = useMemo(() => {
         const converted = omniItemsToMarkets(items);
-        console.log('[PolymarketBlock] 🔄 Converted to markets:', converted.length);
+        debug('[PolymarketBlock] 🔄 Converted to markets:', converted.length);
         return converted;
     }, [items]);
 
