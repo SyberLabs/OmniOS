@@ -114,7 +114,7 @@ export const polymarketNormalizer: ApiTypeDefinition<PolymarketRawResponse> = {
 
             throw new Error(`CLOB API error: ${response.status}`);
         } catch (error) {
-            console.error('[Polymarket] ❌ All APIs failed:', error);
+            debug('[Polymarket] ⚠️ All APIs failed:', error);
             return { error: error instanceof Error ? error.message : 'Unknown error' };
         }
     },
@@ -124,7 +124,7 @@ export const polymarketNormalizer: ApiTypeDefinition<PolymarketRawResponse> = {
 
         // Handle error response
         if (!Array.isArray(raw) && 'error' in raw && raw.error) {
-            console.error('[Polymarket] ❌ API returned error:', raw.error);
+            debug('[Polymarket] ⚠️ API returned error:', raw.error);
             return createOmniError('polymarket', 'prediction_market', {
                 code: 'API_ERROR',
                 message: raw.error,

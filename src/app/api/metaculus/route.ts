@@ -25,7 +25,8 @@ export async function GET(request: NextRequest) {
         });
 
         if (!response.ok) {
-            console.error(`[API] Metaculus error: ${response.status} ${response.statusText}`);
+            // Expected upstream condition (Metaculus 403s unauthenticated traffic).
+            // Pass the status through; the client surfaces it as block state.
             return NextResponse.json(
                 { error: `Metaculus API responded with ${response.status}` },
                 { status: response.status }

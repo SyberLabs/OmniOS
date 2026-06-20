@@ -118,10 +118,17 @@ export const metaculusNormalizer: ApiTypeDefinition<MetaculusResponse> = {
                 return data;
             }
 
-            console.warn(`[Metaculus] ⚠️ Proxy returned status: ${response.status}`);
-            throw new Error(`Proxy error: ${response.status}`);
+            // Non-OK is an expected, recoverable upstream condition (Metaculus
+            // currently 403s unauthenticated traffic). Return a clean error for
+            // the normalizer to surface as block state — no thrown/logged noise.
+            const message = response.status === 403
+                ? 'Metaculus is not accepting requests right now (403).'
+                : `Metaculus request failed (${response.status}).`;
+            debug('[Metaculus] ⚠️ Proxy returned status:', response.status);
+            return { error: message };
         } catch (error) {
-            console.error('[Metaculus] ❌ Fetch failed:', error);
+            // Only genuinely unexpected failures (network/parse) land here.
+            debug('[Metaculus] ⚠️ Fetch failed:', error);
             return { error: error instanceof Error ? error.message : 'Unknown error' };
         }
     },

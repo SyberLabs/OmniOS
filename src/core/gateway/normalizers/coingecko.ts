@@ -107,7 +107,7 @@ export const coingeckoNormalizer: ApiTypeDefinition<CoinGeckoRawResponse> = {
 
             return data;
         } catch (error) {
-            console.error('[CoinGecko] ❌ Fetch error:', error);
+            debug('[CoinGecko] ⚠️ Fetch error:', error);
             return { error: error instanceof Error ? error.message : 'Unknown error' };
         }
     },
@@ -117,7 +117,7 @@ export const coingeckoNormalizer: ApiTypeDefinition<CoinGeckoRawResponse> = {
 
         // Handle error response
         if (!Array.isArray(raw) && 'error' in raw && raw.error) {
-            console.error('[CoinGecko] ❌ API returned error:', raw.error);
+            debug('[CoinGecko] ⚠️ API returned error:', raw.error);
             return createOmniError('coingecko', 'market_data', {
                 code: 'API_ERROR',
                 message: raw.error,

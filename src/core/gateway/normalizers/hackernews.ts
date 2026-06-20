@@ -83,7 +83,7 @@ export const hackernewsNormalizer: ApiTypeDefinition<HackerNewsRawResponse> = {
 
             return validStories;
         } catch (error) {
-            console.error('[HackerNews] ❌ Fetch error:', error);
+            debug('[HackerNews] ⚠️ Fetch error:', error);
             return { error: error instanceof Error ? error.message : 'Unknown error' };
         }
     },
@@ -93,7 +93,7 @@ export const hackernewsNormalizer: ApiTypeDefinition<HackerNewsRawResponse> = {
 
         // Handle error response
         if (!Array.isArray(raw) && 'error' in raw && raw.error) {
-            console.error('[HackerNews] ❌ API returned error:', raw.error);
+            debug('[HackerNews] ⚠️ API returned error:', raw.error);
             return createOmniError('hackernews', 'news', {
                 code: 'API_ERROR',
                 message: raw.error,
