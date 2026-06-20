@@ -88,7 +88,18 @@ Step 3 instantiates from the static `SHELL_TEMPLATES` source instead._
   (`['finance','markets','macro']`).
 - **Verify:** by reading it back — block_ids resolve, wires reference valid block instances.
 
-### Step 3 — "Spawn from template" action
+### Step 3 — "Spawn from template" action ✅ DONE (2026-06-19)
+Added `instantiateTemplate(template, name?)` to the shell store: remaps each template
+block's local `ref` to a fresh unique instance id, rebuilds connections against those ids,
+writes a `type:'custom'` `ShellConfig`, then reuses the tested `loadShell` to populate +
+activate the canvas. Built-in templates stay pristine (static source, never mutated); each
+use spawns an independent copy. `ShellPanel` now has a **"Shell Store"** section listing
+`SHELL_TEMPLATES` with description/tags and a **"Use this shell"** button. 5 store tests
+(fresh ids, remapped connections, independent copies, persona/aesthetic, custom name) +
+54 total / tsc / lint / build green. Live: app compiles & serves the new panel with no
+errors. _(Visual click-through of the populated canvas is the one piece left to the user.)_
+
+<details><summary>original step 3 notes</summary>
 - Wire the template card's primary action to **create a new shell from the template**, reusing
   `duplicateShell` (or a thin `instantiateTemplate(templateId)` that calls the same machinery),
   then `loadShell` the new shell so the canvas populates and activates.
@@ -96,11 +107,12 @@ Step 3 instantiates from the static `SHELL_TEMPLATES` source instead._
   the built-in template is untouched.
 - **Verify (live):** click → canvas shows all 10 blocks wired; editing/deleting does not alter
   the template; picking again spawns another independent copy.
+</details>
 
-### Step 4 — Store presentation polish (minimal)
-- Distinguish built-in templates visually from user shells (badge/icon), show
-  `description` + `templateTags` on the card, and make "Use this shell" the obvious primary action.
-- Keep it lean — the store is a shelf, not a destination.
+### Step 4 — Store presentation polish (minimal) ✅ mostly DONE (folded into Step 3)
+The Shell Store section already shows a TEMPLATE badge, `description`, `tags`, and a primary
+"Use this shell" button. Remaining (optional): an icon per template, and deciding whether the
+store graduates to its own surface. Low priority — the shelf works.
 
 ### Step 5 — Verify + commit
 - `tsc` + `npm test` + `lint` + `build` all green (the CI gates from Phases 2/5).

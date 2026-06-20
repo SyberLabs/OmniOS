@@ -40,6 +40,9 @@ import { useWireStore } from './wireStore';
 // Import Block Registry for shell load/recreation
 import { blockRegistry } from '../registry/BlockRegistry';
 
+// Import shell templates for the Shell Store
+import type { ShellTemplate } from '../shells/templates';
+
 // ============================================
 // BLOCK STORE
 // ============================================
@@ -295,6 +298,9 @@ interface ShellState {
     /** Duplicate a shell (for templates) */
     duplicateShell: (sourceShellId: string, name?: string) => ShellConfig | null;
 
+    /** Instantiate a built-in shell template into a fresh, activated shell. */
+    instantiateTemplate: (template: ShellTemplate, name?: string) => string | null;
+
     /** Assign shell to hotkey slot (1-9) */
     assignHotkey: (shellId: string, slot: number) => boolean;
 
@@ -523,6 +529,64 @@ export const useShellStore = create<ShellState>()(
                 }));
 
                 return newShell;
+            },
+
+            instantiateTemplate: (template, name) => {
+                const now = Date.now();
+                const newShellId = `shell_${now}_${Math.random().toString(36).substr(2, 9)}`;
+
+                // Remap each template block's local `ref` to a fresh unique instance id.
+                const refToInstanceId = new Map<string, string>();
+                const blocks = template.blocks.map((tb, i) => {
+                    const instanceId = `${tb.blockId}_${now}_${i}_${Math.random().toString(36).substr(2, 6)}`;
+                    refToInstanceId.set(tb.ref, instanceId);
+                    const isPersona = tb.blockId.startsWith('persona_');
+                    return {
+                        blockId: tb.blockId,
+                        instanceId,
+                        position: tb.position,
+                        dimensions: tb.dimensions ?? { width: 320, height: isPersona ? 400 : 240 }
+                    };
+                });
+
+                // Remap ref-based connections to real instance ids; drop any that
+                // reference a missing block (defensive — validateTemplate covers this).
+                const connections: BlockConnection[] = template.connections
+                    .map((c, i) => {
+                        const sourceBlockId = refToInstanceId.get(c.sourceRef);
+                        const targetBlockId = refToInstanceId.get(c.targetRef);
+                        if (!sourceBlockId || !targetBlockId) return null;
+                        return {
+                            id: `conn_${now}_${i}_${Math.random().toString(36).substr(2, 6)}`,
+                            sourceBlockId,
+                            sourcePort: c.sourcePort,
+                            targetBlockId,
+                            targetPort: c.targetPort
+                        };
+                    })
+                    .filter((c): c is BlockConnection => c !== null);
+
+                const shellConfig: ShellConfig = {
+                    id: newShellId,
+                    type: 'custom',
+                    name: name || template.name,
+                    description: template.description,
+                    blocks,
+                    connections,
+                    persona: template.persona,
+                    aesthetic: template.aesthetic,
+                    isTemplate: false,
+                    templateTags: template.tags,
+                    createdAt: now,
+                    updatedAt: now,
+                    lastAccessedAt: now
+                };
+
+                // Register the new shell, then reuse loadShell's tested block-recreation
+                // path to populate + activate the canvas.
+                set(state => ({ shells: [...state.shells, shellConfig] }));
+                const ok = get().loadShell(newShellId);
+                return ok ? newShellId : null;
             },
 
             assignHotkey: (shellId, slot) => {

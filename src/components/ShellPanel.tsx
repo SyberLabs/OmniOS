@@ -9,6 +9,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useShellStore, useBlockStore } from '@/core/stores';
 import { ShellConfig, ShellType } from '@/core/schemas/shell.schema';
+import { SHELL_TEMPLATES, type ShellTemplate } from '@/core/shells/templates';
 
 interface ShellPanelProps {
     isOpen: boolean;
@@ -25,7 +26,8 @@ export function ShellPanel({ isOpen, onClose }: ShellPanelProps) {
         createShell,
         deleteShell,
         assignHotkey,
-        duplicateShell
+        duplicateShell,
+        instantiateTemplate
     } = useShellStore();
 
     const { activeShellId: currentActiveShell } = useBlockStore();
@@ -72,6 +74,12 @@ export function ShellPanel({ isOpen, onClose }: ShellPanelProps) {
     const handleLoadShell = (shellId: string) => {
         loadShell(shellId);
         onClose();
+    };
+
+    // Handle instantiating a built-in template into a fresh shell
+    const handleUseTemplate = (template: ShellTemplate) => {
+        const newShellId = instantiateTemplate(template);
+        if (newShellId) onClose();
     };
 
     // Handle deleting a shell
@@ -167,6 +175,53 @@ export function ShellPanel({ isOpen, onClose }: ShellPanelProps) {
                                     {shells.find(s => s.id === currentActiveShell)?.name || 'Root Shell'}
                                 </div>
                             </div>
+
+                            {/* Shell Store — built-in templates */}
+                            {SHELL_TEMPLATES.length > 0 && (
+                                <div>
+                                    <h3 className="text-xs font-semibold text-[var(--text-muted)] uppercase mb-2">
+                                        Shell Store
+                                    </h3>
+                                    <div className="space-y-2">
+                                        {SHELL_TEMPLATES.map(template => (
+                                            <div
+                                                key={template.id}
+                                                className="group bg-[var(--citadel-void)] border border-[var(--citadel-border)] hover:border-[var(--citadel-primary)]/50 rounded-lg p-3 transition-all"
+                                            >
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <h4 className="text-sm font-medium text-[var(--text-primary)]">
+                                                        {template.name}
+                                                    </h4>
+                                                    <span className="text-[10px] px-2 py-0.5 bg-[var(--mind-aqua-surface)]/30 text-[var(--text-muted)] rounded-full">
+                                                        TEMPLATE
+                                                    </span>
+                                                </div>
+                                                <p className="text-xs text-[var(--text-muted)] mb-2 leading-relaxed">
+                                                    {template.description}
+                                                </p>
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <div className="flex flex-wrap gap-1">
+                                                        {template.tags.map(tag => (
+                                                            <span
+                                                                key={tag}
+                                                                className="text-[10px] px-1.5 py-0.5 bg-[var(--citadel-surface)] text-[var(--text-muted)] rounded"
+                                                            >
+                                                                {tag}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                    <button
+                                                        onClick={() => handleUseTemplate(template)}
+                                                        className="shrink-0 px-3 py-1.5 bg-[var(--citadel-primary)] text-white rounded-md hover:opacity-90 transition-opacity text-xs font-medium"
+                                                    >
+                                                        Use this shell
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
 
                             {/* System Shells */}
                             {systemShells.length > 0 && (
