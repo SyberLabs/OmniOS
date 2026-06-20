@@ -57,30 +57,44 @@ export function extractBlockData(
             // Code block
             extracted = `\`\`\`${data.language || ''}\n${data.code}\n\`\`\``;
         } else if (data && typeof data === 'object' && 'items' in data && Array.isArray(data.items)) {
-            // Media or list data - Format for Context
+            // OmniItem[] from the gateway (polymarket, coingecko, fred, metaculus,
+            // hackernews, …). The useful signal lives in each item's `metadata`
+            // (probability, volume, price, value, …) — include it, don't drop it.
             const items = data.items as any[];
             if (items.length === 0) {
-                extracted = '(Empty Gallery)';
+                extracted = '(No data)';
             } else {
-                // Try to identify item type
-                const first = items[0];
-                if (first.image || first.url) {
-                    // It's likely media
-                    extracted = items.map((item, i) => `Image ${i + 1}: ${item.title || 'Untitled'} (${item.description || 'No description'}) [URL: ${item.image || item.url}]`).join('\n');
-                } else {
-                    // Generic list
-                    extracted = items.map(item => `- ${item.title || item.name || JSON.stringify(item)}`).join('\n');
-                }
+                const limit = filters.summaryOnly ? 8 : 25;
+                extracted = items.slice(0, limit)
+                    .map(item => formatOmniItem(item))
+                    .join('\n');
+                if (items.length > limit) extracted += `\n… ${items.length - limit} more`;
             }
         } else if (Array.isArray(data)) {
-            // Direct array data (like Crypto assets if stored directly)
-            extracted = data.slice(0, 20).map(item => {
-                if (typeof item === 'object') {
-                    return `- ${item.name || item.title || item.id} : ${JSON.stringify(item).slice(0, 100)}`;
-                }
-                return `- ${item}`;
-            }).join('\n');
-            if (data.length > 20) extracted += `\n... ${data.length - 20} more items`;
+            const first = data[0] as any;
+            if (first && typeof first === 'object' && 'question' in first && 'outcomes' in first) {
+                // PolymarketMarket[] (how the Polymarket block stores its data):
+                // use the dedicated formatter so outcomes + volume are included.
+                const markets = data as PolymarketMarket[];
+                const filtered = filters.timeWindow && filters.timeWindow !== 'all'
+                    ? filterByTimeWindow(markets, filters.timeWindow)
+                    : markets;
+                extracted = filters.summaryOnly
+                    ? formatMarketsSummary(filtered)
+                    : formatMarketsDetailed(filtered);
+            } else if (first && typeof first === 'object' && 'metadata' in first) {
+                // OmniItem[] stored directly.
+                const limit = filters.summaryOnly ? 8 : 25;
+                extracted = data.slice(0, limit).map(item => formatOmniItem(item)).join('\n');
+                if (data.length > limit) extracted += `\n… ${data.length - limit} more`;
+            } else {
+                // Generic object array (e.g. crypto assets) — include key fields.
+                extracted = data.slice(0, 20).map(item => {
+                    if (typeof item === 'object') return formatOmniItem(item);
+                    return `- ${item}`;
+                }).join('\n');
+                if (data.length > 20) extracted += `\n… ${data.length - 20} more items`;
+            }
         } else {
             // Generic fallback
             extracted = JSON.stringify(data, null, 2).slice(0, 2000);
@@ -97,6 +111,40 @@ export function extractBlockData(
         console.error('Error extracting block data:', error);
         return null;
     }
+}
+
+/**
+ * Format a single OmniItem (gateway-normalized) into a readable line with its
+ * key metadata, so the LLM sees probabilities/prices/values — not just titles.
+ */
+function formatOmniItem(item: any): string {
+    const title = item.title || item.name || item.id || 'Untitled';
+    const meta = (item.metadata && typeof item.metadata === 'object') ? item.metadata : {};
+
+    // Keys worth surfacing, in priority order, with light formatting.
+    const parts: string[] = [];
+    const push = (label: string, value: unknown, fmt?: (v: any) => string) => {
+        if (value === undefined || value === null || value === '') return;
+        parts.push(`${label}: ${fmt ? fmt(value) : value}`);
+    };
+
+    push('prob', meta.probabilityPercent ?? (typeof meta.probability === 'number' ? Math.round(meta.probability * 100) : undefined), v => `${v}%`);
+    push('value', meta.value);
+    push('price', meta.priceFormatted ?? meta.price);
+    push('24h', meta.priceChangePercent24h ?? meta.priceChangePercent, v => `${typeof v === 'number' ? v.toFixed(2) : v}%`);
+    push('vol', meta.volume, v => typeof v === 'number' ? `$${Math.round(v).toLocaleString()}` : String(v));
+    push('liquidity', meta.liquidity, v => typeof v === 'number' ? `$${Math.round(v).toLocaleString()}` : String(v));
+    push('forecasters', meta.forecasters);
+    push('marketCapRank', meta.marketCapRank, v => `#${v}`);
+
+    // A short description adds context for news/forecast items.
+    const desc = typeof item.description === 'string' && item.description.length < 160
+        ? item.description
+        : undefined;
+
+    const metaStr = parts.length > 0 ? ` (${parts.join(' | ')})` : '';
+    const descStr = desc ? ` — ${desc}` : '';
+    return `- ${title}${metaStr}${descStr}`;
 }
 
 /**
