@@ -5,6 +5,7 @@
 // Clean separation: Logo | Tools | Command | Status | Settings
 // ============================================
 
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
     Command,
@@ -51,7 +52,12 @@ export function TopBar({
     const { activeTool, setTool } = useToolStore();
     const { installedApis } = useApiStore();
 
-    const activeShell = getActiveShell();
+    // Persisted-store reads (e.g. the active shell) differ between server and
+    // client on first paint; gate them behind mount to avoid hydration mismatch.
+    const [hasMounted, setHasMounted] = useState(false);
+    useEffect(() => { setHasMounted(true); }, []);
+
+    const activeShell = hasMounted ? getActiveShell() : undefined;
     const isHome = pathname === '/';
 
     // Helper to generate breadcrumbs
@@ -247,7 +253,7 @@ export function TopBar({
                         title="API Dashboard"
                     >
                         <Key className="w-3.5 h-3.5" />
-                        {installedApis.length > 0 && (
+                        {hasMounted && installedApis.length > 0 && (
                             <span className="px-1 py-0.5 text-[10px] font-medium bg-[var(--citadel-primary)]/20 rounded ml-1">
                                 {installedApis.length}
                             </span>

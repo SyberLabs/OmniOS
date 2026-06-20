@@ -27,7 +27,7 @@ import { blockRegistry } from '@/core/registry/BlockRegistry';
 import { useMindShellSync, useShellNavigation } from '@/core/hooks';
 
 export default function CitadelApp() {
-    const { addBlock } = useBlockStore();
+    const { addBlock, activeShellId } = useBlockStore();
     const { draggingBlockId, setDraggingBlock } = useUIStore();
     const { activeTool, selection, captureSelection, clearSelection } = useToolStore();
     const { initializeDefaults } = useApiStore();
@@ -150,9 +150,10 @@ export default function CitadelApp() {
                     {/* Sidebar / Armory */}
                     <Sidebar />
 
-                    {/* Canvas Workspace - Root Shell */}
+                    {/* Canvas Workspace - follows the active shell (root by default,
+                        or a template-spawned shell after using the Shell Store) */}
                     <main className="flex-1 overflow-hidden relative">
-                        <Canvas shellId="root" />
+                        <Canvas shellId={activeShellId} />
 
                         {/* Mind Dock - Always Visible */}
                         <MindDock onExpandPanel={() => setIsMindOpen(true)} />
