@@ -330,21 +330,17 @@ export const useShellStore = create<ShellState>()(
             currentAesthetic: 'command',
 
             createShell: (name, description) => {
-                const blockStore = useBlockStore.getState();
                 const now = Date.now();
 
+                // A new shell starts EMPTY — it is not a copy of the current
+                // canvas. (To snapshot the current canvas, use "Save Current".)
                 const newShell: ShellConfig = {
                     id: `shell_${now}_${Math.random().toString(36).substr(2, 9)}`,
                     type: 'custom',  // User-created shells are 'custom' type
                     name,
                     description,
-                    blocks: blockStore.blocks.map(b => ({
-                        blockId: b.schema.block_id,
-                        instanceId: b.instance_id,
-                        position: b.position,
-                        dimensions: b.dimensions
-                    })),
-                    connections: blockStore.connections,
+                    blocks: [],
+                    connections: [],
                     persona: get().currentPersona,
                     aesthetic: get().currentAesthetic,
                     createdAt: now,
@@ -355,6 +351,11 @@ export const useShellStore = create<ShellState>()(
                     shells: [...state.shells, newShell],
                     activeShellId: newShell.id
                 }));
+
+                // Switch the block store to the new (empty) shell so the canvas
+                // — which follows the active shell — shows a blank workspace.
+                // Existing shells' blocks are untouched (kept under their own id).
+                useBlockStore.getState().setActiveShell(newShell.id);
 
                 return newShell;
             },
@@ -384,9 +385,23 @@ export const useShellStore = create<ShellState>()(
             },
 
             deleteShell: (shellId) => {
+                const blockStore = useBlockStore.getState();
+                const wasActiveOnCanvas = blockStore.activeShellId === shellId;
+
+                // Remove the shell's blocks/connections so they don't linger
+                // orphaned under a dead shell id.
+                blockStore.clearShell(shellId);
+
+                // If the deleted shell was the one on the canvas, fall back to root.
+                if (wasActiveOnCanvas) {
+                    blockStore.setActiveShell('root');
+                }
+
                 set(state => ({
                     shells: state.shells.filter(s => s.id !== shellId),
-                    activeShellId: state.activeShellId === shellId ? null : state.activeShellId
+                    activeShellId: state.activeShellId === shellId
+                        ? (wasActiveOnCanvas ? 'root' : null)
+                        : state.activeShellId
                 }));
             },
 
