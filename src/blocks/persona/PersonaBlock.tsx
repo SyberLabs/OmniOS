@@ -22,12 +22,11 @@ import {
 } from 'lucide-react';
 import { useBlockStore } from '@/core/stores';
 import { useWireStore } from '@/core/stores/wireStore';
-import { useMindStore } from '@/core/stores/mindStore';
 import { aggregateWireContext } from '@/core/services/wire.service';
+import { streamPersonaTurn } from '@/core/services/persona.engine';
 import { PersonaType } from '@/core/schemas/shell.schema';
 import {
     PersonaBlockData,
-    PersonaChatMessage,
     PERSONA_CONFIGS,
     createPersonaBlockData,
     DEFAULT_CONTEXT_SETTINGS
@@ -76,38 +75,83 @@ export function PersonaBlockView({ instanceId }: PersonaBlockViewProps) {
         updateData(instanceId, { ...personaData, ...updates });
     }, [instanceId, personaData, updateData]);
 
-    const handleSendMessage = () => {
-        if (!input.trim() || personaData.isThinking) return;
+    // Shared real-LLM turn: streams a response from the persona engine and
+    // commits it to the block's message history. Used by both chat and Think.
+    // Reads the latest persona data from the store on each commit to avoid
+    // stale-closure issues during streaming.
+    const runTurn = useCallback(async (userMessage?: string) => {
+        const current = (getBlock(instanceId)?.data as PersonaBlockData) || personaData;
+        if (current.isThinking) return;
 
-        const userMessage: PersonaChatMessage = {
-            id: `msg-${Date.now()}`,
-            role: 'user',
-            content: input.trim(),
-            timestamp: Date.now()
+        const baseMessages = userMessage
+            ? [
+                ...current.messages,
+                {
+                    id: `msg-${Date.now()}`,
+                    role: 'user' as const,
+                    content: userMessage,
+                    timestamp: Date.now()
+                }
+            ]
+            : current.messages;
+
+        // Show the user message immediately + thinking state.
+        updateData(instanceId, { ...current, messages: baseMessages, isThinking: true });
+
+        const assistantId = `msg-${Date.now()}-a`;
+        let acc = '';
+        const commit = (content: string, isThinking: boolean) => {
+            const latest = (getBlock(instanceId)?.data as PersonaBlockData) || current;
+            const withoutDraft = latest.messages.filter(m => m.id !== assistantId);
+            updateData(instanceId, {
+                ...latest,
+                isThinking,
+                lastContextUpdate: Date.now(),
+                messages: [
+                    ...withoutDraft,
+                    {
+                        id: assistantId,
+                        role: 'assistant' as const,
+                        content,
+                        timestamp: Date.now(),
+                        sourcedFrom: connectedWires.map(w => w.sourceBlockId)
+                    }
+                ]
+            });
         };
 
-        const newMessages = [...personaData.messages, userMessage];
-        updatePersonaData({ messages: newMessages, isThinking: true });
-        setInput('');
-
-        // Simulate AI response (replace with actual Mind Engine call)
-        setTimeout(() => {
-            const assistantMessage: PersonaChatMessage = {
-                id: `msg-${Date.now()}`,
-                role: 'assistant',
-                content: `[${config.name}]: I've analyzed the context from ${connectedWires.length} connected source(s). ${connectedWires.length === 0
-                    ? "Wire some data blocks to me for richer insights!"
-                    : "Based on the connected data..."
-                    }\n\nYour question: "${userMessage.content}"\n\nThis is a placeholder response. Connect to an LLM provider in the API Dashboard to enable real AI responses.`,
-                timestamp: Date.now(),
-                sourcedFrom: connectedWires.map(w => w.sourceBlockId)
-            };
-
-            updatePersonaData({
-                messages: [...newMessages, assistantMessage],
-                isThinking: false
+        try {
+            const gen = streamPersonaTurn({
+                instanceId,
+                personaType: personaData.personaType,
+                customName: personaData.customName,
+                history: current.messages,
+                userMessage
             });
-        }, 1500);
+
+            let result = await gen.next();
+            while (!result.done) {
+                acc += result.value;
+                commit(acc, true);
+                result = await gen.next();
+            }
+
+            const final = result.value;
+            if (!final.success) {
+                commit(`⚠️ ${final.error}`, false);
+            } else {
+                commit(final.content || acc, false);
+            }
+        } catch (err) {
+            commit(`⚠️ ${err instanceof Error ? err.message : 'Something went wrong.'}`, false);
+        }
+    }, [instanceId, getBlock, updateData, personaData, connectedWires]);
+
+    const handleSendMessage = () => {
+        if (!input.trim() || personaData.isThinking) return;
+        const message = input.trim();
+        setInput('');
+        void runTurn(message);
     };
 
     const handleUpdateContext = useCallback(() => {
@@ -122,32 +166,15 @@ export function PersonaBlockView({ instanceId }: PersonaBlockViewProps) {
 
     const handleThink = () => {
         if (personaData.isThinking) return;
-
-        updatePersonaData({ isThinking: true });
-
-        // Simulate autonomous thinking
-        setTimeout(() => {
-            const thinkMessage: PersonaChatMessage = {
-                id: `msg-${Date.now()}`,
-                role: 'assistant',
-                content: `💭 *${config.name} is analyzing ${connectedWires.length} data source(s)...*\n\nAutonomous analysis complete. Key observations:\n\n1. Context integration from ${connectedWires.length} sources\n2. Pattern detection across connected data\n3. Insight generation based on ${config.description}\n\nConnect more data blocks or ask me specific questions for deeper analysis.`,
-                timestamp: Date.now(),
-                sourcedFrom: connectedWires.map(w => w.sourceBlockId)
-            };
-
-            updatePersonaData({
-                messages: [...personaData.messages, thinkMessage],
-                isThinking: false,
-                lastContextUpdate: Date.now()
-            });
-        }, 2000);
+        // Autonomous analysis: no user message — the engine uses its default
+        // "analyze the wired data" task.
+        void runTurn();
     };
 
     const toggleCollapsed = useCallback((e?: React.MouseEvent) => {
         if (e) {
             e.stopPropagation();
         }
-        console.log('Toggle collapsed:', !personaData.isCollapsed);
         updatePersonaData({ isCollapsed: !personaData.isCollapsed });
     }, [personaData.isCollapsed, updatePersonaData]);
 
