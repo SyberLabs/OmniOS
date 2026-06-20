@@ -665,6 +665,13 @@ export const useMindStore = create<MindStore>()(
                     }
                 }
 
+                // Repair stale/removed model names so existing users don't keep
+                // a deprecated model id (e.g. gemini-2.0-flash-exp → 404).
+                const DEAD_MODELS = new Set(['gemini-2.0-flash-exp', 'claude-3-haiku-20240307']);
+                if (DEAD_MODELS.has(mergedLLM.model)) {
+                    mergedLLM = { ...mergedLLM, model: LLM_DEFAULTS[mergedLLM.provider].model };
+                }
+
                 return {
                     ...currentState,
                     ...persisted,

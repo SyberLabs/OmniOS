@@ -49,7 +49,7 @@ export const LLM_DEFAULTS: Record<LLMProvider, LLMConfig> = {
     },
     google: {
         provider: 'google',
-        model: 'gemini-2.0-flash-exp',
+        model: 'gemini-2.5-flash',
         temperature: 0.7,
         maxTokens: 4096
     }

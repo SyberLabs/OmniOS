@@ -13,7 +13,10 @@ import { PERSONA_CONFIGS, PersonaChatMessage } from '@/core/schemas/wire.schema'
 import { PersonaType } from '@/core/schemas/shell.schema';
 
 const MAX_HISTORY = 10;
-const MAX_TOKENS = 1024;
+// Generous budget: "thinking" models (e.g. Gemini 2.5) spend part of the token
+// budget on internal reasoning before producing visible output, so a small cap
+// can truncate the answer to nothing.
+const MAX_TOKENS = 2048;
 
 /**
  * Build a system prompt for a persona block from its type. Self-contained on
