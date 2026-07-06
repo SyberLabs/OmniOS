@@ -14,10 +14,20 @@ import { test, expect } from '@playwright/test';
  * The LLM is the OMNI_E2E server double (deterministic; no keys, no network).
  */
 test('golden path: spawn Investor → live wires → Think streams → persists', async ({ page }) => {
-    // Fresh state: clear persisted stores so runs are deterministic, then
-    // reload so the app boots from scratch.
+    // Fresh state: clear BOTH persistence engines (localStorage + the
+    // OmniVault IndexedDB) so runs are deterministic, then reload so the
+    // app boots from scratch. Without the vault wipe, the later persistence
+    // assertions could pass vacuously on prior-run data.
     await page.goto('/');
-    await page.evaluate(() => localStorage.clear());
+    await page.evaluate(async () => {
+        localStorage.clear();
+        await new Promise<void>((resolve) => {
+            const req = indexedDB.deleteDatabase('omni-vault');
+            req.onsuccess = () => resolve();
+            req.onerror = () => resolve();
+            req.onblocked = () => resolve();
+        });
+    });
     await page.reload();
 
     // 1 · Open the Shell Manager and spawn the Investor shell from the Store.

@@ -22,6 +22,7 @@ import {
     createInitialMindState
 } from '../schemas/mind.schema';
 import { resolveModel } from '../models.registry';
+import { vaultStorage } from '../vault';
 
 // ============================================
 // STORE INTERFACE
@@ -625,7 +626,8 @@ export const useMindStore = create<MindStore>()(
         }),
         {
             name: 'omni-mind',
-            storage: createJSONStorage(() => localStorage),
+            // OmniVault (IndexedDB): context pools + graph grow over time (A2).
+            storage: createJSONStorage(() => vaultStorage),
             partialize: (state) => ({
                 llmConfig: state.llmConfig,
                 graph: state.graph,

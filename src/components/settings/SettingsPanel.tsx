@@ -13,10 +13,14 @@ import {
     Database,
     TestTube,
     Check,
-    AlertCircle
+    AlertCircle,
+    Download,
+    Upload,
+    HardDrive
 } from 'lucide-react';
 import { useSettingsStore } from '@/core/stores';
 import { testNewsConnection, testPolymarketConnection } from '@/core/services/api.service';
+import { exportVault, importVault, isVaultExport } from '@/core/vault';
 import { cn } from '@/lib/utils';
 
 interface SettingsPanelProps {
@@ -32,6 +36,42 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
 
     const [newsTestResult, setNewsTestResult] = useState<{ success: boolean; message: string } | null>(null);
     const [polymarketTestResult, setPolymarketTestResult] = useState<{ success: boolean; message: string } | null>(null);
+    const [dataResult, setDataResult] = useState<{ success: boolean; message: string } | null>(null);
+
+    const handleExportData = async () => {
+        try {
+            const exported = await exportVault();
+            const blob = new Blob([JSON.stringify(exported, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `omni-vault-${new Date().toISOString().slice(0, 10)}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            setDataResult({ success: true, message: `Exported ${Object.keys(exported.data).length} stores.` });
+        } catch {
+            setDataResult({ success: false, message: 'Export failed.' });
+        }
+        setTimeout(() => setDataResult(null), 5000);
+    };
+
+    const handleImportData = async (file: File) => {
+        try {
+            const parsed = JSON.parse(await file.text());
+            if (!isVaultExport(parsed)) {
+                setDataResult({ success: false, message: 'Not a valid Omni export file.' });
+                setTimeout(() => setDataResult(null), 5000);
+                return;
+            }
+            if (!confirm('Importing replaces your current data with the export. Continue?')) return;
+            const restored = await importVault(parsed);
+            setDataResult({ success: true, message: `Restored ${restored} stores — reloading…` });
+            setTimeout(() => window.location.reload(), 800);
+        } catch {
+            setDataResult({ success: false, message: 'Import failed — file unreadable.' });
+            setTimeout(() => setDataResult(null), 5000);
+        }
+    };
 
     const handleTestNews = async () => {
         setTestingNews(true);
@@ -237,6 +277,61 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                                                 <AlertCircle className="w-4 h-4" />
                                             )}
                                             <span>{polymarketTestResult.message}</span>
+                                        </motion.div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Data Management — OmniVault export/import (apex A2) */}
+                            <div className="space-y-3">
+                                <div className="flex items-center gap-2">
+                                    <HardDrive className="w-4 h-4 text-[var(--citadel-primary)]" />
+                                    <h3 className="text-sm font-semibold text-[var(--text-primary)]">
+                                        Your Data
+                                    </h3>
+                                </div>
+
+                                <div className="space-y-3 p-4 bg-[var(--citadel-surface)] rounded-lg border border-[var(--citadel-border)]">
+                                    <p className="text-xs text-[var(--text-muted)] leading-relaxed">
+                                        Shells, wires, and Mind state live locally (IndexedDB via OmniVault).
+                                        Export a portable backup, or restore one.
+                                    </p>
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={handleExportData}
+                                            className="flex-1 px-3 py-2 bg-[var(--citadel-primary)] hover:bg-[var(--citadel-primary-glow)] text-white text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
+                                        >
+                                            <Download className="w-4 h-4" />
+                                            Export data
+                                        </button>
+                                        <label className="flex-1 px-3 py-2 bg-[var(--citadel-elevated)] border border-[var(--citadel-border)] hover:border-[var(--citadel-primary)] text-[var(--text-primary)] text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2 cursor-pointer">
+                                            <Upload className="w-4 h-4" />
+                                            Import data
+                                            <input
+                                                type="file"
+                                                accept="application/json,.json"
+                                                className="hidden"
+                                                onChange={(e) => {
+                                                    const file = e.target.files?.[0];
+                                                    if (file) void handleImportData(file);
+                                                    e.target.value = '';
+                                                }}
+                                            />
+                                        </label>
+                                    </div>
+                                    {dataResult && (
+                                        <motion.div
+                                            initial={{ opacity: 0, y: -10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            className={cn(
+                                                "flex items-center gap-2 p-3 rounded-lg text-sm",
+                                                dataResult.success
+                                                    ? "bg-[var(--truth-green)]/10 text-[var(--truth-green)]"
+                                                    : "bg-[var(--truth-red)]/10 text-[var(--truth-red)]"
+                                            )}
+                                        >
+                                            {dataResult.success ? <Check className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
+                                            <span>{dataResult.message}</span>
                                         </motion.div>
                                     )}
                                 </div>

@@ -7,6 +7,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { DataWire, WireFilters, WireStatus, WireType, DEFAULT_WIRE_FILTERS } from '../schemas/wire.schema';
 import { useBlockStore } from './index';
+import { vaultStorage } from '../vault';
 
 interface WireStoreState {
     /** All wires in the system */
@@ -169,7 +170,8 @@ export const useWireStore = create<WireStoreState>()(
         {
             name: 'omni-wires',
             version: 2,
-            storage: createJSONStorage(() => localStorage),
+            // OmniVault (IndexedDB): wires are core canvas state (A2).
+            storage: createJSONStorage(() => vaultStorage),
             partialize: (state) => ({
                 wires: state.wires
             }),

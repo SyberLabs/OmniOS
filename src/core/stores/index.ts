@@ -17,6 +17,7 @@ import {
     AestheticTheme
 } from '../schemas/shell.schema';
 import { DataWire, DEFAULT_WIRE_FILTERS } from '../schemas/wire.schema';
+import { vaultStorage } from '../vault';
 
 // Re-export Mind store
 export { useMindStore } from './mindStore';
@@ -217,7 +218,8 @@ export const useBlockStore = create<BlockState>()(
         {
             name: 'omni-blocks',
             version: 1,
-            storage: createJSONStorage(() => localStorage),
+            // OmniVault (IndexedDB): core canvas state outgrew localStorage (A2).
+            storage: createJSONStorage(() => vaultStorage),
             partialize: (state) => ({
                 blocks: state.blocks,
                 activeShellId: state.activeShellId
@@ -629,7 +631,8 @@ export const useShellStore = create<ShellState>()(
         {
             name: 'omni-shells',
             version: 1,
-            storage: createJSONStorage(() => localStorage),
+            // OmniVault (IndexedDB): shells carry block-data snapshots (A2).
+            storage: createJSONStorage(() => vaultStorage),
             partialize: (state) => ({
                 shells: state.shells,
                 activeShellId: state.activeShellId,
