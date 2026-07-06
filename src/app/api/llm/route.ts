@@ -14,6 +14,7 @@ import {
     type ServerLLMRequest,
     type LLMMessage
 } from '@/core/services/server/llm.adapters';
+import { resolveModel } from '@/core/models.registry';
 
 export const runtime = 'nodejs';
 
@@ -157,7 +158,10 @@ export async function POST(request: NextRequest) {
     if (!parsed.ok) {
         return NextResponse.json({ error: parsed.error }, { status: 400 });
     }
-    const { provider, model, messages, options, baseUrl, stream } = parsed.body;
+    const { provider, messages, options, baseUrl, stream } = parsed.body;
+    // Defense in depth: heal known-deprecated model ids server-side so stale
+    // clients (old persisted configs) don't 404 against providers (apex A5).
+    const model = resolveModel(provider, parsed.body.model);
 
     if (!isProviderConfigured(provider)) {
         return NextResponse.json(

@@ -27,6 +27,7 @@ import { BlockInstance, ConnectionStatus } from '@/core/schemas/block.schema';
 import { useMindStore, useBlockStore } from '@/core/stores';
 import { useWireStore } from '@/core/stores/wireStore';
 import { WireHandle } from '@/canvas/WireHandle';
+import { BlockErrorBoundary } from './BlockErrorBoundary';
 import { getInputPorts, getOutputPorts } from '@/core/services/port.service';
 import { cn } from '@/lib/utils';
 
@@ -208,9 +209,12 @@ export function BlockCard({
                 </div>
             </div>
 
-            {/* Content */}
+            {/* Content — isolated: a crashing view can't take down the canvas,
+                and the card chrome (drag/delete/wires) stays functional. */}
             <div className="block-content flex-1 overflow-hidden p-0">
-                {children}
+                <BlockErrorBoundary blockName={block.schema.display_name}>
+                    {children}
+                </BlockErrorBoundary>
             </div>
 
             {/* Unified Port Handles (with type indicators and drag functionality) */}

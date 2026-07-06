@@ -30,26 +30,30 @@ export interface LLMConfig {
     maxTokens: number;
 }
 
+import { DEFAULT_MODEL } from '../models.registry';
+
 /**
- * Default configurations for each provider
+ * Default configurations for each provider.
+ * Model ids come from the model registry (single source of truth — see
+ * src/core/models.registry.ts, apex A5).
  */
 export const LLM_DEFAULTS: Record<LLMProvider, LLMConfig> = {
     local: {
         provider: 'local',
-        model: 'tinyllama',
+        model: DEFAULT_MODEL.local,
         baseUrl: 'http://localhost:11434',  // Ollama default
         temperature: 0.7,
         maxTokens: 2048
     },
     anthropic: {
         provider: 'anthropic',
-        model: 'claude-haiku-4-5-20251001',
+        model: DEFAULT_MODEL.anthropic,
         temperature: 0.7,
         maxTokens: 4096
     },
     google: {
         provider: 'google',
-        model: 'gemini-2.5-flash',
+        model: DEFAULT_MODEL.google,
         temperature: 0.7,
         maxTokens: 4096
     }

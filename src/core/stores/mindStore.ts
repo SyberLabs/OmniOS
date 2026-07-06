@@ -21,6 +21,7 @@ import {
     ContextEntryType,
     createInitialMindState
 } from '../schemas/mind.schema';
+import { resolveModel } from '../models.registry';
 
 // ============================================
 // STORE INTERFACE
@@ -665,11 +666,11 @@ export const useMindStore = create<MindStore>()(
                     }
                 }
 
-                // Repair stale/removed model names so existing users don't keep
-                // a deprecated model id (e.g. gemini-2.0-flash-exp → 404).
-                const DEAD_MODELS = new Set(['gemini-2.0-flash-exp', 'claude-3-haiku-20240307']);
-                if (DEAD_MODELS.has(mergedLLM.model)) {
-                    mergedLLM = { ...mergedLLM, model: LLM_DEFAULTS[mergedLLM.provider].model };
+                // Repair stale/removed model names via the model registry so
+                // existing users don't keep a deprecated id (→ live 404s).
+                const healedModel = resolveModel(mergedLLM.provider, mergedLLM.model);
+                if (healedModel !== mergedLLM.model) {
+                    mergedLLM = { ...mergedLLM, model: healedModel };
                 }
 
                 return {

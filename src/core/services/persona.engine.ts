@@ -8,6 +8,7 @@
 
 import { getLLMService, LLMMessage } from './llm.service';
 import { aggregateWireContext } from './wire.service';
+import { minOutputTokensFor } from '@/core/models.registry';
 import { useMindStore } from '@/core/stores/mindStore';
 import { PERSONA_CONFIGS, PersonaChatMessage } from '@/core/schemas/wire.schema';
 import { PersonaType } from '@/core/schemas/shell.schema';
@@ -122,7 +123,8 @@ export async function* streamPersonaTurn(
         let full = '';
         for await (const chunk of llm.stream(messages, {
             temperature: llmConfig.temperature,
-            maxTokens: MAX_TOKENS
+            // Registry floor: thinking models need output headroom (apex A5).
+            maxTokens: Math.max(MAX_TOKENS, minOutputTokensFor(llmConfig.model))
         })) {
             full += chunk;
             yield chunk;

@@ -24,6 +24,7 @@ import {
 import { usePathname, useRouter } from 'next/navigation';
 import { useShellStore, useSettingsStore, useUIStore, useToolStore } from '@/core/stores';
 import { useApiStore } from '@/core/stores/apiStore';
+import { LlmStatusPill } from './LlmStatusPill';
 import { useEquilibriumStore } from '@/core/stores/equilibrium.store';
 import { cn } from '@/lib/utils';
 
@@ -223,6 +224,11 @@ export function TopBar({
                 <div className="flex items-center gap-1 px-2 py-1 bg-[var(--citadel-elevated)] rounded-lg border border-[var(--citadel-border)]">
                     {/* Equilibrium / Entropy Pulse */}
                     <EntropyIndicator onClick={onOpenEquilibrium} />
+
+                    <div className="w-px h-4 bg-[var(--citadel-border)]" />
+
+                    {/* LLM availability (startup ping; click to re-check) */}
+                    <LlmStatusPill />
 
                     <div className="w-px h-4 bg-[var(--citadel-border)]" />
 
