@@ -4,6 +4,7 @@
 // ============================================
 
 import { useBlockStore, useMindStore } from '@/core/stores';
+import { useWireStore } from '@/core/stores/wireStore';
 import { BlockInstance } from '@/core/schemas/block.schema';
 import { ContextEntry } from '@/core/schemas/mind.schema';
 
@@ -96,8 +97,10 @@ export function captureShellSnapshot(): ShellSnapshot {
     const blockStore = useBlockStore.getState();
     const mindStore = useMindStore.getState();
 
-    const { blocks, connections } = blockStore;
+    const { blocks } = blockStore;
     const { contextPools, isPinned } = mindStore;
+    // Single wire system: connections come from the wire store.
+    const wires = useWireStore.getState().wires;
 
     // Get focused blocks
     const focusPool = contextPools.find(p => p.id === 'focus');
@@ -133,9 +136,9 @@ export function captureShellSnapshot(): ShellSnapshot {
         blocks: blockSnapshots,
         focusedBlocks,
         observations: observations.slice(-20), // Last 20 observations
-        connections: connections.map(c => ({
-            sourceBlockId: c.sourceBlockId,
-            targetBlockId: c.targetBlockId
+        connections: wires.map(w => ({
+            sourceBlockId: w.sourceBlockId,
+            targetBlockId: w.targetBlockId
         })),
         stats
     };

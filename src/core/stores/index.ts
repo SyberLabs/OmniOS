@@ -16,6 +16,7 @@ import {
     PersonaType,
     AestheticTheme
 } from '../schemas/shell.schema';
+import { DataWire, DEFAULT_WIRE_FILTERS } from '../schemas/wire.schema';
 
 // Re-export Mind store
 export { useMindStore } from './mindStore';
@@ -51,9 +52,6 @@ interface BlockState {
     /** Active block instances on the canvas */
     blocks: BlockInstance[];
 
-    /** Connections between blocks */
-    connections: BlockConnection[];
-
     /** Currently active shell ID */
     activeShellId: string;
 
@@ -75,13 +73,7 @@ interface BlockState {
     /** Update block status */
     updateStatus: (instanceId: string, status: ConnectionStatus, error?: string) => void;
 
-    /** Add a connection between blocks */
-    addConnection: (connection: Omit<BlockConnection, 'id'>) => void;
-
-    /** Remove a connection */
-    removeConnection: (connectionId: string) => void;
-
-    /** Clear all blocks and connections */
+    /** Clear all blocks and wires on the active shell */
     clearCanvas: () => void;
 
     /** Get a block by ID */
@@ -90,13 +82,10 @@ interface BlockState {
     /** Get blocks for a specific shell */
     getBlocksByShell: (shellId: string) => BlockInstance[];
 
-    /** Get connections for a specific shell */
-    getConnectionsByShell: (shellId: string) => BlockConnection[];
-
     /** Set the active shell */
     setActiveShell: (shellId: string) => void;
 
-    /** Clear all blocks and connections in a specific shell */
+    /** Clear all blocks and wires in a specific shell */
     clearShell: (shellId: string) => void;
 }
 
@@ -104,7 +93,6 @@ export const useBlockStore = create<BlockState>()(
     persist(
         (set, get) => ({
             blocks: [],
-            connections: [],
             activeShellId: 'root',
 
             addBlock: (schema, position, shellId) => {
@@ -134,11 +122,11 @@ export const useBlockStore = create<BlockState>()(
 
             removeBlock: (instanceId) => {
                 set(state => ({
-                    blocks: state.blocks.filter(b => b.instance_id !== instanceId),
-                    connections: state.connections.filter(
-                        c => c.sourceBlockId !== instanceId && c.targetBlockId !== instanceId
-                    )
+                    blocks: state.blocks.filter(b => b.instance_id !== instanceId)
                 }));
+                // Single wire system: clean up any wires touching this block
+                // (previously orphaned wires lingered forever).
+                useWireStore.getState().removeWiresForBlock(instanceId);
             },
 
             updatePosition: (instanceId, position) => {
@@ -200,19 +188,6 @@ export const useBlockStore = create<BlockState>()(
                 }));
             },
 
-            addConnection: (connection) => {
-                const id = `conn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-                set(state => ({
-                    connections: [...state.connections, { ...connection, id }]
-                }));
-            },
-
-            removeConnection: (connectionId) => {
-                set(state => ({
-                    connections: state.connections.filter(c => c.id !== connectionId)
-                }));
-            },
-
             clearCanvas: () => {
                 // Clear only the active shell
                 const activeShellId = get().activeShellId;
@@ -227,38 +202,33 @@ export const useBlockStore = create<BlockState>()(
                 return get().blocks.filter(b => b.shellId === shellId);
             },
 
-            getConnectionsByShell: (shellId) => {
-                const shellBlocks = get().blocks.filter(b => b.shellId === shellId);
-                const shellBlockIds = new Set(shellBlocks.map(b => b.instance_id));
-
-                return get().connections.filter(c =>
-                    shellBlockIds.has(c.sourceBlockId) && shellBlockIds.has(c.targetBlockId)
-                );
-            },
-
             setActiveShell: (shellId) => {
                 set({ activeShellId: shellId });
             },
 
             clearShell: (shellId) => {
                 set(state => ({
-                    blocks: state.blocks.filter(b => b.shellId !== shellId),
-                    connections: state.connections.filter(c => {
-                        const sourceBlock = state.blocks.find(b => b.instance_id === c.sourceBlockId);
-                        const targetBlock = state.blocks.find(b => b.instance_id === c.targetBlockId);
-                        return sourceBlock?.shellId !== shellId && targetBlock?.shellId !== shellId;
-                    })
+                    blocks: state.blocks.filter(b => b.shellId !== shellId)
                 }));
+                // Single wire system: a shell's wires die with its blocks.
+                useWireStore.getState().removeWiresByShell(shellId);
             }
         }),
         {
             name: 'omni-blocks',
+            version: 1,
             storage: createJSONStorage(() => localStorage),
             partialize: (state) => ({
                 blocks: state.blocks,
-                connections: state.connections,
                 activeShellId: state.activeShellId
-            })
+            }),
+            // v0 → v1: drop the legacy dual-wire `connections` field. Wires
+            // live solely in wireStore (`omni-wires`) as of A1.
+            migrate: (persistedState: unknown) => {
+                const persisted = (persistedState || {}) as Record<string, unknown>;
+                delete persisted.connections;
+                return persisted;
+            }
         }
     )
 );
@@ -266,6 +236,27 @@ export const useBlockStore = create<BlockState>()(
 // ============================================
 // SHELL STORE
 // ============================================
+
+/**
+ * Convert legacy dual-wire-system BlockConnection[] (old persisted shells)
+ * into DataWires owned by the given shell. Part of the A1 wire unification.
+ */
+function legacyConnectionsToWires(
+    connections: BlockConnection[] | undefined,
+    shellId: string
+): DataWire[] {
+    return (connections || []).map((c, i) => ({
+        id: `wire_migrated_${shellId}_${i}`,
+        sourceBlockId: c.sourceBlockId,
+        targetBlockId: c.targetBlockId,
+        sourcePort: c.sourcePort,
+        targetPort: c.targetPort,
+        wireType: 'push' as const,
+        filters: { ...DEFAULT_WIRE_FILTERS },
+        status: 'active' as const,
+        shellId
+    }));
+}
 
 interface ShellState {
     /** Available shell configurations */
@@ -340,7 +331,7 @@ export const useShellStore = create<ShellState>()(
                     name,
                     description,
                     blocks: [],
-                    connections: [],
+                    wires: [],
                     persona: get().currentPersona,
                     aesthetic: get().currentAesthetic,
                     createdAt: now,
@@ -374,7 +365,7 @@ export const useShellStore = create<ShellState>()(
                                     position: b.position,
                                     dimensions: b.dimensions
                                 })),
-                                connections: blockStore.connections,
+                                wires: useWireStore.getState().getWiresByShell(shellId),
                                 persona: state.currentPersona,
                                 aesthetic: state.currentAesthetic,
                                 updatedAt: Date.now()
@@ -433,7 +424,6 @@ export const useShellStore = create<ShellState>()(
                 // Get shell-specific blocks and wires
                 const shellBlocks = blockStore.getBlocksByShell(shellId);
                 const shellWires = wireStore.getWiresByShell(shellId);
-                const shellConnections = blockStore.getConnectionsByShell(shellId);
 
                 const now = Date.now();
                 const shellConfig: ShellConfig = {
@@ -449,7 +439,7 @@ export const useShellStore = create<ShellState>()(
                         dimensions: b.dimensions,
                         config: { data: b.data }
                     })),
-                    connections: shellConnections,
+                    wires: shellWires,
                     persona: metadata?.persona || get().currentPersona,
                     aesthetic: metadata?.aesthetic || get().currentAesthetic,
                     hotkeySlot: metadata?.hotkeySlot,
@@ -503,9 +493,14 @@ export const useShellStore = create<ShellState>()(
                 const currentBlocks = blockStore.blocks.filter(b => b.shellId !== shellId);
                 useBlockStore.setState({
                     blocks: [...currentBlocks, ...recreatedBlocks],
-                    connections: [...blockStore.connections, ...shell.connections],
                     activeShellId: shellId
                 });
+
+                // Restore the shell's wires into the single wire system so they
+                // both render (WireRenderer) and feed personas (aggregateWireContext).
+                // Legacy shells saved BlockConnection[]; convert on the way in.
+                const savedWires = shell.wires ?? legacyConnectionsToWires(shell.connections, shellId);
+                useWireStore.getState().replaceWiresForShell(shellId, savedWires);
 
                 // Update shell store metadata
                 set(state => ({
@@ -534,6 +529,15 @@ export const useShellStore = create<ShellState>()(
                     type: 'custom',
                     isTemplate: false,
                     hotkeySlot: undefined,
+                    // Fresh wire ids + ownership so the copy's wires can't collide
+                    // with the source shell's when both are loaded.
+                    wires: (source.wires ?? legacyConnectionsToWires(source.connections, newShellId))
+                        .map((w, i) => ({
+                            ...w,
+                            id: `wire_${now}_${i}_${Math.random().toString(36).substr(2, 6)}`,
+                            shellId: newShellId
+                        })),
+                    connections: undefined,
                     createdAt: now,
                     updatedAt: now,
                     lastAccessedAt: now
@@ -564,22 +568,27 @@ export const useShellStore = create<ShellState>()(
                     };
                 });
 
-                // Remap ref-based connections to real instance ids; drop any that
+                // Remap ref-based template connections to real DataWires (the single
+                // wire system) so they render AND feed personas. Drop any that
                 // reference a missing block (defensive — validateTemplate covers this).
-                const connections: BlockConnection[] = template.connections
-                    .map((c, i) => {
+                const wires: DataWire[] = template.connections
+                    .map((c, i): DataWire | null => {
                         const sourceBlockId = refToInstanceId.get(c.sourceRef);
                         const targetBlockId = refToInstanceId.get(c.targetRef);
                         if (!sourceBlockId || !targetBlockId) return null;
                         return {
-                            id: `conn_${now}_${i}_${Math.random().toString(36).substr(2, 6)}`,
+                            id: `wire_${now}_${i}_${Math.random().toString(36).substr(2, 6)}`,
                             sourceBlockId,
-                            sourcePort: c.sourcePort,
                             targetBlockId,
-                            targetPort: c.targetPort
+                            sourcePort: c.sourcePort,
+                            targetPort: c.targetPort,
+                            wireType: 'push' as const,
+                            filters: { ...DEFAULT_WIRE_FILTERS },
+                            status: 'active' as const,
+                            shellId: newShellId
                         };
                     })
-                    .filter((c): c is BlockConnection => c !== null);
+                    .filter((w): w is DataWire => w !== null);
 
                 const shellConfig: ShellConfig = {
                     id: newShellId,
@@ -587,7 +596,7 @@ export const useShellStore = create<ShellState>()(
                     name: name || template.name,
                     description: template.description,
                     blocks,
-                    connections,
+                    wires,
                     persona: template.persona,
                     aesthetic: template.aesthetic,
                     isTemplate: false,
@@ -619,6 +628,7 @@ export const useShellStore = create<ShellState>()(
         }),
         {
             name: 'omni-shells',
+            version: 1,
             storage: createJSONStorage(() => localStorage),
             partialize: (state) => ({
                 shells: state.shells,
@@ -626,7 +636,25 @@ export const useShellStore = create<ShellState>()(
                 hotkeySlots: state.hotkeySlots,
                 currentPersona: state.currentPersona,
                 currentAesthetic: state.currentAesthetic
-            })
+            }),
+            // v0 → v1 (A1 wire unification): shells saved before A1 carry legacy
+            // BlockConnection[] in `connections`; convert to DataWires once.
+            migrate: (persistedState: unknown) => {
+                const persisted = (persistedState || {}) as { shells?: ShellConfig[] } & Record<string, unknown>;
+                if (Array.isArray(persisted.shells)) {
+                    persisted.shells = persisted.shells.map(shell => {
+                        if (shell.wires || !shell.connections) {
+                            return { ...shell, wires: shell.wires ?? [], connections: undefined };
+                        }
+                        return {
+                            ...shell,
+                            wires: legacyConnectionsToWires(shell.connections, shell.id),
+                            connections: undefined
+                        };
+                    });
+                }
+                return persisted;
+            }
         }
     )
 );

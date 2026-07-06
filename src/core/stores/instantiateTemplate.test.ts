@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 // localStorage is polyfilled in vitest.setup.ts so the persisted stores load.
 import { useShellStore, useBlockStore } from './index';
+import { useWireStore } from './wireStore';
+import { aggregateWireContext } from '../services/wire.service';
 import { getShellTemplate, type ShellTemplate } from '../shells/templates';
 
 const investor = getShellTemplate('tmpl_investor') as ShellTemplate;
@@ -8,7 +10,8 @@ const investor = getShellTemplate('tmpl_investor') as ShellTemplate;
 describe('instantiateTemplate', () => {
     beforeEach(() => {
         useShellStore.setState({ shells: [], activeShellId: null });
-        useBlockStore.setState({ blocks: [], connections: [], activeShellId: 'root' });
+        useBlockStore.setState({ blocks: [], activeShellId: 'root' });
+        useWireStore.setState({ wires: [] } as never);
     });
 
     it('creates a fresh shell populated with all the template blocks', () => {
@@ -27,20 +30,59 @@ describe('instantiateTemplate', () => {
         expect(useBlockStore.getState().activeShellId).toBe(shellId);
     });
 
-    it('remaps connections to the fresh instance ids (no dangling refs)', () => {
+    it('creates real DataWires — the wires RENDER (wireStore) with no dangling refs', () => {
+        // A1 regression: template wiring must land in the single wire system
+        // (wireStore), which is what WireRenderer draws and personas consume.
         const shellId = useShellStore.getState().instantiateTemplate(investor)!;
-        const conns = useBlockStore.getState().getConnectionsByShell(shellId);
+        const wires = useWireStore.getState().getWiresByShell(shellId);
         const blockIds = new Set(useBlockStore.getState().getBlocksByShell(shellId).map(b => b.instance_id));
 
-        expect(conns.length).toBe(investor.connections.length);
-        for (const c of conns) {
+        expect(wires.length).toBe(investor.connections.length);
+        for (const w of wires) {
             // Both endpoints point at real, newly-created block instances.
-            expect(blockIds.has(c.sourceBlockId)).toBe(true);
-            expect(blockIds.has(c.targetBlockId)).toBe(true);
-            // Ports are preserved from the template.
-            expect(typeof c.sourcePort).toBe('string');
-            expect(typeof c.targetPort).toBe('string');
+            expect(blockIds.has(w.sourceBlockId)).toBe(true);
+            expect(blockIds.has(w.targetBlockId)).toBe(true);
+            // Ports are preserved from the template; wires are live.
+            expect(typeof w.sourcePort).toBe('string');
+            expect(typeof w.targetPort).toBe('string');
+            expect(w.status).toBe('active');
+            expect(w.shellId).toBe(shellId);
         }
+    });
+
+    it('template wires FEED personas — data flows into aggregateWireContext', () => {
+        // A1 regression: this is the exact live bug — the Investor shell spawned
+        // with inert wiring, so personas received no context until hand-wired.
+        const shellId = useShellStore.getState().instantiateTemplate(investor)!;
+        const blocks = useBlockStore.getState().getBlocksByShell(shellId);
+        const analyst = blocks.find(b => b.schema.block_id === 'persona_analyst')!;
+        const polymarket = blocks.find(b => b.schema.block_id === 'polymarket_live_odds')!;
+        expect(analyst).toBeDefined();
+        expect(polymarket).toBeDefined();
+
+        // The template wire from Polymarket to the Analyst must exist as a live DataWire…
+        const wiresToAnalyst = useWireStore.getState().getWiresToBlock(analyst.instance_id);
+        expect(wiresToAnalyst.some(w => w.sourceBlockId === polymarket.instance_id)).toBe(true);
+
+        // …and once the data block has data, it must flow into the persona's context.
+        useBlockStore.getState().updateData(polymarket.instance_id, [{
+            id: 'm1',
+            question: 'Will France win the 2026 World Cup?',
+            outcomes: [
+                { id: 'm1-yes', name: 'Yes', probability: 0.174 },
+                { id: 'm1-no', name: 'No', probability: 0.826 }
+            ],
+            volume: 86000000,
+            liquidity: 0,
+            endDate: '2026-07-19',
+            category: 'Sports',
+            tags: ['sports']
+        }]);
+
+        const { context, sourceIds } = aggregateWireContext(analyst.instance_id);
+        expect(sourceIds).toContain(polymarket.instance_id);
+        expect(context).toContain('Will France win the 2026 World Cup?');
+        expect(context).toContain('17.4%'); // the probability, not just the title
     });
 
     it('produces independent copies on repeated use (distinct instance ids)', () => {

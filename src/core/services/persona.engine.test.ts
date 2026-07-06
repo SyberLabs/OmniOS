@@ -41,7 +41,7 @@ describe('preparePersonaTurn — message assembly', () => {
     const personaId = 'persona_analyst_1';
 
     beforeEach(() => {
-        useBlockStore.setState({ blocks: [], connections: [], activeShellId: 'root' });
+        useBlockStore.setState({ blocks: [], activeShellId: 'root' });
         useWireStore.setState({ wires: [] } as never);
     });
 
@@ -53,7 +53,7 @@ describe('preparePersonaTurn — message assembly', () => {
                 makeBlock('news_1', 'newsapi_feed', newsData),
                 makeBlock(personaId, 'persona_analyst', createPersonaBlockData('analyst'))
             ],
-            connections: [],
+           
             activeShellId: 'root'
         });
         useWireStore.getState().addWire('news_1', personaId);
@@ -78,7 +78,7 @@ describe('preparePersonaTurn — message assembly', () => {
     it('notes when no data is wired in', () => {
         useBlockStore.setState({
             blocks: [makeBlock(personaId, 'persona_analyst', createPersonaBlockData('analyst'))],
-            connections: [],
+           
             activeShellId: 'root'
         });
 
@@ -95,7 +95,7 @@ describe('preparePersonaTurn — message assembly', () => {
     it('uses the default Think task when no user message is given', () => {
         useBlockStore.setState({
             blocks: [makeBlock(personaId, 'persona_analyst', createPersonaBlockData('analyst'))],
-            connections: [],
+           
             activeShellId: 'root'
         });
 
@@ -106,7 +106,7 @@ describe('preparePersonaTurn — message assembly', () => {
     it('includes recent history, capped, in order', () => {
         useBlockStore.setState({
             blocks: [makeBlock(personaId, 'persona_analyst', createPersonaBlockData('analyst'))],
-            connections: [],
+           
             activeShellId: 'root'
         });
 
@@ -134,7 +134,7 @@ describe('streamPersonaTurn — fails closed', () => {
     beforeEach(() => {
         useBlockStore.setState({
             blocks: [makeBlock('p', 'persona_analyst', createPersonaBlockData('analyst'))],
-            connections: [],
+           
             activeShellId: 'root'
         });
         useWireStore.setState({ wires: [] } as never);

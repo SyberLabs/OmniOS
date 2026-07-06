@@ -103,7 +103,7 @@ describe('formatSnapshotForLLM', () => {
 describe('captureShellSnapshot', () => {
     beforeEach(() => {
         // Reset the block store to a known empty state.
-        useBlockStore.setState({ blocks: [], connections: [], activeShellId: 'root' });
+        useBlockStore.setState({ blocks: [], activeShellId: 'root' });
     });
 
     it('returns an empty snapshot when no blocks exist', () => {
@@ -130,7 +130,7 @@ describe('captureShellSnapshot', () => {
 
         useBlockStore.setState({
             blocks: [mkBlock('a', 'connected'), mkBlock('b', 'error')],
-            connections: [],
+           
             activeShellId: 'root'
         });
 

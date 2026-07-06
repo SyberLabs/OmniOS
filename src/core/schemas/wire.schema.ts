@@ -66,6 +66,10 @@ export interface DataWire {
 
     /** Shell isolation - ID of the shell this wire belongs to */
     shellId: string;
+
+    /** Typed-port endpoints (optional; set by templates, used by the port UI) */
+    sourcePort?: string;
+    targetPort?: string;
 }
 
 /**

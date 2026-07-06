@@ -16,11 +16,11 @@ function seed(id: string, data: unknown) {
         dimensions: { width: 1, height: 1 },
         shellId: 'root'
     } as unknown as BlockInstance;
-    useBlockStore.setState({ blocks: [block], connections: [], activeShellId: 'root' });
+    useBlockStore.setState({ blocks: [block], activeShellId: 'root' });
 }
 
 describe('extractBlockData — includes the signal, not just titles', () => {
-    beforeEach(() => useBlockStore.setState({ blocks: [], connections: [], activeShellId: 'root' }));
+    beforeEach(() => useBlockStore.setState({ blocks: [], activeShellId: 'root' }));
 
     it('formats PolymarketMarket[] with probabilities and volume (the live-bug regression)', () => {
         seed('pm', [

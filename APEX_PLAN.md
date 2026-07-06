@@ -230,7 +230,7 @@ feature; A3 immediately after so every subsequent feature lands with an interact
 
 | Horizon | Item | Status | Notes |
 |---|---|---|---|
-| A | A1 One wire system | ⬜ | Fixes live inert-template-wires bug |
+| A | A1 One wire system | ✅ | 2026-06-20. wireStore/DataWire is the single truth: DataWire gained optional `sourcePort`/`targetPort`; wireStore gained `removeWiresByShell`/`replaceWiresForShell`. blockStore `connections` system deleted (state+actions+persist, v1 migration strips old data); `removeBlock`/`clearShell` now clean wires (fixed two orphan-wire leaks found during the work). Shell lifecycle (`create/saveToShell/saveShell/load/duplicate/instantiate/delete`) runs on wires; `saveShell` previously fetched wires but never saved them — fixed. `ShellConfig.wires` replaces `connections` (legacy field kept deprecated; shellStore v1 migration + `loadShell` fallback convert old shells). Snapshot + Canvas migrated. Regression tests: template wires land in wireStore (render) AND data flows through them into `aggregateWireContext` (feed personas — the exact live bug), orphan cleanup on block/shell delete, legacy conversion. 73 tests / tsc / lint 0 errors / build green. |
 | A | A2 OmniVault | ⬜ | |
 | A | A3 Golden-path CI | ⬜ | |
 | A | A4 Cognition Kernel | ⬜ | |

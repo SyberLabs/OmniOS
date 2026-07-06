@@ -3,6 +3,7 @@
 // ============================================
 
 import { BlockInstance, BlockConnection } from './block.schema';
+import { DataWire } from './wire.schema';
 
 /**
  * AI Persona types for different cognitive modes
@@ -61,8 +62,14 @@ export interface ShellConfig {
     /** Active blocks with their positions */
     blocks: ShellBlockState[];
 
-    /** Wired connections between blocks */
-    connections: BlockConnection[];
+    /** Wires between blocks (the single wire system: wireStore / DataWire) */
+    wires: DataWire[];
+
+    /**
+     * @deprecated Legacy dual-wire-system field. Old persisted shells carry
+     * BlockConnection[] here; converted to `wires` on load/migration (A1).
+     */
+    connections?: BlockConnection[];
 
     /** Active AI persona */
     persona: PersonaType;

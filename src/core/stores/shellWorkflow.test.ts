@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 // localStorage is polyfilled in vitest.setup.ts.
 import { useShellStore, useBlockStore } from './index';
+import { useWireStore } from './wireStore';
 import { getShellTemplate, type ShellTemplate } from '../shells/templates';
 
 const investor = getShellTemplate('tmpl_investor') as ShellTemplate;
@@ -8,7 +9,7 @@ const investor = getShellTemplate('tmpl_investor') as ShellTemplate;
 describe('shell workflow — createShell', () => {
     beforeEach(() => {
         useShellStore.setState({ shells: [], activeShellId: null });
-        useBlockStore.setState({ blocks: [], connections: [], activeShellId: 'root' });
+        useBlockStore.setState({ blocks: [], activeShellId: 'root' });
     });
 
     it('creates an EMPTY shell (not a copy of the current canvas)', () => {
@@ -20,7 +21,7 @@ describe('shell workflow — createShell', () => {
 
         // The new shell has no blocks of its own...
         expect(newShell.blocks).toEqual([]);
-        expect(newShell.connections).toEqual([]);
+        expect(newShell.wires).toEqual([]);
         // ...and the canvas (which follows the active shell) is now empty.
         expect(useBlockStore.getState().activeShellId).toBe(newShell.id);
         expect(useBlockStore.getState().getBlocksByShell(newShell.id)).toHaveLength(0);
@@ -41,7 +42,7 @@ describe('shell workflow — createShell', () => {
 describe('shell workflow — deleteShell', () => {
     beforeEach(() => {
         useShellStore.setState({ shells: [], activeShellId: null });
-        useBlockStore.setState({ blocks: [], connections: [], activeShellId: 'root' });
+        useBlockStore.setState({ blocks: [], activeShellId: 'root' });
     });
 
     it('removes the shell and clears its orphaned blocks', () => {
@@ -74,5 +75,63 @@ describe('shell workflow — deleteShell', () => {
         // Canvas still on b; b's blocks intact.
         expect(useBlockStore.getState().activeShellId).toBe(b);
         expect(useBlockStore.getState().getBlocksByShell(b).length).toBeGreaterThan(0);
+    });
+});
+
+describe('shell workflow — wire cleanup (A1 orphan-wire regressions)', () => {
+    beforeEach(() => {
+        useShellStore.setState({ shells: [], activeShellId: null });
+        useBlockStore.setState({ blocks: [], activeShellId: 'root' });
+        useWireStore.setState({ wires: [] } as never);
+    });
+
+    it('deleting a shell removes its wires (no orphans)', () => {
+        const id = useShellStore.getState().instantiateTemplate(investor)!;
+        expect(useWireStore.getState().getWiresByShell(id).length).toBeGreaterThan(0);
+
+        useShellStore.getState().deleteShell(id);
+
+        expect(useWireStore.getState().getWiresByShell(id)).toHaveLength(0);
+    });
+
+    it('removing a block removes the wires touching it (previously leaked)', () => {
+        const id = useShellStore.getState().instantiateTemplate(investor)!;
+        const blocks = useBlockStore.getState().getBlocksByShell(id);
+        const analyst = blocks.find(b => b.schema.block_id === 'persona_analyst')!;
+        expect(useWireStore.getState().getWiresToBlock(analyst.instance_id).length).toBeGreaterThan(0);
+
+        useBlockStore.getState().removeBlock(analyst.instance_id);
+
+        expect(useWireStore.getState().getWiresToBlock(analyst.instance_id)).toHaveLength(0);
+        expect(useWireStore.getState().getWiresFromBlock(analyst.instance_id)).toHaveLength(0);
+    });
+
+    it('legacy shells (BlockConnection[]) convert to live wires on load', () => {
+        // Simulate a pre-A1 persisted shell carrying legacy connections.
+        const legacyShell = {
+            id: 'shell_legacy_1',
+            type: 'custom' as const,
+            name: 'Legacy',
+            blocks: [
+                { blockId: 'polymarket_live_odds', instanceId: 'pm_1', position: { x: 0, y: 0 }, dimensions: { width: 320, height: 240 } },
+                { blockId: 'persona_analyst', instanceId: 'an_1', position: { x: 400, y: 0 }, dimensions: { width: 320, height: 400 } }
+            ],
+            wires: undefined as never,
+            connections: [{ id: 'c1', sourceBlockId: 'pm_1', sourcePort: 'out', targetBlockId: 'an_1', targetPort: 'in' }],
+            persona: 'analyst' as const,
+            aesthetic: 'command' as const,
+            createdAt: 1,
+            updatedAt: 1
+        };
+        useShellStore.setState(state => ({ shells: [...state.shells, legacyShell] }) as never);
+
+        expect(useShellStore.getState().loadShell('shell_legacy_1')).toBe(true);
+
+        const wires = useWireStore.getState().getWiresByShell('shell_legacy_1');
+        expect(wires).toHaveLength(1);
+        expect(wires[0].sourceBlockId).toBe('pm_1');
+        expect(wires[0].targetBlockId).toBe('an_1');
+        expect(wires[0].sourcePort).toBe('out');
+        expect(wires[0].status).toBe('active');
     });
 });

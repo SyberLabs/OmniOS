@@ -21,6 +21,12 @@ interface WireStoreState {
     /** Remove all wires connected to a block */
     removeWiresForBlock: (blockId: string) => void;
 
+    /** Remove all wires belonging to a shell */
+    removeWiresByShell: (shellId: string) => void;
+
+    /** Replace a shell's wires wholesale (shell load/restore) */
+    replaceWiresForShell: (shellId: string, wires: DataWire[]) => void;
+
     /** Update wire filters */
     updateWireFilters: (wireId: string, filters: Partial<WireFilters>) => void;
 
@@ -89,6 +95,22 @@ export const useWireStore = create<WireStoreState>()(
                     wires: state.wires.filter(
                         w => w.sourceBlockId !== blockId && w.targetBlockId !== blockId
                     )
+                }));
+            },
+
+            removeWiresByShell: (shellId) => {
+                set(state => ({
+                    wires: state.wires.filter(w => w.shellId !== shellId)
+                }));
+            },
+
+            replaceWiresForShell: (shellId, wires) => {
+                set(state => ({
+                    wires: [
+                        ...state.wires.filter(w => w.shellId !== shellId),
+                        // Force shell ownership so restored wires can't leak across shells
+                        ...wires.map(w => ({ ...w, shellId }))
+                    ]
                 }));
             },
 
