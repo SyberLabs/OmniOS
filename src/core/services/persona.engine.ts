@@ -6,10 +6,9 @@
 // Shared by both chat (handleSendMessage) and autonomous Think (handleThink).
 // ============================================
 
-import { getLLMService, LLMMessage } from './llm.service';
+import { LLMMessage } from './llm.service';
 import { aggregateWireContext } from './wire.service';
-import { minOutputTokensFor } from '@/core/models.registry';
-import { useMindStore } from '@/core/stores/mindStore';
+import { runTurnStream } from '@/core/cognition';
 import { PERSONA_CONFIGS, PersonaChatMessage } from '@/core/schemas/wire.schema';
 import { PersonaType } from '@/core/schemas/shell.schema';
 
@@ -105,36 +104,19 @@ export interface PersonaTurnResult {
 export async function* streamPersonaTurn(
     input: PersonaTurnInput
 ): AsyncGenerator<string, PersonaTurnResult> {
-    const { llmConfig } = useMindStore.getState();
-    const llm = getLLMService(llmConfig);
     const { messages, sourceIds } = preparePersonaTurn(input);
 
-    if (!(await llm.isAvailable())) {
-        return {
-            success: false,
-            sourceIds,
-            error: llmConfig.provider === 'local'
-                ? 'No LLM available — make sure Ollama is running (localhost:11434).'
-                : `No LLM available — set the ${llmConfig.provider} API key in your .env.`
-        };
+    // The Cognition Kernel owns the turn lifecycle (availability, registry
+    // token floor, streaming, fail-closed errors) — apex A4.
+    const turn = runTurnStream(messages, { maxTokens: MAX_TOKENS });
+    let step = await turn.next();
+    while (!step.done) {
+        yield step.value;
+        step = await turn.next();
     }
+    const result = step.value;
 
-    try {
-        let full = '';
-        for await (const chunk of llm.stream(messages, {
-            temperature: llmConfig.temperature,
-            // Registry floor: thinking models need output headroom (apex A5).
-            maxTokens: Math.max(MAX_TOKENS, minOutputTokensFor(llmConfig.model))
-        })) {
-            full += chunk;
-            yield chunk;
-        }
-        return { success: true, content: full, sourceIds };
-    } catch (err) {
-        return {
-            success: false,
-            sourceIds,
-            error: err instanceof Error ? err.message : 'LLM request failed.'
-        };
-    }
+    return result.success
+        ? { success: true, content: result.content, sourceIds }
+        : { success: false, sourceIds, error: result.error };
 }

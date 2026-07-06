@@ -3,7 +3,8 @@
 // The reasoning core that makes the Mind think
 // ============================================
 
-import { getLLMService, LLMMessage } from './llm.service';
+import { LLMMessage } from './llm.service';
+import { runTurn, runTurnStream } from '@/core/cognition';
 import {
     getPersonaSystemPrompt,
     buildAnalysisPrompt,
@@ -38,7 +39,7 @@ export class MindEngine {
 
         try {
             // Get current state
-            const { llmConfig, personas, activePersonaId } = mindStore;
+            const { personas, activePersonaId } = mindStore;
             const activePersona = personas.find(p => p.id === activePersonaId);
 
             if (!activePersona) {
@@ -68,27 +69,12 @@ export class MindEngine {
                 { role: 'user', content: userPrompt }
             ];
 
-            // Get LLM service
-            const llm = getLLMService(llmConfig);
-
-            // Check availability
-            const isAvailable = await llm.isAvailable();
-            if (!isAvailable) {
+            // The Cognition Kernel owns the turn lifecycle (apex A4).
+            const response = await runTurn(messages, { maxTokens: 1024 });
+            if (!response.success) {
                 mindStore.setStatus('error');
-                return {
-                    success: false,
-                    error: `${llmConfig.provider} is not available. ${llmConfig.provider === 'local'
-                        ? 'Make sure Ollama is running at localhost:11434'
-                        : 'Check your API key'
-                        }`
-                };
+                return { success: false, error: response.error };
             }
-
-            // Generate response
-            const response = await llm.complete(messages, {
-                temperature: llmConfig.temperature,
-                maxTokens: 1024
-            });
 
             // Parse insights
             const insights = parseInsightsFromResponse(response.content);
@@ -145,7 +131,7 @@ export class MindEngine {
         mindStore.setStatus('processing');
 
         try {
-            const { llmConfig, personas, activePersonaId } = mindStore;
+            const { personas, activePersonaId } = mindStore;
             const activePersona = personas.find(p => p.id === activePersonaId);
 
             if (!activePersona) {
@@ -163,18 +149,18 @@ export class MindEngine {
                 { role: 'user', content: userPrompt }
             ];
 
-            const llm = getLLMService(llmConfig);
-
-            if (!await llm.isAvailable()) {
-                mindStore.setStatus('error');
-                return { success: false, error: 'LLM not available' };
-            }
-
+            // The Cognition Kernel owns the turn lifecycle (apex A4).
+            const turn = runTurnStream(messages);
+            let step = await turn.next();
             let fullResponse = '';
-
-            for await (const chunk of llm.stream(messages)) {
-                fullResponse += chunk;
-                yield chunk;
+            while (!step.done) {
+                fullResponse += step.value;
+                yield step.value;
+                step = await turn.next();
+            }
+            if (!step.value.success) {
+                mindStore.setStatus('error');
+                return { success: false, error: step.value.error };
             }
 
             const insights = parseInsightsFromResponse(fullResponse);
@@ -217,14 +203,6 @@ export class MindEngine {
      * Summarize a block of context into a single concise insight
      */
     async summarizeContext(context: string): Promise<string> {
-        const mindStore = useMindStore.getState();
-        const { llmConfig } = mindStore;
-        const llm = getLLMService(llmConfig);
-
-        if (!await llm.isAvailable()) {
-            return "Unable to crystallize: LLM unavailable.";
-        }
-
         const prompt = `
 You are a highly efficient memory crystallization engine.
 Target: Distill the following data into a SINGLE, dense, high-value sentence for long-term storage.
@@ -238,11 +216,12 @@ Rules:
 4. Max 50 words.
         `.trim();
 
-        const response = await llm.complete([
+        const response = await runTurn([
             { role: 'system', content: 'You are a precise data summarizer.' },
             { role: 'user', content: prompt }
         ]);
 
+        if (!response.success) return 'Unable to crystallize: LLM unavailable.';
         return response.content.trim();
     }
 

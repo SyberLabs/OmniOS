@@ -3,8 +3,8 @@
 // Context-isolated AI for the 7 Life Systems
 // ============================================
 
-import { getLLMService, LLMMessage } from './llm.service';
-import { useMindStore } from '@/core/stores/mindStore';
+import { LLMMessage } from './llm.service';
+import { runTurn, runTurnStream } from '@/core/cognition';
 import { useCognitiveStore } from '@/core/stores/coreStore';
 import { useStabilityStore } from '@/core/stores/stabilityStore';
 import { SystemType, LifeSystem, AIMemoryEntry } from '@/core/schemas/core.schema';
@@ -141,8 +141,6 @@ ${stabilityInfo}
         instance.lastActivity = Date.now();
 
         try {
-            const mindStore = useMindStore.getState();
-            const { llmConfig } = mindStore;
 
             // Add user message to history
             instance.messages.push({
@@ -166,18 +164,11 @@ ${stabilityInfo}
                 }))
             ];
 
-            // Get LLM response
-            const llm = getLLMService(llmConfig);
-            const isAvailable = await llm.isAvailable();
-
-            if (!isAvailable) {
-                throw new Error(`${llmConfig.provider} is not available`);
+            // The Cognition Kernel owns the turn lifecycle (apex A4).
+            const response = await runTurn(messages, { temperature: 0.7, maxTokens: 1024 });
+            if (!response.success) {
+                throw new Error(response.error);
             }
-
-            const response = await llm.complete(messages, {
-                temperature: 0.7,
-                maxTokens: 1024
-            });
 
             // Add assistant response to history
             instance.messages.push({
@@ -212,8 +203,6 @@ ${stabilityInfo}
         instance.lastActivity = Date.now();
 
         try {
-            const mindStore = useMindStore.getState();
-            const { llmConfig } = mindStore;
 
             // Add user message
             instance.messages.push({
@@ -235,17 +224,18 @@ ${stabilityInfo}
                 }))
             ];
 
-            const llm = getLLMService(llmConfig);
-
-            if (!await llm.isAvailable()) {
-                yield `${llmConfig.provider} is not available`;
-                return;
-            }
-
+            // The Cognition Kernel owns the turn lifecycle (apex A4).
+            const turn = runTurnStream(messages);
+            let step = await turn.next();
             let fullResponse = '';
-            for await (const chunk of llm.stream(messages)) {
-                fullResponse += chunk;
-                yield chunk;
+            while (!step.done) {
+                fullResponse += step.value;
+                yield step.value;
+                step = await turn.next();
+            }
+            if (!step.value.success) {
+                yield `⚠️ ${step.value.error}`;
+                return;
             }
 
             // Add complete response to history

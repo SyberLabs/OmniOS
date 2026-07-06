@@ -3,8 +3,8 @@
 // LLM-powered CSS theme generator
 // ============================================
 
-import { getLLMService, LLMMessage } from './llm.service';
-import { useMindStore } from '@/core/stores/mindStore';
+import { LLMMessage } from './llm.service';
+import { runTurn } from '@/core/cognition';
 
 // ============================================
 // PRESET THEMES
@@ -144,19 +144,16 @@ class SkinService {
      */
     async generateSkin(prompt: string): Promise<SkinGenerationResult> {
         try {
-            const mindStore = useMindStore.getState();
-            const llmConfig = mindStore.llmConfig;
-            const llmService = getLLMService(llmConfig);
-
             const messages: LLMMessage[] = [
                 { role: 'system', content: SKIN_SYSTEM_PROMPT },
                 { role: 'user', content: `Create a theme based on: "${prompt}"` }
             ];
 
-            const response = await llmService.complete(messages, {
-                temperature: 0.7,
-                maxTokens: 1000
-            });
+            // The Cognition Kernel owns the turn lifecycle (apex A4).
+            const response = await runTurn(messages, { temperature: 0.7, maxTokens: 1000 });
+            if (!response.success) {
+                return { success: false, error: response.error };
+            }
 
             // Parse the JSON response
             const variables = this.parseVariables(response.content);

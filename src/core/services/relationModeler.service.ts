@@ -3,8 +3,8 @@
 // LLM-powered survey → model generation
 // ============================================
 
-import { getLLMService, LLMMessage } from './llm.service';
-import { useMindStore } from '@/core/stores/mindStore';
+import { LLMMessage } from './llm.service';
+import { runTurn } from '@/core/cognition';
 import {
     SurveyResponses,
     SYSTEM_SURVEY,
@@ -91,10 +91,6 @@ class RelationModelerService {
      */
     async generateModels(responses: SurveyAnswer[]): Promise<ModelGenerationResult> {
         try {
-            const mindStore = useMindStore.getState();
-            const llmConfig = mindStore.llmConfig;
-            const llmService = getLLMService(llmConfig);
-
             // Group responses by system
             const systemResponses = this.groupBySystem(responses);
             const allModels: Record<SystemType, Partial<SystemModel>> = {} as Record<SystemType, Partial<SystemModel>>;
@@ -107,10 +103,11 @@ class RelationModelerService {
                     { role: 'user', content: this.buildPrompt(systemId as SystemType, systemAnswers) }
                 ];
 
-                const response = await llmService.complete(messages, {
-                    temperature: 0.5,
-                    maxTokens: 2000
-                });
+                // The Cognition Kernel owns the turn lifecycle (apex A4).
+                const response = await runTurn(messages, { temperature: 0.5, maxTokens: 2000 });
+                if (!response.success) {
+                    throw new Error(response.error);
+                }
 
                 const parsed = this.parseResponse(response.content, systemId as SystemType);
                 if (parsed) {
