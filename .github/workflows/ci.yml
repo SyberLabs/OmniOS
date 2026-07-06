@@ -39,3 +39,13 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      # Golden-path e2e (apex A3): drives the real built app — spawn Investor
+      # shell → blocks render → wires live → mock-LLM Think streams → persists
+      # across reload. The LLM is the OMNI_E2E server double (no keys needed).
+      # This guards the UI wiring layer where unit tests can't see.
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: E2E (golden path)
+        run: npm run test:e2e

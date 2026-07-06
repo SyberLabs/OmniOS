@@ -91,12 +91,49 @@ function parseBody(raw: unknown): { ok: true; body: ParsedBody } | { ok: false; 
     };
 }
 
+// ============================================
+// E2E TEST DOUBLE
+// When the server runs with OMNI_E2E=1 (never set in production), the route
+// answers with deterministic canned output so the golden-path e2e can exercise
+// the full client pipeline (persona block → streaming render) without a real
+// provider. Server-side env var only — clients cannot trigger this.
+// ============================================
+const E2E_RESPONSE = 'E2E MOCK RESPONSE — grounded analysis of the wired data.';
+
+function e2eDouble(rawObj: Record<string, unknown>): Response {
+    if (rawObj.mode === 'ping') {
+        return NextResponse.json({ available: true }, { status: 200 });
+    }
+    if (rawObj.stream === true) {
+        const encoder = new TextEncoder();
+        const chunks = E2E_RESPONSE.split(' ').map(w => `${w} `);
+        const body = new ReadableStream<Uint8Array>({
+            async start(controller) {
+                for (const chunk of chunks) {
+                    controller.enqueue(encoder.encode(chunk));
+                    await new Promise(r => setTimeout(r, 15));
+                }
+                controller.close();
+            }
+        });
+        return new Response(body, {
+            headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' }
+        });
+    }
+    return NextResponse.json({ content: E2E_RESPONSE, tokensUsed: 42, finishReason: 'stop' });
+}
+
 export async function POST(request: NextRequest) {
     let raw: unknown;
     try {
         raw = await request.json();
     } catch {
         return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+    }
+
+    if (process.env.OMNI_E2E === '1') {
+        const rawObj = (raw && typeof raw === 'object') ? (raw as Record<string, unknown>) : {};
+        return e2eDouble(rawObj);
     }
 
     // Lightweight availability probe (mode: 'ping') — checks key presence for

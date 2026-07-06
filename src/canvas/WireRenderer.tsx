@@ -127,7 +127,7 @@ export function WireRenderer({ activeDragId, dragDelta, shellId }: WireRendererP
                 const color = getWireColor(wire);
 
                 return (
-                    <g key={wire.id}>
+                    <g key={wire.id} data-testid="wire" data-wire-status={wire.status}>
                         {/* Hover area - wider invisible path */}
                         <path
                             d={path}

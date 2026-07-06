@@ -37,6 +37,11 @@ yarn-error.log*
 # local editor / agent config
 .claude/
 
+# playwright
+/test-results/
+/playwright-report/
+/blob-report/
+
 # vercel
 .vercel
 
