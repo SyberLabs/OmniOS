@@ -101,20 +101,25 @@ export default function AgentSurfacePage() {
             <header className="border-b border-[var(--citadel-border)] px-6 py-4 flex items-start justify-between gap-6">
                 <div>
                     <p className="text-[10px] uppercase tracking-[0.2em] text-[var(--text-muted)]">
-                        OmniOS · agent surface
+                        OmniOS · product
                     </p>
-                    <h1 className="text-xl font-semibold mt-1">
-                        {discovery?.name ?? 'Live tabs + affordances'}
-                    </h1>
+                    <h1 className="text-xl font-semibold mt-1">Keyless agent surface</h1>
                     <p className="text-sm text-[var(--text-secondary)] mt-2 max-w-2xl">
-                        {discovery?.description ??
-                            'Each tab is a real disposable browser page an arbitrary agent can act on.'}
+                        This is the product: local tabs, action refs, and a PNG screenshot.
+                        An agent or a human can create, read, act, and dispose. No API key.
                     </p>
                     <p className="text-xs text-[var(--truth-green)] mt-2">
-                        No API key required{discovery?.keyRequired === false ? ' · keyRequired: false' : ''}.
+                        Contract:{' '}
+                        <a href="/api/agent" className="underline hover:text-[var(--text-primary)]">
+                            GET /api/agent
+                        </a>
+                        {discovery?.keyRequired === false ? ' · keyRequired: false' : ''}.
                     </p>
                 </div>
                 <nav className="flex gap-3 text-xs text-[var(--text-secondary)] shrink-0">
+                    <a href="/api/agent" className="hover:text-[var(--text-primary)]">
+                        Discover
+                    </a>
                     <Link href="/" className="hover:text-[var(--text-primary)]">
                         Citadel
                     </Link>

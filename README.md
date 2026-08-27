@@ -1,90 +1,39 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# OmniOS
 
-## Getting Started
+OmniOS is a **keyless agent surface**. An arbitrary agent (`curl`, `fetch`,
+or a human) discovers named affordances and acts on local disposable browser
+tabs. No API key.
 
-First, run the development server:
+## Run
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- Product (human / browser-agent): [http://localhost:3000/surface](http://localhost:3000/surface)
+- Contract (discover): [http://localhost:3000/api/agent](http://localhost:3000/api/agent)
 
-## Configuration
+Needs local **Chrome / Chromium / Edge** on the machine running OmniOS
+(or `OMNI_CHROME_PATH` / `OMNI_CDP_URL`). **Playwright** is a **test adapter**
+only (`OMNI_TAB_RUNTIME=playwright` in CI / Vitest). It is not the product
+path. Playwright can be removed later without the HTTP API changing.
 
-Omni OS is **local-first and single-user**. API keys are read server-side from
-environment variables and are **never** sent to or stored in the browser.
+Local fixtures (no internet): `/agent-fixture.html` and `/agent-fixture-b.html`.
 
-1. Copy the example env file and fill in the keys you need:
+## Product contract
 
-   ```bash
-   cp .env.example .env
-   ```
-
-2. Available variables (all optional — leave blank to skip a provider):
-
-   | Variable | Purpose |
-   |----------|---------|
-   | `OLLAMA_BASE_URL` | Local LLM (Ollama) endpoint. Default `http://localhost:11434`. No key needed. |
-   | `ANTHROPIC_API_KEY` | Claude models for the Mind / personas. |
-   | `GOOGLE_API_KEY` | Gemini models for the Mind / personas. |
-   | `NEWSAPI_KEY` | NewsAPI data blocks. |
-
-   Polymarket and Metaculus use public APIs and need no key.
-
-3. Without any keys, the app still runs against built-in **mock data** (toggle in
-   Settings). The Local (Ollama) provider also works fully offline.
-
-> ⚠️ **Hosting:** because keys are shared server-side, public/multi-user hosting
-> would expose them to every visitor. Add authentication before deploying
-> publicly. See `IMPLEMENTATION_PLAN.md`.
-
-## Agent surface (no API key)
-
-OmniOS also exposes a **keyless** affordance surface for an arbitrary agent
-(`curl`, `fetch`, or another agent's HTTP client). A tab is a **local
-lightweight browser state** — not a JSON note, not a Citadel canvas, and not
-a hosted-model chat.
-
-**Product contract:** `GET /api/agent` (frozen in `src/core/agent/contract.ts`).
+`GET /api/agent` is the frozen contract (`src/core/agent/contract.ts`).
 Callers depend on named affordances and the snapshot shape
 (`id`, `title`, `url`, `text`, `actions[]`, `screenshot`) plus
 `keyRequired: false`. They do not depend on Chrome/CDP or Playwright.
 `tabRuntime` is discovery-only (`cdp` | `playwright`). No caller-visible
 `BrowserContext`, `storageState`, or CDP port.
 
-**Product runtime:** real Chrome / Chromium / Edge on the machine running
-OmniOS. Each tab id is a disposable local profile at
-`.omni/profiles/<tabId>/` (gitignored), launched with CDP
-(`--remote-debugging-port`). Or attach to an already-running browser via
-`OMNI_CDP_URL` (e.g. `http://127.0.0.1:9222`). Two tabs are two profiles;
-they do not share cookies or `localStorage`. The profile survives an OmniOS
-process restart: the same tab id rehydrates from disk (not from server memory).
-`tabs.dispose` deletes that profile.
-
-**Test / CI adapter only:** `OMNI_TAB_RUNTIME=playwright` uses Playwright's
-`chromium.launch`. That is not the product path. Playwright can be removed
-later without the agent HTTP API changing. CI sets the adapter explicitly so
-green CI is not a fake "local Chrome".
-
-No API key is required. Captain running `next dev` needs Chrome (or
-`OMNI_CHROME_PATH` / `OMNI_CDP_URL`).
-
-Citadel (`/`) and Garden (`/garden`) are unchanged.
-
-```bash
-npm run dev
-```
-
-Human / browser-agent view: [http://localhost:3000/surface](http://localhost:3000/surface)
-
-Local fixture pages (no internet): `/agent-fixture.html` and `/agent-fixture-b.html`.
+Each tab is a **local lightweight browser state** — not a JSON note, not a
+Citadel canvas, and not a hosted-model chat. Cookies / `localStorage` live in
+`.omni/profiles/<tabId>/`. The same tab id rehydrates after an OmniOS process
+restart. `tabs.dispose` deletes that profile.
 
 | Method | Path | Affordance |
 |--------|------|------------|
@@ -114,7 +63,6 @@ curl -X POST http://localhost:3000/api/agent/tabs/TAB_ID/act \
   -H 'content-type: application/json' \
   -d '{"affordance":"tab.click","input":{"ref":"e2"}}'
 # → tab.text includes "session: alive / persisted"
-# → tab.actions now also includes { "ref":"e5", "name":"Reveal next" }
 
 curl -X POST http://localhost:3000/api/agent/tabs/TAB_ID/act \
   -H 'content-type: application/json' \
@@ -127,45 +75,15 @@ curl -X POST http://localhost:3000/api/agent/tabs/TAB_ID/act \
 
 # 5. Screenshot — durable PNG of the live tab (no key)
 curl -o shot.png http://localhost:3000/api/agent/tabs/TAB_ID/screenshot
-# or POST { "affordance":"tab.screenshot", "input":{ "tabId":"TAB_ID" } }
-# → { "screenshot": { "url":"/api/agent/tabs/TAB_ID/screenshot?t=…", "contentType":"image/png" } }
 
 # 6. After OmniOS/Next restarts, the same tab id still reads from the profile
 curl http://localhost:3000/api/agent/tabs/TAB_ID
-# → session: alive / persisted  (did not dispose)
 
 # 7. Dispose — later read/act return 404; profile dir is gone
 curl -X DELETE http://localhost:3000/api/agent/tabs/TAB_ID
 ```
 
-Two tabs on the same fixture stay isolated:
-
-```bash
-# Open A and B on the same origin
-curl -X POST http://localhost:3000/api/agent/tabs \
-  -H 'content-type: application/json' \
-  -d '{"url":"http://localhost:3000/agent-fixture.html"}'
-curl -X POST http://localhost:3000/api/agent/tabs \
-  -H 'content-type: application/json' \
-  -d '{"url":"http://localhost:3000/agent-fixture.html"}'
-
-# Act only in A
-curl -X POST http://localhost:3000/api/agent/tabs/TAB_A/act \
-  -H 'content-type: application/json' \
-  -d '{"affordance":"tab.click","input":{"ref":"e2"}}'
-# → A: session: alive / persisted
-
-# B is still clean (reload so the snapshot is not a stale open page)
-curl -X POST http://localhost:3000/api/agent/tabs/TAB_B/act \
-  -H 'content-type: application/json' \
-  -d '{"affordance":"tab.navigate","input":{"url":"http://localhost:3000/agent-fixture-b.html"}}'
-# → B: session: empty / empty
-
-curl -X DELETE http://localhost:3000/api/agent/tabs/TAB_A
-# B still works; A is 404
-```
-
-Same loop via one invoke endpoint:
+Two tabs on the same origin stay isolated. Same loop via one invoke endpoint:
 
 ```bash
 curl -X POST http://localhost:3000/api/agent \
@@ -173,34 +91,33 @@ curl -X POST http://localhost:3000/api/agent \
   -d '{"affordance":"tabs.create","input":{"url":"http://localhost:3000/agent-fixture.html"}}'
 ```
 
-This surface does not call Ollama, Anthropic, Gemini, or NewsAPI. The HTTP
-API is unchanged. Product tabs launch (or attach to) local Chrome:
+Optional attach to an already-running browser:
 
 ```bash
-# optional: already-running browser
 # chrome --remote-debugging-port=9222
 # export OMNI_CDP_URL=http://127.0.0.1:9222
-
 npm run dev
 ```
 
-CI / `vitest` uses `OMNI_TAB_RUNTIME=playwright` (test adapter only).
+This surface does not call Ollama, Anthropic, Gemini, or NewsAPI.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Also in this repo
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Citadel (`/`) and Garden (`/garden`) are an older canvas / persona workspace.
+They are **not** this product. `/` is unchanged and is not redirected.
 
-## Learn More
+Those pages may use optional server-side keys (unused by `/api/agent`):
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+cp .env.example .env
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| Variable | Purpose |
+|----------|---------|
+| `OLLAMA_BASE_URL` | Local LLM (Ollama). Default `http://localhost:11434`. |
+| `ANTHROPIC_API_KEY` | Claude for Citadel Mind / personas. |
+| `GOOGLE_API_KEY` | Gemini for Citadel Mind / personas. |
+| `NEWSAPI_KEY` | NewsAPI data blocks. |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Without keys, Citadel still runs against built-in mock data. Do not host that
+canvas publicly with shared keys. See `IMPLEMENTATION_PLAN.md`.
