@@ -18,6 +18,10 @@ import { createCdpRuntime } from './cdpRuntime';
 import { setTabRuntimeForTests } from './resolve';
 
 const chrome = findChrome();
+// CI sets OMNI_TAB_RUNTIME=playwright. A runner may still have a Chrome
+// binary that cannot launch; do not fail the adapter job by probing it.
+const runLiveCdp =
+    Boolean(chrome) && process.env.OMNI_TAB_RUNTIME !== 'playwright';
 
 async function json(res: Response) {
     return { status: res.status, body: await res.json() };
@@ -25,7 +29,7 @@ async function json(res: Response) {
 
 const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
-describe.skipIf(!chrome)('local Chrome/CDP product runtime', () => {
+describe.skipIf(!runLiveCdp)('local Chrome/CDP product runtime', () => {
     let fixtureOrigin = '';
     let fixtureServer: http.Server;
 
@@ -181,5 +185,11 @@ describe('local Chrome/CDP availability', () => {
         }
         expect(chrome).not.toMatch(/ms-playwright/);
         expect(fs.existsSync(chrome)).toBe(true);
+    });
+
+    it('does not run the live CDP suite under the Playwright adapter', () => {
+        if (process.env.OMNI_TAB_RUNTIME === 'playwright') {
+            expect(runLiveCdp).toBe(false);
+        }
     });
 });
