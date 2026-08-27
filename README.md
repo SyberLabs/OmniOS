@@ -48,7 +48,7 @@ restart. `tabs.dispose` deletes that profile.
 | `GET` | `/api/agent/tabs/{id}` | `tabs.read` — title, URL, visible text, `actions[]` refs, `screenshot` |
 | `GET` | `/api/agent/tabs/{id}/screenshot` | `tab.screenshot` — live PNG (`image/png`) |
 | `POST` | `/api/agent/tabs/{id}/act` | `tab.navigate` / `tab.click` / `tab.type` (prefer `ref`) |
-| `DELETE` | `/api/agent/tabs/{id}` | `tabs.dispose` — unbinds a bound page (user page stays); closes an OmniOS-created page |
+| `DELETE` | `/api/agent/tabs/{id}` | `tabs.dispose` — unbinds a bound page (user page stays); closes an OmniOS-created page (does not quit Chrome) |
 
 Closed loop on the product page (not a fixture):
 
@@ -137,7 +137,7 @@ and does **not** close the user page.
 
 `tabs.create` after attach still opens a **new OmniOS page/target** in that
 Chrome (isolated context). `tabs.dispose` of that created page closes that
-target only. Neither path quits the user Chrome process. Never `Browser.close`.
+target only. It does **not** quit the user Chrome process. Never `Browser.close`.
 
 Launching a new disposable profile remains available: skip `runtime.attach`
 and call `tabs.create` as usual.

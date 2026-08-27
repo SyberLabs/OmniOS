@@ -83,7 +83,9 @@ async function waitForJson(url: string, timeoutMs = 15_000): Promise<unknown> {
 }
 
 async function jsonNew(port: number, pageUrl: string): Promise<{ id: string; url?: string; title?: string }> {
-    const res = await fetch(`http://127.0.0.1:${port}/json/new?${encodeURIComponent(pageUrl)}`);
+    const res = await fetch(`http://127.0.0.1:${port}/json/new?${encodeURIComponent(pageUrl)}`, {
+        method: 'PUT'
+    });
     if (!res.ok) throw new Error(`json/new failed: HTTP ${res.status}`);
     return (await res.json()) as { id: string; url?: string; title?: string };
 }
