@@ -276,6 +276,75 @@ describe.skipIf(!runLiveEnsure)('runtime.ensure launches or reuses a real Chrome
             }
         }
     }, 90_000);
+
+    it('does not launch chrome-debug when everyday Chrome is already open without a debug port', async () => {
+        const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'omni-ensure-everyday-'));
+        let chromeProc: ChildProcess | null = spawn(
+            chrome!,
+            [
+                `--user-data-dir=${userDataDir}`,
+                '--no-first-run',
+                '--no-default-browser-check',
+                '--disable-sync',
+                '--disable-extensions',
+                '--disable-default-apps',
+                '--headless=new',
+                '--no-sandbox',
+                '--disable-dev-shm-usage',
+                'about:blank'
+            ],
+            { stdio: ['ignore', 'ignore', 'pipe'] }
+        );
+        try {
+            await new Promise((resolve) => setTimeout(resolve, 800));
+            expect(chromeProc.exitCode).toBeNull();
+
+            const blocked = await json(
+                await discoverPost(
+                    new Request('http://local/api/agent', {
+                        method: 'POST',
+                        headers: { 'content-type': 'application/json' },
+                        body: JSON.stringify({ affordance: 'runtime.ensure', input: {} })
+                    })
+                )
+            );
+            expect(blocked.status).toBe(409);
+            expect(blocked.status).not.toBe(500);
+            expect(blocked.status).not.toBe(503);
+            expect(blocked.body.keyRequired).toBe(false);
+            expect(String(blocked.body.error)).toMatch(/already open/i);
+            expect(String(blocked.body.error)).toMatch(/not debuggable/i);
+            expect(blocked.body.attached).toBeUndefined();
+            expectNoRuntimeLeak(blocked.body);
+            expect(chromeProc.exitCode).toBeNull();
+        } finally {
+            if (chromeProc && chromeProc.exitCode == null) {
+                chromeProc.kill('SIGTERM');
+                await new Promise((resolve) => setTimeout(resolve, 400));
+                if (chromeProc.exitCode == null) chromeProc.kill('SIGKILL');
+            }
+            chromeProc = null;
+            try {
+                fs.rmSync(userDataDir, { recursive: true, force: true });
+            } catch {
+                // leftover profile
+            }
+        }
+
+        const launched = await json(
+            await discoverPost(
+                new Request('http://local/api/agent', {
+                    method: 'POST',
+                    headers: { 'content-type': 'application/json' },
+                    body: JSON.stringify({ affordance: 'runtime.ensure', input: {} })
+                })
+            )
+        );
+        expect(launched.status).toBe(200);
+        expect(launched.body.attached).toBe(true);
+        expect(launched.body.launched).toBe(true);
+        expectNoRuntimeLeak(launched.body);
+    }, 90_000);
 });
 
 describe('runtime.ensure availability', () => {

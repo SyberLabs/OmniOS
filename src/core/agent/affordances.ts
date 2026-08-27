@@ -13,10 +13,10 @@ export const AGENT_PRODUCT = {
     keyRequired: false as const,
     description:
         'Local lightweight tabs: runtime.ensure opens a debuggable Chrome (reuses one if already ' +
-        'up, otherwise launches), then list pages (runtime.targets), bind one (tabs.bind), or ' +
-        'launch a disposable profile (.omni/profiles/<tabId>). Not a Citadel canvas and not a ' +
-        'hosted-model chat. Playwright is a test/CI adapter (OMNI_TAB_RUNTIME=playwright). ' +
-        'No API key is required.',
+        'up; fails closed if everyday Chrome is open and not debuggable; otherwise launches), ' +
+        'then list pages (runtime.targets), bind one (tabs.bind), or launch a disposable profile ' +
+        '(.omni/profiles/<tabId>). Not a Citadel canvas and not a hosted-model chat. Playwright ' +
+        'is a test/CI adapter (OMNI_TAB_RUNTIME=playwright). No API key is required.',
     invoke: {
         method: 'POST' as const,
         path: '/api/agent',
@@ -31,11 +31,12 @@ export const AGENT_AFFORDANCES: Affordance[] = [
         id: 'runtime.ensure',
         description:
             'Make a debuggable Chrome available and attach. Empty input. Reuses an already-open ' +
-            'debug Chrome if one is up; otherwise launches the user Chrome/Chromium/Edge with ' +
-            'remote debugging (dedicated .omni/chrome-debug profile) and attaches. After this call, ' +
-            'runtime.targets / tabs.bind / tabs.create work without a separate runtime.attach. ' +
-            'tabs.dispose never quits that Chrome — an ensure-launched process stays up after the ' +
-            'last tab. Optional companion: npm run chrome:debug.',
+            'debug Chrome if one is up. If everyday Chrome/Chromium/Edge is already open and is ' +
+            'not debuggable, this fails closed — it will not launch a second Chrome. Otherwise ' +
+            'launches Chrome/Chromium/Edge with remote debugging (dedicated .omni/chrome-debug ' +
+            'profile) and attaches. After this call, runtime.targets / tabs.bind / tabs.create ' +
+            'work without a separate runtime.attach. tabs.dispose never quits that Chrome — an ' +
+            'ensure-launched process stays up after the last tab. Optional companion: npm run chrome:debug.',
         method: 'POST',
         path: '/api/agent',
         inputSchema: none,

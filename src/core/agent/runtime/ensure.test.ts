@@ -12,7 +12,7 @@ import { __resetAgentTabs } from '../browserTabs';
 import { FORBIDDEN_CALLER_KEYS } from '../contract';
 import { clearProcessAttachHttp } from './attach';
 import { setFindChromeForTests } from './chrome';
-import { ensureRuntime } from './ensure';
+import { ensureRuntime, setEverydayChromeRunningForTests } from './ensure';
 
 async function json(res: Response) {
     return { status: res.status, body: await res.json() };
@@ -90,6 +90,7 @@ function mockCdp() {
 afterEach(async () => {
     delete process.env.OMNI_CDP_URL;
     setFindChromeForTests(null);
+    setEverydayChromeRunningForTests(null);
     await __resetAgentTabs();
 });
 
@@ -104,6 +105,7 @@ describe('runtime.ensure', () => {
     });
 
     it('fails clean with 503 when no Chrome exists and nothing is already debuggable', async () => {
+        setEverydayChromeRunningForTests(false);
         setFindChromeForTests(() => null);
         clearProcessAttachHttp();
         delete process.env.OMNI_CDP_URL;
@@ -127,7 +129,9 @@ describe('runtime.ensure', () => {
             expect(error).toBeInstanceOf(AgentTabError);
             expect((error as AgentTabError).status).toBe(503);
             expect((error as AgentTabError).status).not.toBe(500);
-            expect((error as AgentTabError).message).toMatch(/Chrome|Chromium|Edge/i);
+            expect((error as AgentTabError).status).not.toBe(409);
+            expect((error as AgentTabError).message).toMatch(/No local Chrome\/Chromium\/Edge found/i);
+            expect((error as AgentTabError).message).not.toMatch(/already open|not debuggable/i);
             expect((error as AgentTabError).message).not.toMatch(/cdpUrl|port must/i);
         }
 
@@ -142,13 +146,65 @@ describe('runtime.ensure', () => {
         );
         expect(listed.status).toBe(503);
         expect(listed.status).not.toBe(500);
+        expect(listed.status).not.toBe(409);
         expect(listed.body.keyRequired).toBe(false);
         expect(typeof listed.body.error).toBe('string');
+        expect(String(listed.body.error)).toMatch(/No local Chrome\/Chromium\/Edge found/i);
+        expectNoRuntimeLeak(listed.body);
+    });
+
+    it('fails closed with 409 when everyday Chrome is open and nothing is attachable', async () => {
+        setEverydayChromeRunningForTests(true);
+        let locateCalls = 0;
+        setFindChromeForTests(() => {
+            locateCalls += 1;
+            return null;
+        });
+        clearProcessAttachHttp();
+        delete process.env.OMNI_CDP_URL;
+
+        try {
+            await ensureRuntime();
+            throw new Error('expected ensureRuntime to fail');
+        } catch (error) {
+            expect(error).toBeInstanceOf(AgentTabError);
+            expect((error as AgentTabError).status).toBe(409);
+            expect((error as AgentTabError).status).not.toBe(500);
+            expect((error as AgentTabError).status).not.toBe(503);
+            expect((error as AgentTabError).message).toMatch(/already open/i);
+            expect((error as AgentTabError).message).toMatch(/not debuggable/i);
+            expect((error as AgentTabError).message).toMatch(/quit|restart/i);
+            expect((error as AgentTabError).message).toMatch(/retry/i);
+            expect((error as AgentTabError).message).not.toMatch(
+                /cdpUrl|9222|BrowserContext|user-data-dir|\.omni|profile/i
+            );
+        }
+        expect(locateCalls).toBe(0);
+
+        const listed = await json(
+            await discoverPost(
+                new Request('http://local/api/agent', {
+                    method: 'POST',
+                    headers: { 'content-type': 'application/json' },
+                    body: JSON.stringify({ affordance: 'runtime.ensure', input: {} })
+                })
+            )
+        );
+        expect(listed.status).toBe(409);
+        expect(listed.status).not.toBe(500);
+        expect(listed.status).not.toBe(503);
+        expect(listed.body.keyRequired).toBe(false);
+        expect(typeof listed.body.error).toBe('string');
+        expect(String(listed.body.error)).toMatch(/already open/i);
+        expect(String(listed.body.error)).toMatch(/not debuggable/i);
+        expect(listed.body.attached).toBeUndefined();
+        expect(listed.body.launched).toBeUndefined();
         expectNoRuntimeLeak(listed.body);
     });
 
     it('attaches to an already-debuggable Chrome without launching a second one', async () => {
         const mock = await mockCdp();
+        setEverydayChromeRunningForTests(true);
         setFindChromeForTests(() => {
             throw new Error('findChrome must not run when a debug Chrome is already up');
         });

@@ -17,6 +17,8 @@ npm run dev
 Needs local **Chrome / Chromium / Edge** on the machine running OmniOS
 (or `OMNI_CHROME_PATH`). Call `runtime.ensure` — it reuses an already-debuggable
 Chrome or launches one. You do not need to remember `--remote-debugging-port`.
+If everyday Chrome is already open without remote debugging, ensure will not
+open a second Chrome on top of yours.
 **Playwright** is a **test adapter** only (`OMNI_TAB_RUNTIME=playwright` in
 CI / Vitest). It is not the product path. Playwright can be removed later
 without the HTTP API changing.
@@ -94,8 +96,11 @@ disposable local profile.
 
 The product path is `runtime.ensure` (`GET /api/agent` lists it). An agent
 does not remember a CLI flag. Empty input: reuse an already-debuggable
-Chrome if one is up, otherwise launch Chrome/Chromium/Edge with remote
-debugging (dedicated `.omni/chrome-debug` profile) and attach.
+Chrome if one is up. If everyday Chrome/Chromium/Edge is already open and
+not debuggable, ensure will not open a second Chrome on top of yours —
+quit it or restart it with remote debugging, then retry. Otherwise launch
+Chrome/Chromium/Edge with remote debugging (dedicated `.omni/chrome-debug`
+profile) and attach.
 
 ```bash
 # no --remote-debugging-port for the agent

@@ -12,6 +12,7 @@ import path from 'node:path';
 import { AgentTabError } from '../errors';
 import { attachRuntime, clearProcessAttachHttp, getProcessAttachHttp, probeCdpHttp } from './attach';
 import { findChrome, setFindChromeForTests } from './chrome';
+import { hasEverydayChrome, setEverydayChromeRunningForTests as setEverydayChromeHook } from './chromeProcesses';
 import { ensureDir, inTest } from './paths';
 import { clearTabRuntimeCache } from './resolve';
 
@@ -205,6 +206,17 @@ export async function ensureRuntime(): Promise<EnsureResult> {
         };
     }
 
+    const excludePids = new Set<number>();
+    if (launchedDebug?.proc?.pid) excludePids.add(launchedDebug.proc.pid);
+    if (hasEverydayChrome({ excludePids, debugProfile: debugChromeProfile() })) {
+        throw new AgentTabError(
+            409,
+            'Everyday Chrome/Chromium/Edge is already open and is not debuggable. ' +
+                'Quit it, or restart it with remote debugging, then retry runtime.ensure. ' +
+                'OmniOS will not launch a second Chrome on top of yours.'
+        );
+    }
+
     const chrome = findChrome();
     if (!chrome) {
         throw new AgentTabError(
@@ -227,6 +239,11 @@ export async function ensureRuntime(): Promise<EnsureResult> {
 /** Test hook: force a missing Chrome binary for the fail-clean path. */
 export function setEnsureChromeLocatorForTests(fn: (() => string | null) | null): void {
     setFindChromeForTests(fn);
+}
+
+/** Test hook: force everyday Chrome running / not running for the fail-closed path. */
+export function setEverydayChromeRunningForTests(value: boolean | null): void {
+    setEverydayChromeHook(value);
 }
 
 /**

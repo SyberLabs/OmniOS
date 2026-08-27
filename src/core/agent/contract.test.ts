@@ -13,7 +13,11 @@ import { GET as tabGet, DELETE as tabDelete } from '@/app/api/agent/tabs/[id]/ro
 import { POST as tabAct } from '@/app/api/agent/tabs/[id]/act/route';
 import { GET as screenshotGet } from '@/app/api/agent/tabs/[id]/screenshot/route';
 import { invokeAffordance } from './invoke';
-import { __stopEnsuredChrome, setEnsureChromeLocatorForTests } from './runtime/ensure';
+import {
+    __stopEnsuredChrome,
+    setEnsureChromeLocatorForTests,
+    setEverydayChromeRunningForTests
+} from './runtime/ensure';
 import {
     AGENT_CONTRACT_VERSION,
     AGENT_DISCOVERY_SCHEMA,
@@ -238,6 +242,7 @@ describe('frozen agent contract (runtime-agnostic)', () => {
         // Force the no-binary path here so this file cannot launch a real
         // Chrome into the Playwright adapter suite. Success is the live test.
         setEnsureChromeLocatorForTests(() => null);
+        setEverydayChromeRunningForTests(false);
         try {
             const ensured = await json(
                 await discoverPost(
@@ -261,6 +266,7 @@ describe('frozen agent contract (runtime-agnostic)', () => {
             expect(ensured.body.BrowserContext).toBeUndefined();
         } finally {
             setEnsureChromeLocatorForTests(null);
+            setEverydayChromeRunningForTests(null);
             await __stopEnsuredChrome();
         }
     });
