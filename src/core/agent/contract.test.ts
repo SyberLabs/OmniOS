@@ -1,0 +1,224 @@
+// ============================================
+// Frozen /api/agent contract. Runtime-agnostic.
+// Hits HTTP / invoke only. Does not import Playwright or CDP internals.
+// ============================================
+
+import http from 'node:http';
+import fs from 'node:fs';
+import path from 'node:path';
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { GET as discoverGet, POST as discoverPost } from '@/app/api/agent/route';
+import { GET as tabsGet, POST as tabsPost } from '@/app/api/agent/tabs/route';
+import { GET as tabGet, DELETE as tabDelete } from '@/app/api/agent/tabs/[id]/route';
+import { POST as tabAct } from '@/app/api/agent/tabs/[id]/act/route';
+import { GET as screenshotGet } from '@/app/api/agent/tabs/[id]/screenshot/route';
+import { invokeAffordance } from './invoke';
+import {
+    AGENT_CONTRACT_VERSION,
+    AGENT_DISCOVERY_SCHEMA,
+    AGENT_TAB_SNAPSHOT_SCHEMA,
+    FORBIDDEN_CALLER_KEYS,
+    FROZEN_AFFORDANCE_IDS,
+    SNAPSHOT_REQUIRED_FIELDS,
+    TAB_RUNTIME_KINDS,
+    validateAgainstSchema
+} from './contract';
+
+async function json(res: Response) {
+    return { status: res.status, body: await res.json() };
+}
+
+function collectKeys(value: unknown, into: Set<string> = new Set()): Set<string> {
+    if (!value || typeof value !== 'object') return into;
+    if (Array.isArray(value)) {
+        for (const item of value) collectKeys(item, into);
+        return into;
+    }
+    for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
+        into.add(key);
+        collectKeys(child, into);
+    }
+    return into;
+}
+
+function expectNoRuntimeLeak(value: unknown) {
+    const keys = collectKeys(value);
+    for (const forbidden of FORBIDDEN_CALLER_KEYS) {
+        expect(keys.has(forbidden), `caller-visible leak: ${forbidden}`).toBe(false);
+    }
+}
+
+function publicFile(name: string) {
+    return fs.readFileSync(path.join(process.cwd(), 'public', name), 'utf8');
+}
+
+let fixtureOrigin = '';
+let fixtureServer: http.Server;
+
+beforeAll(async () => {
+    fixtureServer = http.createServer((req, res) => {
+        const url = req.url ?? '/';
+        const file = url.includes('agent-fixture-b') ? 'agent-fixture-b.html' : 'agent-fixture.html';
+        res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+        res.end(publicFile(file));
+    });
+    await new Promise<void>((resolve) => {
+        fixtureServer.listen(0, '127.0.0.1', () => resolve());
+    });
+    const addr = fixtureServer.address();
+    if (!addr || typeof addr === 'string') throw new Error('fixture server failed to bind');
+    fixtureOrigin = `http://127.0.0.1:${addr.port}`;
+}, 30_000);
+
+afterAll(async () => {
+    await new Promise<void>((resolve, reject) => {
+        fixtureServer.close((err) => (err ? reject(err) : resolve()));
+    });
+});
+
+afterEach(async () => {
+    const listed = await invokeAffordance('tabs.list');
+    const tabs = (listed.body.tabs as Array<{ id: string }>) || [];
+    await Promise.all(tabs.map((tab) => invokeAffordance('tabs.dispose', { tabId: tab.id })));
+});
+
+describe('frozen agent contract (runtime-agnostic)', () => {
+    it('this file does not import Playwright or CDP internals', () => {
+        const imports = fs
+            .readFileSync(new URL(import.meta.url), 'utf8')
+            .split('\n')
+            .filter((line) => /^\s*import\s/.test(line))
+            .join('\n');
+        expect(imports).not.toMatch(/playwright/i);
+        expect(imports).not.toMatch(/cdpRuntime|cdpClient|\/chrome['"]|runtime\/resolve/);
+        expect(imports).not.toMatch(/browserTabs/);
+    });
+
+    it('GET /api/agent is the frozen discover contract', async () => {
+        const { status, body } = await json(await discoverGet());
+        expect(status).toBe(200);
+        expect(validateAgainstSchema(AGENT_DISCOVERY_SCHEMA, body)).toEqual([]);
+        expect(body.keyRequired).toBe(false);
+        expect(body.auth).toBeUndefined();
+        expect(TAB_RUNTIME_KINDS).toContain(body.tabRuntime);
+        expect(body.contract.version).toBe(AGENT_CONTRACT_VERSION);
+        expect(body.contract.snapshotRequired).toEqual([...SNAPSHOT_REQUIRED_FIELDS]);
+        expect(body.contract.tabRuntime.discoveryOnly).toBe(true);
+
+        const ids = (body.affordances as Array<{ id: string }>).map((a) => a.id);
+        expect(ids).toEqual([...FROZEN_AFFORDANCE_IDS]);
+        for (const affordance of body.affordances as Array<{ keyRequired: boolean }>) {
+            expect(affordance.keyRequired).toBe(false);
+        }
+        expectNoRuntimeLeak(body);
+    });
+
+    it('create/read/list/act/screenshot/dispose stay on the snapshot shape', async () => {
+        const created = await json(
+            await tabsPost(
+                new Request('http://local/api/agent/tabs', {
+                    method: 'POST',
+                    headers: { 'content-type': 'application/json' },
+                    body: JSON.stringify({ url: `${fixtureOrigin}/agent-fixture.html` })
+                })
+            )
+        );
+        expect(created.status).toBe(201);
+        expect(created.body.keyRequired).toBe(false);
+        expect(validateAgainstSchema(AGENT_TAB_SNAPSHOT_SCHEMA, created.body.tab)).toEqual([]);
+        expectNoRuntimeLeak(created.body);
+        expect(created.body.tab.tabRuntime).toBeUndefined();
+
+        const tabId = created.body.tab.id as string;
+        const persist = (created.body.tab.actions as Array<{ name: string; ref: string }>).find(
+            (action) => action.name === 'Persist session'
+        );
+        expect(persist?.ref).toBeTruthy();
+
+        const listed = await json(await tabsGet());
+        expect(listed.status).toBe(200);
+        expect(listed.body.tabs.map((t: { id: string }) => t.id)).toContain(tabId);
+
+        const clicked = await json(
+            await tabAct(
+                new Request(`http://local/api/agent/tabs/${tabId}/act`, {
+                    method: 'POST',
+                    headers: { 'content-type': 'application/json' },
+                    body: JSON.stringify({ affordance: 'tab.click', input: { ref: persist!.ref } })
+                }),
+                { params: Promise.resolve({ id: tabId }) }
+            )
+        );
+        expect(clicked.status).toBe(200);
+        expect(clicked.body.tab.text).toContain('session: alive / persisted');
+        expect(validateAgainstSchema(AGENT_TAB_SNAPSHOT_SCHEMA, clicked.body.tab)).toEqual([]);
+        expectNoRuntimeLeak(clicked.body);
+
+        const typed = await invokeAffordance('tab.type', {
+            tabId,
+            ref: 'e3',
+            text: 'Ada'
+        });
+        expect(typed.status).toBe(200);
+        expect(validateAgainstSchema(AGENT_TAB_SNAPSHOT_SCHEMA, typed.body.tab)).toEqual([]);
+
+        const navigated = await invokeAffordance('tab.navigate', {
+            tabId,
+            url: `${fixtureOrigin}/agent-fixture-b.html`
+        });
+        expect(navigated.status).toBe(200);
+        const navigatedTab = navigated.body.tab as { title: string };
+        expect(navigatedTab.title).toBe('Agent Fixture B');
+        expect(validateAgainstSchema(AGENT_TAB_SNAPSHOT_SCHEMA, navigated.body.tab)).toEqual([]);
+
+        const read = await json(
+            await tabGet(new Request(`http://local/api/agent/tabs/${tabId}`), {
+                params: Promise.resolve({ id: tabId })
+            })
+        );
+        expect(read.status).toBe(200);
+        expect(read.body.tab.id).toBe(tabId);
+        expect(validateAgainstSchema(AGENT_TAB_SNAPSHOT_SCHEMA, read.body.tab)).toEqual([]);
+        expect(read.body.tab.tabRuntime).toBeUndefined();
+
+        const shot = await screenshotGet(
+            new Request(`http://local/api/agent/tabs/${tabId}/screenshot`),
+            { params: Promise.resolve({ id: tabId }) }
+        );
+        expect(shot.status).toBe(200);
+        expect(shot.headers.get('content-type')).toMatch(/image\/png/);
+
+        const viaInvoke = await json(
+            await discoverPost(
+                new Request('http://local/api/agent', {
+                    method: 'POST',
+                    headers: { 'content-type': 'application/json' },
+                    body: JSON.stringify({ affordance: 'tab.screenshot', input: { tabId } })
+                })
+            )
+        );
+        expect(viaInvoke.status).toBe(200);
+        expect(viaInvoke.body.screenshot.contentType).toBe('image/png');
+        expect(viaInvoke.body.screenshot.url).toMatch(
+            new RegExp(`^/api/agent/tabs/${tabId}/screenshot`)
+        );
+        expectNoRuntimeLeak(viaInvoke.body);
+
+        const disposed = await json(
+            await tabDelete(new Request(`http://local/api/agent/tabs/${tabId}`), {
+                params: Promise.resolve({ id: tabId })
+            })
+        );
+        expect(disposed.status).toBe(200);
+        expect(disposed.body.disposed).toBe(tabId);
+        expectNoRuntimeLeak(disposed.body);
+
+        const gone = await json(
+            await tabGet(new Request(`http://local/api/agent/tabs/${tabId}`), {
+                params: Promise.resolve({ id: tabId })
+            })
+        );
+        expect(gone.status).toBe(404);
+        expect(gone.body.keyRequired).toBe(false);
+    }, 90_000);
+});

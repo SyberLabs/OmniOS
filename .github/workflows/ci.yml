@@ -23,6 +23,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Playwright Chromium is the agent-surface *test adapter* and the
+      # golden-path e2e browser. Product tabs are local Chrome/CDP
+      # (OMNI_TAB_RUNTIME unset → cdp). CI forces the adapter.
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
       # Blocking gates — these protect the green build (Phase 1) and the
       # test suite (Phase 4).
       - name: Typecheck
@@ -30,6 +36,8 @@ jobs:
 
       - name: Test
         run: npm test
+        env:
+          OMNI_TAB_RUNTIME: playwright
 
       # Blocking as of Phase 5: lint errors = 0. ESLint exits non-zero only on
       # errors, so this fails CI on new errors while pre-existing warnings
@@ -44,8 +52,5 @@ jobs:
       # shell → blocks render → wires live → mock-LLM Think streams → persists
       # across reload. The LLM is the OMNI_E2E server double (no keys needed).
       # This guards the UI wiring layer where unit tests can't see.
-      - name: Install Playwright browser
-        run: npx playwright install --with-deps chromium
-
       - name: E2E (golden path)
         run: npm run test:e2e

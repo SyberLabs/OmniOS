@@ -15,13 +15,13 @@ function respond(result: HandlerResult) {
 }
 
 export async function GET() {
-    return respond(invokeAffordance('tabs.list'));
+    return respond(await invokeAffordance('tabs.list'));
 }
 
 export async function POST(request: Request) {
     try {
         const body = await readJsonBody(request);
-        return respond(invokeAffordance('tabs.create', body));
+        return respond(await invokeAffordance('tabs.create', body));
     } catch (error) {
         return respond({
             status: 400,

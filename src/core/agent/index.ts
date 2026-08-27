@@ -1,4 +1,25 @@
 export { AGENT_AFFORDANCES, AGENT_PRODUCT, discoveryBody, getAffordance } from './affordances';
-export { createTabStore, getAgentTabStore, __resetAgentTabStore } from './tabStore';
+export {
+    AGENT_CONTRACT_VERSION,
+    AGENT_DISCOVERY_SCHEMA,
+    AGENT_TAB_SNAPSHOT_SCHEMA,
+    FROZEN_AFFORDANCE_IDS,
+    SNAPSHOT_REQUIRED_FIELDS
+} from './contract';
+export {
+    listTabs,
+    openTab,
+    readTab,
+    navigateTab,
+    clickTab,
+    typeTab,
+    disposeTab,
+    readTabScreenshot,
+    currentTabRuntimeKind,
+    __dropLiveContexts,
+    __simulateProcessRestart,
+    __resetAgentTabs
+} from './browserTabs';
+export { findChrome, resolveTabRuntimeKind } from './runtime';
 export { invokeAffordance } from './invoke';
-export type { Affordance, AgentTab, HandlerResult } from './types';
+export type { Affordance, Actionable, AgentTab, HandlerResult, PageLink } from './types';

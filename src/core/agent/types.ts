@@ -1,6 +1,6 @@
 // ============================================
 // PROJECT OMNI: AGENT SURFACE — TYPES
-// A tab is a persistent browser/session state record.
+// A tab is a live disposable browser page + isolated session.
 // It is not a Citadel canvas and not a hosted-model chat.
 // ============================================
 
@@ -11,6 +11,7 @@ export type JsonSchema = {
     required?: string[];
     additionalProperties?: boolean;
     enum?: string[];
+    items?: JsonSchema;
 };
 
 export type Affordance = {
@@ -23,12 +24,29 @@ export type Affordance = {
     keyRequired: false;
 };
 
+export type PageLink = {
+    href: string;
+    text: string;
+};
+
+export type Actionable = {
+    ref: string;
+    role: 'button' | 'link' | 'textbox' | 'checkbox' | 'combobox';
+    name: string;
+    href?: string;
+    value?: string;
+    actions: Array<'click' | 'type'>;
+    selector?: string;
+};
+
 export type AgentTab = {
     id: string;
     title: string;
-    url: string | null;
-    note: string | null;
-    state: Record<string, unknown>;
+    url: string;
+    text: string;
+    links: PageLink[];
+    actions: Actionable[];
+    screenshot: string;
     createdAt: number;
     updatedAt: number;
 };

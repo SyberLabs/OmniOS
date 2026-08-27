@@ -30,7 +30,7 @@ export async function POST(request: Request) {
                 body: { error: 'Missing affordance', keyRequired: false }
             });
         }
-        return respond(invokeAffordance(affordance, payload.input ?? payload));
+        return respond(await invokeAffordance(affordance, payload.input ?? payload));
     } catch (error) {
         return respond({
             status: 400,
