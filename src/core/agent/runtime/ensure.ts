@@ -1,7 +1,10 @@
 // ============================================
 // runtime.ensure — first-class keyless attach helper.
-// Reuse an already-debuggable Chrome, or launch one and attach.
-// Does not use Playwright. Does not quit Chrome on tabs.dispose.
+// Reuse an already-debuggable Chrome, or launch the user's Chrome (their
+// profile) with remote debugging. .omni/chrome-debug is fallback only when
+// there is no default profile. Never open the default profile while Chrome
+// is already running. Does not use Playwright. Does not quit Chrome on
+// tabs.dispose.
 // ============================================
 
 import { spawn, type ChildProcess } from 'node:child_process';
@@ -15,6 +18,7 @@ import { findChrome, setFindChromeForTests } from './chrome';
 import { hasEverydayChrome, setEverydayChromeRunningForTests as setEverydayChromeHook } from './chromeProcesses';
 import { ensureDir, inTest } from './paths';
 import { clearTabRuntimeCache } from './resolve';
+import { resolveExistingDefaultUserDataDir } from './userDataDir';
 
 export const DEFAULT_DEBUG_PORT = 9222;
 
@@ -25,13 +29,29 @@ export type EnsureResult = {
     disposeCloses: 'omni-target';
 };
 
+export type EnsureLaunchKind = 'default' | 'debug';
+
 type LaunchedDebugChrome = {
     proc: ChildProcess;
     httpBase: string;
     port: number;
+    profile: string;
+    kind: EnsureLaunchKind;
 };
 
+export type EnsureLaunchResolved = {
+    dir: string;
+    kind: EnsureLaunchKind;
+};
+
+type EnsureLaunchFn = (
+    chrome: string,
+    args: string[],
+    resolved: EnsureLaunchResolved
+) => Promise<LaunchedDebugChrome>;
+
 let launchedDebug: LaunchedDebugChrome | null = null;
+let launchOverride: EnsureLaunchFn | null = null;
 
 export function debugChromeProfile(): string {
     if (process.env.OMNI_CHROME_DEBUG_PROFILE) return process.env.OMNI_CHROME_DEBUG_PROFILE;
@@ -42,6 +62,12 @@ export function debugChromeProfile(): string {
         );
     }
     return path.join(process.cwd(), '.omni', 'chrome-debug');
+}
+
+export function resolveEnsureProfile(chrome?: string | null): EnsureLaunchResolved {
+    const existing = resolveExistingDefaultUserDataDir({ chromeBinary: chrome });
+    if (existing) return { dir: existing, kind: 'default' };
+    return { dir: debugChromeProfile(), kind: 'debug' };
 }
 
 function chromeHeadless(): boolean {
@@ -136,26 +162,43 @@ async function findExistingDebugChrome(): Promise<string | null> {
     return null;
 }
 
-async function launchDebugChrome(chrome: string): Promise<LaunchedDebugChrome> {
-    const profile = debugChromeProfile();
-    ensureDir(profile);
-    clearChromeLocks(profile);
-    const port = await pickDebugPort();
+function chromeLaunchArgs(profile: string, port: number, kind: EnsureLaunchKind): string[] {
     const args = [
         `--user-data-dir=${profile}`,
         `--remote-debugging-port=${port}`,
         '--remote-debugging-address=127.0.0.1',
         '--no-first-run',
-        '--no-default-browser-check',
-        '--disable-sync',
-        '--disable-extensions',
-        '--disable-default-apps',
-        '--disable-background-networking',
-        '--no-sandbox',
-        '--disable-dev-shm-usage',
-        'about:blank'
+        '--no-default-browser-check'
     ];
+    if (kind === 'debug') {
+        args.push(
+            '--disable-sync',
+            '--disable-extensions',
+            '--disable-default-apps',
+            '--disable-background-networking'
+        );
+    }
+    args.push('--no-sandbox', '--disable-dev-shm-usage');
+    if (kind === 'debug') args.push('about:blank');
     if (chromeHeadless()) args.unshift('--headless=new');
+    return args;
+}
+
+async function launchDebugChrome(chrome: string): Promise<LaunchedDebugChrome> {
+    const resolved = resolveEnsureProfile(chrome);
+    // Dedicated debug profile only. Never clear SingletonLock on the user's default profile.
+    if (resolved.kind === 'debug') {
+        ensureDir(resolved.dir);
+        clearChromeLocks(resolved.dir);
+    }
+    const port = await pickDebugPort();
+    const args = chromeLaunchArgs(resolved.dir, port, resolved.kind);
+
+    if (launchOverride) {
+        const entry = await launchOverride(chrome, args, resolved);
+        launchedDebug = entry;
+        return entry;
+    }
 
     const proc = spawn(chrome, args, {
         stdio: ['ignore', 'ignore', 'pipe'],
@@ -189,7 +232,7 @@ async function launchDebugChrome(chrome: string): Promise<LaunchedDebugChrome> {
     proc.once('exit', () => {
         if (launchedDebug?.proc === proc) launchedDebug = null;
     });
-    const entry = { proc, httpBase, port };
+    const entry = { proc, httpBase, port, profile: resolved.dir, kind: resolved.kind };
     launchedDebug = entry;
     return entry;
 }
@@ -246,9 +289,20 @@ export function setEverydayChromeRunningForTests(value: boolean | null): void {
     setEverydayChromeHook(value);
 }
 
-/** Test hook: true if runtime.ensure currently owns a launched debug Chrome. */
+/** Test hook: intercept Chrome spawn so contract tests do not launch a real browser. */
+export function setEnsureLaunchForTests(fn: EnsureLaunchFn | null): void {
+    launchOverride = fn;
+}
+
+/** Test hook: true if runtime.ensure currently owns a launched Chrome. */
 export function __hasLaunchedDebugChrome(): boolean {
     return Boolean(launchedDebug?.proc && launchedDebug.proc.exitCode == null);
+}
+
+/** Test hook: which profile the last ensure launch used. Not a caller-visible field. */
+export function __ensuredLaunchProfile(): EnsureLaunchResolved | null {
+    if (!launchedDebug) return null;
+    return { dir: launchedDebug.profile, kind: launchedDebug.kind };
 }
 
 /**
@@ -274,12 +328,15 @@ export async function __stopEnsuredChrome(): Promise<void> {
             await sleep(200);
         }
     }
-    const profile = debugChromeProfile();
-    if (inTest() && fs.existsSync(profile)) {
-        try {
-            fs.rmSync(profile, { recursive: true, force: true });
-        } catch {
-            // leftover test profile
+    // Never delete the user's default profile — only the dedicated debug fallback.
+    if (entry?.kind !== 'default') {
+        const profile = entry?.profile || debugChromeProfile();
+        if (inTest() && fs.existsSync(profile)) {
+            try {
+                fs.rmSync(profile, { recursive: true, force: true });
+            } catch {
+                // leftover test profile
+            }
         }
     }
     clearProcessAttachHttp();

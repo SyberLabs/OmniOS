@@ -60,6 +60,9 @@ describe('product entry is the agent surface', () => {
         expect(readme).toMatch(/unbind/i);
         expect(readme).toMatch(/stays up/);
         expect(readme).toMatch(/will not open a second Chrome/i);
+        expect(readme).toMatch(/if Chrome is quit|opens your Chrome/i);
+        expect(readme).toMatch(/your profile/i);
+        expect(readme).toMatch(/not a blank debug profile/i);
         const ensureHeading = readme.indexOf('## Open a debuggable Chrome');
         const envFootnote = readme.indexOf('Optional attach to an already-running browser');
         expect(ensureHeading).toBeGreaterThan(-1);

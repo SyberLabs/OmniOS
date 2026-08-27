@@ -19,8 +19,9 @@ import { FORBIDDEN_CALLER_KEYS } from '../contract';
 import { findChrome } from './chrome';
 import { hasEverydayChrome, setEverydayChromeRunningForTests } from './chromeProcesses';
 import { createCdpRuntime } from './cdpRuntime';
-import { __hasLaunchedDebugChrome, __stopEnsuredChrome } from './ensure';
+import { __ensuredLaunchProfile, __hasLaunchedDebugChrome, __stopEnsuredChrome } from './ensure';
 import { setTabRuntimeForTests } from './resolve';
+import { setDefaultUserDataDirForTests } from './userDataDir';
 
 const chrome = findChrome();
 const runLiveEnsure = Boolean(chrome) && process.env.OMNI_TAB_RUNTIME !== 'playwright';
@@ -111,6 +112,7 @@ describe.skipIf(!runLiveEnsure)('runtime.ensure launches or reuses a real Chrome
         await __resetAgentTabs();
         await __stopEnsuredChrome();
         setEverydayChromeRunningForTests(null);
+        setDefaultUserDataDirForTests(null);
         setTabRuntimeForTests(null);
         await new Promise<void>((resolve, reject) => {
             fixtureServer.close((err) => (err ? reject(err) : resolve()));
@@ -122,6 +124,7 @@ describe.skipIf(!runLiveEnsure)('runtime.ensure launches or reuses a real Chrome
         await __stopEnsuredChrome();
         delete process.env.OMNI_CDP_URL;
         setEverydayChromeRunningForTests(false);
+        setDefaultUserDataDirForTests(false);
         setTabRuntimeForTests(createCdpRuntime());
     });
 
@@ -365,6 +368,51 @@ describe.skipIf(!runLiveEnsure)('runtime.ensure launches or reuses a real Chrome
         expect(launched.body.attached).toBe(true);
         expect(launched.body.launched).toBe(true);
         expectNoRuntimeLeak(launched.body);
+    }, 90_000);
+
+    it('launches a real Chrome on an existing default profile, not chrome-debug', async () => {
+        const defaultDir = fs.mkdtempSync(path.join(os.tmpdir(), 'omni-live-default-'));
+        setDefaultUserDataDirForTests(defaultDir);
+        try {
+            const ensured = await json(
+                await discoverPost(
+                    new Request('http://local/api/agent', {
+                        method: 'POST',
+                        headers: { 'content-type': 'application/json' },
+                        body: JSON.stringify({ affordance: 'runtime.ensure', input: {} })
+                    })
+                )
+            );
+            expect(ensured.status).toBe(200);
+            expect(ensured.body.attached).toBe(true);
+            expect(ensured.body.launched).toBe(true);
+            expect(ensured.body.tabRuntime).toBe('cdp');
+            expect(ensured.body.userDataDir).toBeUndefined();
+            expectNoRuntimeLeak(ensured.body);
+            expect(__ensuredLaunchProfile()).toEqual({ dir: defaultDir, kind: 'default' });
+            expect(__hasLaunchedDebugChrome()).toBe(true);
+
+            const targets = await json(
+                await discoverPost(
+                    new Request('http://local/api/agent', {
+                        method: 'POST',
+                        headers: { 'content-type': 'application/json' },
+                        body: JSON.stringify({ affordance: 'runtime.targets', input: {} })
+                    })
+                )
+            );
+            expect(targets.status).toBe(200);
+            expect(Array.isArray(targets.body.targets)).toBe(true);
+            expectNoRuntimeLeak(targets.body);
+        } finally {
+            await __stopEnsuredChrome();
+            expect(fs.existsSync(defaultDir)).toBe(true);
+            try {
+                fs.rmSync(defaultDir, { recursive: true, force: true });
+            } catch {
+                // leftover test profile
+            }
+        }
     }, 90_000);
 });
 

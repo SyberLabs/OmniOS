@@ -5,6 +5,8 @@
 
 import http from 'node:http';
 import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { AgentTabError } from '../errors';
 import { POST as discoverPost } from '@/app/api/agent/route';
@@ -13,7 +15,16 @@ import { FORBIDDEN_CALLER_KEYS } from '../contract';
 import { clearProcessAttachHttp } from './attach';
 import { setFindChromeForTests } from './chrome';
 import { setListOsProcessesForTests } from './chromeProcesses';
-import { ensureRuntime, setEverydayChromeRunningForTests } from './ensure';
+import {
+    __ensuredLaunchProfile,
+    __hasLaunchedDebugChrome,
+    __stopEnsuredChrome,
+    debugChromeProfile,
+    ensureRuntime,
+    setEnsureLaunchForTests,
+    setEverydayChromeRunningForTests
+} from './ensure';
+import { setDefaultUserDataDirForTests } from './userDataDir';
 
 async function json(res: Response) {
     return { status: res.status, body: await res.json() };
@@ -88,11 +99,18 @@ function mockCdp() {
     });
 }
 
+function userDataDirFromArgs(args: string[]): string | undefined {
+    return args.find((arg) => arg.startsWith('--user-data-dir='))?.slice('--user-data-dir='.length);
+}
+
 afterEach(async () => {
     delete process.env.OMNI_CDP_URL;
     setFindChromeForTests(null);
     setEverydayChromeRunningForTests(null);
     setListOsProcessesForTests(null);
+    setEnsureLaunchForTests(null);
+    setDefaultUserDataDirForTests(null);
+    await __stopEnsuredChrome();
     await __resetAgentTabs();
 });
 
@@ -237,6 +255,181 @@ describe('runtime.ensure', () => {
                 { id: 'PAGE-1', title: 'Already open', url: 'https://example.test/open' }
             ]);
             expectNoRuntimeLeak(targets.body);
+        } finally {
+            await mock.close();
+        }
+    });
+
+    it('does not launch the default profile when everyday Chrome is already open', async () => {
+        const defaultDir = fs.mkdtempSync(path.join(os.tmpdir(), 'omni-locked-default-'));
+        const lock = path.join(defaultDir, 'SingletonLock');
+        fs.writeFileSync(lock, 'locked');
+        let launched = 0;
+        setEverydayChromeRunningForTests(true);
+        setDefaultUserDataDirForTests(defaultDir);
+        setEnsureLaunchForTests(async () => {
+            launched += 1;
+            throw new Error('must not launch while everyday Chrome is open');
+        });
+        setFindChromeForTests(() => '/usr/bin/google-chrome');
+        clearProcessAttachHttp();
+        delete process.env.OMNI_CDP_URL;
+
+        try {
+            await ensureRuntime();
+            throw new Error('expected ensureRuntime to fail');
+        } catch (error) {
+            expect(error).toBeInstanceOf(AgentTabError);
+            expect((error as AgentTabError).status).toBe(409);
+            expect((error as AgentTabError).message).toMatch(/already open/i);
+            expect((error as AgentTabError).message).toMatch(/not debuggable/i);
+        }
+        expect(launched).toBe(0);
+        expect(__hasLaunchedDebugChrome()).toBe(false);
+        expect(fs.existsSync(lock)).toBe(true);
+        fs.rmSync(defaultDir, { recursive: true, force: true });
+    });
+
+    it('launches the existing default profile — not .omni/chrome-debug — when Chrome is quit', async () => {
+        const mock = await mockCdp();
+        const defaultDir = fs.mkdtempSync(path.join(os.tmpdir(), 'omni-default-ud-'));
+        const lock = path.join(defaultDir, 'SingletonLock');
+        fs.writeFileSync(lock, 'stale');
+        let captured: string[] = [];
+        setEverydayChromeRunningForTests(false);
+        setDefaultUserDataDirForTests(defaultDir);
+        setFindChromeForTests(() => '/usr/bin/google-chrome');
+        setEnsureLaunchForTests(async (_chrome, args, resolved) => {
+            captured = args;
+            return {
+                proc: {
+                    pid: 4242,
+                    exitCode: null,
+                    once() {
+                        return this;
+                    },
+                    removeAllListeners() {
+                        return this;
+                    },
+                    kill() {
+                        return true;
+                    }
+                } as never,
+                httpBase: mock.origin,
+                port: 1,
+                profile: resolved.dir,
+                kind: resolved.kind
+            };
+        });
+        clearProcessAttachHttp();
+        delete process.env.OMNI_CDP_URL;
+
+        try {
+            const listed = await json(
+                await discoverPost(
+                    new Request('http://local/api/agent', {
+                        method: 'POST',
+                        headers: { 'content-type': 'application/json' },
+                        body: JSON.stringify({ affordance: 'runtime.ensure', input: {} })
+                    })
+                )
+            );
+            expect(listed.status).toBe(200);
+            expect(listed.body.attached).toBe(true);
+            expect(listed.body.launched).toBe(true);
+            expect(listed.body.tabRuntime).toBe('cdp');
+            expect(listed.body.disposeCloses).toBe('omni-target');
+            expect(listed.body.keyRequired).toBe(false);
+            expect(listed.body.userDataDir).toBeUndefined();
+            expect(listed.body.profileDir).toBeUndefined();
+            expect(listed.body.debugPort).toBeUndefined();
+            expectNoRuntimeLeak(listed.body);
+
+            const used = userDataDirFromArgs(captured);
+            expect(used).toBe(defaultDir);
+            expect(used).not.toMatch(/chrome-debug|\.omni/);
+            expect(captured.some((arg) => arg.includes('chrome-debug'))).toBe(false);
+            expect(captured).toContainEqual(expect.stringMatching(/^--remote-debugging-port=/));
+            expect(__ensuredLaunchProfile()).toEqual({ dir: defaultDir, kind: 'default' });
+            expect(fs.existsSync(lock)).toBe(true);
+
+            const targets = await json(
+                await discoverPost(
+                    new Request('http://local/api/agent', {
+                        method: 'POST',
+                        headers: { 'content-type': 'application/json' },
+                        body: JSON.stringify({ affordance: 'runtime.targets', input: {} })
+                    })
+                )
+            );
+            expect(targets.status).toBe(200);
+            expect(targets.body.targets).toEqual([
+                { id: 'PAGE-1', title: 'Already open', url: 'https://example.test/open' }
+            ]);
+            expectNoRuntimeLeak(targets.body);
+
+            await __stopEnsuredChrome();
+            expect(fs.existsSync(defaultDir)).toBe(true);
+        } finally {
+            await mock.close();
+            fs.rmSync(defaultDir, { recursive: true, force: true });
+        }
+    });
+
+    it('falls back to .omni/chrome-debug only when no default profile exists', async () => {
+        const mock = await mockCdp();
+        let captured: string[] = [];
+        setEverydayChromeRunningForTests(false);
+        setDefaultUserDataDirForTests(false);
+        setFindChromeForTests(() => '/usr/bin/google-chrome');
+        setEnsureLaunchForTests(async (_chrome, args, resolved) => {
+            captured = args;
+            return {
+                proc: {
+                    pid: 4243,
+                    exitCode: null,
+                    once() {
+                        return this;
+                    },
+                    removeAllListeners() {
+                        return this;
+                    },
+                    kill() {
+                        return true;
+                    }
+                } as never,
+                httpBase: mock.origin,
+                port: 1,
+                profile: resolved.dir,
+                kind: resolved.kind
+            };
+        });
+        clearProcessAttachHttp();
+        delete process.env.OMNI_CDP_URL;
+
+        try {
+            const listed = await json(
+                await discoverPost(
+                    new Request('http://local/api/agent', {
+                        method: 'POST',
+                        headers: { 'content-type': 'application/json' },
+                        body: JSON.stringify({ affordance: 'runtime.ensure', input: {} })
+                    })
+                )
+            );
+            expect(listed.status).toBe(200);
+            expect(listed.body.attached).toBe(true);
+            expect(listed.body.launched).toBe(true);
+            expect(listed.body.tabRuntime).toBe('cdp');
+            expectNoRuntimeLeak(listed.body);
+
+            const used = userDataDirFromArgs(captured);
+            expect(used).toBe(debugChromeProfile());
+            expect(used).toMatch(/chrome-debug/);
+            expect(__ensuredLaunchProfile()).toEqual({
+                dir: debugChromeProfile(),
+                kind: 'debug'
+            });
         } finally {
             await mock.close();
         }
