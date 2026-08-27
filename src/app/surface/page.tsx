@@ -2,7 +2,7 @@
 
 // ============================================
 // PROJECT OMNI: AGENT SURFACE — HUMAN VIEW
-// Thin local page: tabs + named affordances. No API key.
+// Thin local page: live tabs + named affordances. No API key.
 // ============================================
 
 import { FormEvent, useCallback, useEffect, useState } from 'react';
@@ -16,13 +16,15 @@ type Discovery = {
     affordances?: Affordance[];
 };
 
+const FIXTURE = '/agent-fixture.html';
+
 export default function AgentSurfacePage() {
     const [discovery, setDiscovery] = useState<Discovery | null>(null);
     const [tabs, setTabs] = useState<AgentTab[]>([]);
-    const [title, setTitle] = useState('');
-    const [url, setUrl] = useState('');
-    const [notes, setNotes] = useState<Record<string, string>>({});
-    const [urls, setUrls] = useState<Record<string, string>>({});
+    const [url, setUrl] = useState(FIXTURE);
+    const [selectors, setSelectors] = useState<Record<string, string>>({});
+    const [types, setTypes] = useState<Record<string, string>>({});
+    const [navs, setNavs] = useState<Record<string, string>>({});
     const [error, setError] = useState<string | null>(null);
     const [busy, setBusy] = useState(false);
 
@@ -37,20 +39,6 @@ export default function AgentSurfacePage() {
         if (!tabsRes.ok) throw new Error(listed.error || 'Failed to list tabs');
         setDiscovery(catalog);
         setTabs(listed.tabs ?? []);
-        setNotes((prev) => {
-            const next = { ...prev };
-            for (const tab of listed.tabs ?? []) {
-                if (next[tab.id] == null) next[tab.id] = tab.note ?? '';
-            }
-            return next;
-        });
-        setUrls((prev) => {
-            const next = { ...prev };
-            for (const tab of listed.tabs ?? []) {
-                if (next[tab.id] == null) next[tab.id] = tab.url ?? '';
-            }
-            return next;
-        });
     }, []);
 
     useEffect(() => {
@@ -72,51 +60,32 @@ export default function AgentSurfacePage() {
         }
     }
 
-    function createTab(event: FormEvent) {
+    function openTab(event: FormEvent) {
         event.preventDefault();
         void run(async () => {
+            const target = url.trim();
+            const absolute = target.startsWith('/')
+                ? `${window.location.origin}${target}`
+                : target;
             const res = await fetch('/api/agent/tabs', {
                 method: 'POST',
                 headers: { 'content-type': 'application/json' },
-                body: JSON.stringify({
-                    title: title.trim() || undefined,
-                    url: url.trim() || undefined
-                })
+                body: JSON.stringify({ url: absolute })
             });
             const body = await res.json();
-            if (!res.ok) throw new Error(body.error || 'Create failed');
-            setTitle('');
-            setUrl('');
+            if (!res.ok) throw new Error(body.error || 'Open failed');
         });
     }
 
-    function writeNote(tabId: string) {
+    function act(tabId: string, affordance: string, input: Record<string, string>) {
         void run(async () => {
             const res = await fetch(`/api/agent/tabs/${tabId}/act`, {
                 method: 'POST',
                 headers: { 'content-type': 'application/json' },
-                body: JSON.stringify({
-                    affordance: 'tab.write_note',
-                    input: { text: notes[tabId] ?? '' }
-                })
+                body: JSON.stringify({ affordance, input })
             });
             const body = await res.json();
-            if (!res.ok) throw new Error(body.error || 'Write note failed');
-        });
-    }
-
-    function setTabUrl(tabId: string, nextUrl: string) {
-        void run(async () => {
-            const res = await fetch(`/api/agent/tabs/${tabId}/act`, {
-                method: 'POST',
-                headers: { 'content-type': 'application/json' },
-                body: JSON.stringify({
-                    affordance: 'tab.set_url',
-                    input: { url: nextUrl }
-                })
-            });
-            const body = await res.json();
-            if (!res.ok) throw new Error(body.error || 'Set URL failed');
+            if (!res.ok) throw new Error(body.error || 'Act failed');
         });
     }
 
@@ -136,11 +105,11 @@ export default function AgentSurfacePage() {
                         OmniOS · agent surface
                     </p>
                     <h1 className="text-xl font-semibold mt-1">
-                        {discovery?.name ?? 'Local tabs + affordances'}
+                        {discovery?.name ?? 'Live tabs + affordances'}
                     </h1>
                     <p className="text-sm text-[var(--text-secondary)] mt-2 max-w-2xl">
                         {discovery?.description ??
-                            'Persistent browser/session state an arbitrary agent can act on.'}
+                            'Each tab is a real disposable browser page an arbitrary agent can act on.'}
                     </p>
                     <p className="text-xs text-[var(--truth-green)] mt-2">
                         No API key required{discovery?.keyRequired === false ? ' · keyRequired: false' : ''}.
@@ -191,32 +160,36 @@ export default function AgentSurfacePage() {
                 </section>
 
                 <section>
-                    <h2 className="text-sm font-medium mb-3">Tabs</h2>
-                    <form onSubmit={createTab} className="flex flex-col gap-2 mb-4">
-                        <input
-                            value={title}
-                            onChange={(e) => setTitle(e.target.value)}
-                            placeholder="Tab title"
-                            className="bg-[var(--citadel-elevated)] border border-[var(--citadel-border)] rounded-md px-3 py-2 text-sm"
-                        />
+                    <h2 className="text-sm font-medium mb-3">Live tabs</h2>
+                    <form onSubmit={openTab} className="flex flex-col gap-2 mb-4">
                         <input
                             value={url}
                             onChange={(e) => setUrl(e.target.value)}
-                            placeholder="URL / session locator (optional)"
+                            placeholder="https://… or /agent-fixture.html"
                             className="bg-[var(--citadel-elevated)] border border-[var(--citadel-border)] rounded-md px-3 py-2 text-sm"
                         />
-                        <button
-                            type="submit"
-                            disabled={busy}
-                            className="self-start px-3 py-1.5 text-xs rounded-md bg-[var(--citadel-primary)] text-white disabled:opacity-50"
-                        >
-                            Create tab
-                        </button>
+                        <div className="flex flex-wrap gap-2">
+                            <button
+                                type="submit"
+                                disabled={busy || !url.trim()}
+                                className="px-3 py-1.5 text-xs rounded-md bg-[var(--citadel-primary)] text-white disabled:opacity-50"
+                            >
+                                Open URL
+                            </button>
+                            <button
+                                type="button"
+                                disabled={busy}
+                                onClick={() => setUrl(FIXTURE)}
+                                className="px-3 py-1.5 text-xs rounded-md border border-[var(--citadel-border)]"
+                            >
+                                Use local fixture
+                            </button>
+                        </div>
                     </form>
 
                     {tabs.length === 0 ? (
                         <p className="text-sm text-[var(--text-muted)]">
-                            No tabs yet. Create one here or POST /api/agent/tabs.
+                            No live pages yet. Open a URL or POST /api/agent/tabs.
                         </p>
                     ) : (
                         <ul className="space-y-3">
@@ -227,10 +200,10 @@ export default function AgentSurfacePage() {
                                 >
                                     <div className="flex items-start justify-between gap-3">
                                         <div>
-                                            <p className="text-sm font-medium">{tab.title}</p>
+                                            <p className="text-sm font-medium">{tab.title || '(untitled page)'}</p>
                                             <code className="text-[10px] text-[var(--text-muted)]">{tab.id}</code>
-                                            <p className="text-xs text-[var(--text-muted)] mt-1 break-all">
-                                                persisted: {tab.url || 'no url'}
+                                            <p className="text-xs text-[var(--citadel-secondary)] mt-1 break-all">
+                                                {tab.url}
                                             </p>
                                         </div>
                                         <button
@@ -242,39 +215,75 @@ export default function AgentSurfacePage() {
                                             Dispose
                                         </button>
                                     </div>
+                                    <pre className="mt-2 whitespace-pre-wrap text-xs text-[var(--text-secondary)] bg-[var(--citadel-elevated)] rounded-md px-2 py-2 max-h-40 overflow-auto">
+                                        {tab.text || '(no visible text)'}
+                                    </pre>
+                                    {tab.links?.length > 0 && (
+                                        <ul className="mt-2 text-[11px] text-[var(--text-muted)] space-y-0.5">
+                                            {tab.links.slice(0, 8).map((link) => (
+                                                <li key={link.href + link.text} className="truncate">
+                                                    {link.text || link.href} — {link.href}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    )}
                                     <input
-                                        value={urls[tab.id] ?? tab.url ?? ''}
+                                        value={navs[tab.id] ?? tab.url}
                                         onChange={(e) =>
-                                            setUrls((prev) => ({ ...prev, [tab.id]: e.target.value }))
+                                            setNavs((prev) => ({ ...prev, [tab.id]: e.target.value }))
                                         }
-                                        placeholder="URL / session locator"
+                                        placeholder="Navigate to URL"
                                         className="mt-2 w-full bg-[var(--citadel-elevated)] border border-[var(--citadel-border)] rounded-md px-2 py-1.5 text-sm"
                                     />
-                                    <textarea
-                                        value={notes[tab.id] ?? tab.note ?? ''}
+                                    <input
+                                        value={selectors[tab.id] ?? ''}
                                         onChange={(e) =>
-                                            setNotes((prev) => ({ ...prev, [tab.id]: e.target.value }))
+                                            setSelectors((prev) => ({ ...prev, [tab.id]: e.target.value }))
                                         }
-                                        placeholder="Local note"
-                                        rows={3}
+                                        placeholder="CSS selector (e.g. #set-session)"
+                                        className="mt-2 w-full bg-[var(--citadel-elevated)] border border-[var(--citadel-border)] rounded-md px-2 py-1.5 text-sm"
+                                    />
+                                    <input
+                                        value={types[tab.id] ?? ''}
+                                        onChange={(e) =>
+                                            setTypes((prev) => ({ ...prev, [tab.id]: e.target.value }))
+                                        }
+                                        placeholder="Text to type"
                                         className="mt-2 w-full bg-[var(--citadel-elevated)] border border-[var(--citadel-border)] rounded-md px-2 py-1.5 text-sm"
                                     />
                                     <div className="mt-2 flex flex-wrap gap-2">
                                         <button
                                             type="button"
-                                            disabled={busy}
-                                            onClick={() => writeNote(tab.id)}
+                                            disabled={busy || !(navs[tab.id] ?? tab.url)}
+                                            onClick={() =>
+                                                act(tab.id, 'tab.navigate', { url: navs[tab.id] ?? tab.url })
+                                            }
                                             className="px-2 py-1 text-[11px] rounded-md border border-[var(--citadel-border)] hover:border-[var(--citadel-primary)] disabled:opacity-50"
                                         >
-                                            Write note
+                                            Navigate
                                         </button>
                                         <button
                                             type="button"
-                                            disabled={busy}
-                                            onClick={() => setTabUrl(tab.id, urls[tab.id] ?? '')}
+                                            disabled={busy || !selectors[tab.id]}
+                                            onClick={() =>
+                                                act(tab.id, 'tab.click', { selector: selectors[tab.id] })
+                                            }
                                             className="px-2 py-1 text-[11px] rounded-md border border-[var(--citadel-border)] hover:border-[var(--citadel-primary)] disabled:opacity-50"
                                         >
-                                            Set URL
+                                            Click
+                                        </button>
+                                        <button
+                                            type="button"
+                                            disabled={busy || !selectors[tab.id] || types[tab.id] == null}
+                                            onClick={() =>
+                                                act(tab.id, 'tab.type', {
+                                                    selector: selectors[tab.id],
+                                                    text: types[tab.id] ?? ''
+                                                })
+                                            }
+                                            className="px-2 py-1 text-[11px] rounded-md border border-[var(--citadel-border)] hover:border-[var(--citadel-primary)] disabled:opacity-50"
+                                        >
+                                            Type
                                         </button>
                                     </div>
                                 </li>

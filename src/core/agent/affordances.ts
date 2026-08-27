@@ -1,6 +1,6 @@
 // ============================================
 // PROJECT OMNI: AGENT SURFACE — KEYLESS AFFORDANCES
-// Named, machine-readable actions an arbitrary agent can take.
+// Named actions over live disposable browser tabs.
 // No API-key product. No Ollama/Anthropic/Gemini/NewsAPI.
 // ============================================
 
@@ -10,8 +10,9 @@ export const AGENT_PRODUCT = {
     name: 'OmniOS agent surface',
     keyRequired: false as const,
     description:
-        'Local lightweight tabs: persistent browser/session state records. ' +
-        'Not a Citadel canvas and not a hosted-model chat. No API key is required.',
+        'Local lightweight tabs: each tab is a real disposable browser page ' +
+        'with isolated cookies/storage. Not a Citadel canvas and not a hosted-model chat. ' +
+        'No API key is required.',
     invoke: {
         method: 'POST' as const,
         path: '/api/agent',
@@ -19,14 +20,12 @@ export const AGENT_PRODUCT = {
     }
 };
 
-const none: JsonObject = { type: 'object', additionalProperties: false };
-
-type JsonObject = Affordance['inputSchema'];
+const none: Affordance['inputSchema'] = { type: 'object', additionalProperties: false };
 
 export const AGENT_AFFORDANCES: Affordance[] = [
     {
         id: 'tabs.list',
-        description: 'List local lightweight tabs.',
+        description: 'List live local browser tabs (last title, URL, excerpt).',
         method: 'GET',
         path: '/api/agent/tabs',
         inputSchema: none,
@@ -35,16 +34,15 @@ export const AGENT_AFFORDANCES: Affordance[] = [
     },
     {
         id: 'tabs.create',
-        description: 'Create a local lightweight tab (persistent browser/session state).',
+        description: 'Open a URL in a new isolated browser tab. The page actually loads.',
         method: 'POST',
         path: '/api/agent/tabs',
         inputSchema: {
             type: 'object',
+            required: ['url'],
             additionalProperties: false,
             properties: {
-                title: { type: 'string', description: 'Human-readable tab title' },
-                url: { type: 'string', description: 'Session locator / URL' },
-                note: { type: 'string', description: 'Optional starting note' }
+                url: { type: 'string', description: 'http(s) URL to load' }
             }
         },
         mutates: ['tabs'],
@@ -52,7 +50,7 @@ export const AGENT_AFFORDANCES: Affordance[] = [
     },
     {
         id: 'tabs.read',
-        description: 'Read one tab by id.',
+        description: 'Read the live page: title, URL, visible text, links.',
         method: 'GET',
         path: '/api/agent/tabs/{id}',
         inputSchema: {
@@ -68,7 +66,7 @@ export const AGENT_AFFORDANCES: Affordance[] = [
     },
     {
         id: 'tabs.act',
-        description: 'Apply a named local act to a tab (write_note, set_url).',
+        description: 'Apply a named page act (navigate, click, type).',
         method: 'POST',
         path: '/api/agent/tabs/{id}/act',
         inputSchema: {
@@ -76,21 +74,21 @@ export const AGENT_AFFORDANCES: Affordance[] = [
             required: ['affordance'],
             additionalProperties: false,
             properties: {
-                tabId: { type: 'string', description: 'Tab id (or path {id})' },
+                tabId: { type: 'string' },
                 affordance: {
                     type: 'string',
-                    enum: ['tab.write_note', 'tab.set_url'],
-                    description: 'Local act to apply'
+                    enum: ['tab.navigate', 'tab.click', 'tab.type'],
+                    description: 'Page act to apply'
                 },
                 input: { type: 'object', description: 'Act-specific fields' }
             }
         },
-        mutates: ['tab'],
+        mutates: ['tab.page'],
         keyRequired: false
     },
     {
         id: 'tabs.dispose',
-        description: 'Dispose a tab and drop its session state.',
+        description: 'Close the tab context and drop cookies/storage. Later read/act fail.',
         method: 'DELETE',
         path: '/api/agent/tabs/{id}',
         inputSchema: {
@@ -98,32 +96,15 @@ export const AGENT_AFFORDANCES: Affordance[] = [
             required: ['tabId'],
             additionalProperties: false,
             properties: {
-                tabId: { type: 'string', description: 'Tab id (or path {id})' }
+                tabId: { type: 'string' }
             }
         },
         mutates: ['tabs'],
         keyRequired: false
     },
     {
-        id: 'tab.write_note',
-        description: 'Write a local note onto a tab. No model, no key.',
-        method: 'POST',
-        path: '/api/agent/tabs/{id}/act',
-        inputSchema: {
-            type: 'object',
-            required: ['text'],
-            additionalProperties: false,
-            properties: {
-                tabId: { type: 'string' },
-                text: { type: 'string', description: 'Note body to persist on the tab' }
-            }
-        },
-        mutates: ['tab.note', 'tab.state'],
-        keyRequired: false
-    },
-    {
-        id: 'tab.set_url',
-        description: 'Set the tab URL / session locator.',
+        id: 'tab.navigate',
+        description: 'Navigate the tab to a URL in the same isolated browser context.',
         method: 'POST',
         path: '/api/agent/tabs/{id}/act',
         inputSchema: {
@@ -132,10 +113,45 @@ export const AGENT_AFFORDANCES: Affordance[] = [
             additionalProperties: false,
             properties: {
                 tabId: { type: 'string' },
-                url: { type: 'string', description: 'URL or locator stored on the tab' }
+                url: { type: 'string', description: 'http(s) URL to load' }
             }
         },
-        mutates: ['tab.url', 'tab.state'],
+        mutates: ['tab.page', 'tab.storage'],
+        keyRequired: false
+    },
+    {
+        id: 'tab.click',
+        description: 'Click an element on the live page (CSS selector).',
+        method: 'POST',
+        path: '/api/agent/tabs/{id}/act',
+        inputSchema: {
+            type: 'object',
+            required: ['selector'],
+            additionalProperties: false,
+            properties: {
+                tabId: { type: 'string' },
+                selector: { type: 'string', description: 'CSS selector' }
+            }
+        },
+        mutates: ['tab.page', 'tab.storage'],
+        keyRequired: false
+    },
+    {
+        id: 'tab.type',
+        description: 'Type into an element on the live page (CSS selector).',
+        method: 'POST',
+        path: '/api/agent/tabs/{id}/act',
+        inputSchema: {
+            type: 'object',
+            required: ['selector', 'text'],
+            additionalProperties: false,
+            properties: {
+                tabId: { type: 'string' },
+                selector: { type: 'string', description: 'CSS selector' },
+                text: { type: 'string', description: 'Text to fill' }
+            }
+        },
+        mutates: ['tab.page', 'tab.storage'],
         keyRequired: false
     }
 ];

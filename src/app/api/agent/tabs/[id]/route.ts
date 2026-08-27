@@ -18,10 +18,10 @@ function respond(result: HandlerResult) {
 
 export async function GET(_request: Request, context: RouteContext) {
     const { id } = await context.params;
-    return respond(invokeAffordance('tabs.read', { tabId: id }, id));
+    return respond(await invokeAffordance('tabs.read', { tabId: id }, id));
 }
 
 export async function DELETE(_request: Request, context: RouteContext) {
     const { id } = await context.params;
-    return respond(invokeAffordance('tabs.dispose', { tabId: id }, id));
+    return respond(await invokeAffordance('tabs.dispose', { tabId: id }, id));
 }

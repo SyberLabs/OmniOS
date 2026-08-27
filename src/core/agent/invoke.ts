@@ -1,10 +1,19 @@
 // ============================================
 // PROJECT OMNI: AGENT SURFACE — INVOKE
-// Single dispatcher for named affordances. No keys, no providers.
+// Async dispatcher for live-page affordances. No keys, no providers.
 // ============================================
 
 import { getAffordance } from './affordances';
-import { getAgentTabStore } from './tabStore';
+import {
+    AgentTabError,
+    clickTab,
+    disposeTab,
+    listTabs,
+    navigateTab,
+    openTab,
+    readTab,
+    typeTab
+} from './browserTabs';
 import type { HandlerResult, InvokeInput } from './types';
 
 function asObject(value: unknown): InvokeInput {
@@ -32,87 +41,113 @@ function badRequest(error: string): HandlerResult {
     return { status: 400, body: { error, keyRequired: false } };
 }
 
-function applyWriteNote(tabId: string, input: InvokeInput): HandlerResult {
-    const text = stringField(input, 'text') ?? stringField(input, 'note');
-    if (text == null) return badRequest('write_note requires input.text');
-    const tab = getAgentTabStore().writeNote(tabId, text);
-    if (!tab) return missingTab(tabId);
-    return { status: 200, body: { tab, mutated: ['tab.note', 'tab.state'], keyRequired: false } };
+function fail(error: unknown): HandlerResult {
+    if (error instanceof AgentTabError) {
+        return { status: error.status, body: { error: error.message, keyRequired: false } };
+    }
+    return {
+        status: 500,
+        body: {
+            error: error instanceof Error ? error.message : 'Tab action failed',
+            keyRequired: false
+        }
+    };
 }
 
-function applySetUrl(tabId: string, input: InvokeInput): HandlerResult {
-    const url = stringField(input, 'url');
-    if (url == null) return badRequest('set_url requires input.url');
-    const tab = getAgentTabStore().setUrl(tabId, url);
-    if (!tab) return missingTab(tabId);
-    return { status: 200, body: { tab, mutated: ['tab.url', 'tab.state'], keyRequired: false } };
+async function applyPageAct(
+    actId: string,
+    tabId: string,
+    input: InvokeInput
+): Promise<HandlerResult> {
+    try {
+        if (actId === 'tab.navigate') {
+            const url = stringField(input, 'url');
+            if (!url) return badRequest('tab.navigate requires input.url');
+            const tab = await navigateTab(tabId, url);
+            return { status: 200, body: { tab, mutated: ['tab.page', 'tab.storage'], keyRequired: false } };
+        }
+        if (actId === 'tab.click') {
+            const selector = stringField(input, 'selector');
+            if (!selector) return badRequest('tab.click requires input.selector');
+            const tab = await clickTab(tabId, selector);
+            return { status: 200, body: { tab, mutated: ['tab.page', 'tab.storage'], keyRequired: false } };
+        }
+        if (actId === 'tab.type') {
+            const selector = stringField(input, 'selector');
+            const text = stringField(input, 'text');
+            if (!selector || text == null) return badRequest('tab.type requires input.selector and input.text');
+            const tab = await typeTab(tabId, selector, text);
+            return { status: 200, body: { tab, mutated: ['tab.page', 'tab.storage'], keyRequired: false } };
+        }
+        return badRequest(`Unknown page act: ${actId}`);
+    } catch (error) {
+        return fail(error);
+    }
 }
 
-function applyLocalAct(actId: string, tabId: string, input: InvokeInput): HandlerResult {
-    if (actId === 'tab.write_note') return applyWriteNote(tabId, input);
-    if (actId === 'tab.set_url') return applySetUrl(tabId, input);
-    return badRequest(`Unknown local act: ${actId}`);
-}
-
-export function invokeAffordance(
+export async function invokeAffordance(
     affordanceId: string,
     rawInput?: unknown,
     pathTabId?: string
-): HandlerResult {
+): Promise<HandlerResult> {
     const affordance = getAffordance(affordanceId);
     if (!affordance) {
         return badRequest(`Unknown affordance: ${affordanceId}`);
     }
 
     const input = asObject(rawInput);
-    const store = getAgentTabStore();
 
-    switch (affordanceId) {
-        case 'tabs.list':
-            return { status: 200, body: { tabs: store.list(), keyRequired: false } };
+    try {
+        switch (affordanceId) {
+            case 'tabs.list':
+                return { status: 200, body: { tabs: await listTabs(), keyRequired: false } };
 
-        case 'tabs.create': {
-            const tab = store.create({
-                title: stringField(input, 'title'),
-                url: stringField(input, 'url'),
-                note: stringField(input, 'note')
-            });
-            return { status: 201, body: { tab, keyRequired: false } };
+            case 'tabs.create': {
+                const url = stringField(input, 'url');
+                if (!url) return badRequest('tabs.create requires url');
+                const tab = await openTab(url);
+                return { status: 201, body: { tab, keyRequired: false } };
+            }
+
+            case 'tabs.read': {
+                const tabId = resolveTabId(input, pathTabId);
+                if (!tabId) return badRequest('tabs.read requires tabId');
+                const tab = await readTab(tabId);
+                return { status: 200, body: { tab, keyRequired: false } };
+            }
+
+            case 'tabs.dispose': {
+                const tabId = resolveTabId(input, pathTabId);
+                if (!tabId) return badRequest('tabs.dispose requires tabId');
+                const disposed = await disposeTab(tabId);
+                return { status: 200, body: { disposed, keyRequired: false } };
+            }
+
+            case 'tabs.act': {
+                const tabId = resolveTabId(input, pathTabId);
+                if (!tabId) return badRequest('tabs.act requires tabId');
+                const nestedId = stringField(input, 'affordance');
+                if (!nestedId) return badRequest('tabs.act requires affordance');
+                return applyPageAct(nestedId, tabId, asObject(input.input));
+            }
+
+            case 'tab.navigate':
+            case 'tab.click':
+            case 'tab.type': {
+                const tabId = resolveTabId(input, pathTabId);
+                if (!tabId) return badRequest(`${affordanceId} requires tabId`);
+                return applyPageAct(affordanceId, tabId, input);
+            }
+
+            default:
+                return badRequest(`Unknown affordance: ${affordanceId}`);
         }
-
-        case 'tabs.read': {
-            const tabId = resolveTabId(input, pathTabId);
-            if (!tabId) return badRequest('tabs.read requires tabId');
-            const tab = store.read(tabId);
-            if (!tab) return missingTab(tabId);
-            return { status: 200, body: { tab, keyRequired: false } };
+    } catch (error) {
+        if (error instanceof AgentTabError && error.status === 404) {
+            const tabId = resolveTabId(input, pathTabId) || 'unknown';
+            return missingTab(tabId);
         }
-
-        case 'tabs.dispose': {
-            const tabId = resolveTabId(input, pathTabId);
-            if (!tabId) return badRequest('tabs.dispose requires tabId');
-            const tab = store.dispose(tabId);
-            if (!tab) return missingTab(tabId);
-            return { status: 200, body: { disposed: tabId, keyRequired: false } };
-        }
-
-        case 'tabs.act': {
-            const tabId = resolveTabId(input, pathTabId);
-            if (!tabId) return badRequest('tabs.act requires tabId');
-            const nestedId = stringField(input, 'affordance');
-            if (!nestedId) return badRequest('tabs.act requires affordance');
-            return applyLocalAct(nestedId, tabId, asObject(input.input));
-        }
-
-        case 'tab.write_note':
-        case 'tab.set_url': {
-            const tabId = resolveTabId(input, pathTabId);
-            if (!tabId) return badRequest(`${affordanceId} requires tabId`);
-            return applyLocalAct(affordanceId, tabId, input);
-        }
-
-        default:
-            return badRequest(`Unknown affordance: ${affordanceId}`);
+        return fail(error);
     }
 }
 

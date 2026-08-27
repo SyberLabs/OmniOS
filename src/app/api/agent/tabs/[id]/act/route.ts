@@ -21,10 +21,10 @@ export async function POST(request: Request, context: RouteContext) {
         const body = await readJsonBody(request);
         const payload = body && typeof body === 'object' ? (body as Record<string, unknown>) : {};
         const nested = typeof payload.affordance === 'string' ? payload.affordance : '';
-        if (nested === 'tab.write_note' || nested === 'tab.set_url') {
-            return respond(invokeAffordance(nested, payload.input ?? payload, id));
+        if (nested === 'tab.navigate' || nested === 'tab.click' || nested === 'tab.type') {
+            return respond(await invokeAffordance(nested, payload.input ?? payload, id));
         }
-        return respond(invokeAffordance('tabs.act', payload, id));
+        return respond(await invokeAffordance('tabs.act', payload, id));
     } catch (error) {
         return respond({
             status: 400,

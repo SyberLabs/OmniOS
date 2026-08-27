@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>Agent Fixture A</title>
+</head>
+<body>
+    <h1>Fixture Alpha</h1>
+    <p id="blurb">Visible source text for agents.</p>
+    <p><a id="to-b" href="/agent-fixture-b.html">Go to Bravo</a></p>
+    <button id="set-session" type="button">Persist session</button>
+    <p id="session">session: empty</p>
+    <label>
+        Name
+        <input id="name" name="name" />
+    </label>
+    <button id="save-name" type="button">Save name</button>
+    <p id="saved-name">name: none</p>
+    <script>
+        function show() {
+            const cookie = document.cookie
+                .split('; ')
+                .find((part) => part.startsWith('omni_fixture='))
+                ?.split('=')[1] || 'empty';
+            const marker = localStorage.getItem('omni_marker') || 'empty';
+            const name = localStorage.getItem('omni_name') || 'none';
+            document.getElementById('session').textContent = 'session: ' + cookie + ' / ' + marker;
+            document.getElementById('saved-name').textContent = 'name: ' + name;
+        }
+        document.getElementById('set-session').addEventListener('click', () => {
+            document.cookie = 'omni_fixture=alive; path=/';
+            localStorage.setItem('omni_marker', 'persisted');
+            show();
+        });
+        document.getElementById('save-name').addEventListener('click', () => {
+            localStorage.setItem('omni_name', document.getElementById('name').value);
+            show();
+        });
+        show();
+    </script>
+</body>
+</html>

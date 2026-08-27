@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>Agent Fixture B</title>
+</head>
+<body>
+    <h1>Fixture Bravo</h1>
+    <p id="blurb">Second page in the same origin.</p>
+    <p><a id="to-a" href="/agent-fixture.html">Back to Alpha</a></p>
+    <p id="session">session: empty</p>
+    <p id="saved-name">name: none</p>
+    <script>
+        const cookie = document.cookie
+            .split('; ')
+            .find((part) => part.startsWith('omni_fixture='))
+            ?.split('=')[1] || 'empty';
+        const marker = localStorage.getItem('omni_marker') || 'empty';
+        const name = localStorage.getItem('omni_name') || 'none';
+        document.getElementById('session').textContent = 'session: ' + cookie + ' / ' + marker;
+        document.getElementById('saved-name').textContent = 'name: ' + name;
+    </script>
+</body>
+</html>

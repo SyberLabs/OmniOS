@@ -48,10 +48,10 @@ environment variables and are **never** sent to or stored in the browser.
 ## Agent surface (no API key)
 
 OmniOS also exposes a **keyless** affordance surface for an arbitrary agent
-(`curl`, `fetch`, or another agent's HTTP client). A tab is a local,
-lightweight, persistent browser/session state record — not a Citadel canvas
-and not a hosted-model chat. No API key is required. Do not send
-`Authorization` or provider keys.
+(`curl`, `fetch`, or another agent's HTTP client). A tab is a real disposable
+browser page with an isolated context — not a JSON note, not a Citadel canvas,
+and not a hosted-model chat. Cookies and `localStorage` persist across HTTP
+calls on that tab (Playwright `storageState` on disk). No API key is required.
 
 Citadel (`/`) and Garden (`/garden`) are unchanged.
 
@@ -61,34 +61,44 @@ npm run dev
 
 Human / browser-agent view: [http://localhost:3000/surface](http://localhost:3000/surface)
 
+Local fixture pages (no internet): `/agent-fixture.html` and `/agent-fixture-b.html`.
+
 | Method | Path | Affordance |
 |--------|------|------------|
 | `GET` | `/api/agent` | Discover named actions (id, description, input schema, what they mutate) |
 | `POST` | `/api/agent` | Invoke `{ "affordance": "<id>", "input": { ... } }` |
 | `GET` | `/api/agent/tabs` | `tabs.list` |
-| `POST` | `/api/agent/tabs` | `tabs.create` |
-| `GET` | `/api/agent/tabs/{id}` | `tabs.read` |
-| `POST` | `/api/agent/tabs/{id}/act` | `tabs.act` (`tab.write_note`, `tab.set_url`) |
-| `DELETE` | `/api/agent/tabs/{id}` | `tabs.dispose` |
+| `POST` | `/api/agent/tabs` | `tabs.create` — `{ "url" }` loads the page |
+| `GET` | `/api/agent/tabs/{id}` | `tabs.read` — live title, URL, visible text, links |
+| `POST` | `/api/agent/tabs/{id}/act` | `tab.navigate` / `tab.click` / `tab.type` |
+| `DELETE` | `/api/agent/tabs/{id}` | `tabs.dispose` — context gone |
 
 ```bash
 # 1. Discover (no key)
 curl http://localhost:3000/api/agent
 
-# 2. Create a tab
+# 2. Open a URL into a real tab
 curl -X POST http://localhost:3000/api/agent/tabs \
   -H 'content-type: application/json' \
-  -d '{"title":"research","url":"https://example.com"}'
+  -d '{"url":"http://localhost:3000/agent-fixture.html"}'
 
-# 3. Act (write a local note) — replace TAB_ID
-curl -X POST http://localhost:3000/api/agent/tabs/TAB_ID/act \
-  -H 'content-type: application/json' \
-  -d '{"affordance":"tab.write_note","input":{"text":"follow the citations"}}'
-
-# 4. Read persisted state
+# 3. Read the live page (title / URL / visible text / links)
 curl http://localhost:3000/api/agent/tabs/TAB_ID
 
-# 5. Dispose
+# 4. Act — click (sets a cookie + localStorage on the fixture)
+curl -X POST http://localhost:3000/api/agent/tabs/TAB_ID/act \
+  -H 'content-type: application/json' \
+  -d '{"affordance":"tab.click","input":{"selector":"#set-session"}}'
+
+# 5. Persist check: a later read still sees session: alive / persisted
+curl http://localhost:3000/api/agent/tabs/TAB_ID
+
+# 6. Navigate or type
+curl -X POST http://localhost:3000/api/agent/tabs/TAB_ID/act \
+  -H 'content-type: application/json' \
+  -d '{"affordance":"tab.navigate","input":{"url":"http://localhost:3000/agent-fixture-b.html"}}'
+
+# 7. Dispose — later read/act return 404
 curl -X DELETE http://localhost:3000/api/agent/tabs/TAB_ID
 ```
 
@@ -97,11 +107,11 @@ Same loop via one invoke endpoint:
 ```bash
 curl -X POST http://localhost:3000/api/agent \
   -H 'content-type: application/json' \
-  -d '{"affordance":"tabs.create","input":{"title":"research"}}'
+  -d '{"affordance":"tabs.create","input":{"url":"http://localhost:3000/agent-fixture.html"}}'
 ```
 
-Seeded acts are local only. This surface does not call Ollama, Anthropic,
-Gemini, or NewsAPI.
+This surface does not call Ollama, Anthropic, Gemini, or NewsAPI. It launches
+a local headless Chromium (`npx playwright install chromium`).
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
