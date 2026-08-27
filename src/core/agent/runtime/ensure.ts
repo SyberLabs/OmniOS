@@ -246,6 +246,11 @@ export function setEverydayChromeRunningForTests(value: boolean | null): void {
     setEverydayChromeHook(value);
 }
 
+/** Test hook: true if runtime.ensure currently owns a launched debug Chrome. */
+export function __hasLaunchedDebugChrome(): boolean {
+    return Boolean(launchedDebug?.proc && launchedDebug.proc.exitCode == null);
+}
+
 /**
  * Test hook: stop a Chrome that runtime.ensure launched.
  * Product tabs.dispose never calls this — an ensure-launched Chrome stays up.

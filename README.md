@@ -44,7 +44,7 @@ and does not delete that profile.
 |--------|------|------------|
 | `GET` | `/api/agent` | Discover named actions (id, description, input schema, what they mutate) |
 | `POST` | `/api/agent` | Invoke `{ "affordance": "<id>", "input": { ... } }` |
-| `POST` | `/api/agent` | `runtime.ensure` — empty input; reuse or launch a debug Chrome and attach |
+| `POST` | `/api/agent` | `runtime.ensure` — empty input; reuse or launch a debug Chrome and attach (fails closed if everyday Chrome is already open) |
 | `POST` | `/api/agent` | `runtime.attach` — `{ "cdpUrl" }` or `{ "port" }` points at a specific open Chrome |
 | `POST` | `/api/agent` | `runtime.targets` — list already-open pages as `{id, title, url}` |
 | `GET` | `/api/agent/tabs` | `tabs.list` — OmniOS tabs (not the user's other Chrome pages) |

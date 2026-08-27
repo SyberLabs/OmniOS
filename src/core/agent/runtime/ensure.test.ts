@@ -12,6 +12,7 @@ import { __resetAgentTabs } from '../browserTabs';
 import { FORBIDDEN_CALLER_KEYS } from '../contract';
 import { clearProcessAttachHttp } from './attach';
 import { setFindChromeForTests } from './chrome';
+import { setListOsProcessesForTests } from './chromeProcesses';
 import { ensureRuntime, setEverydayChromeRunningForTests } from './ensure';
 
 async function json(res: Response) {
@@ -91,6 +92,7 @@ afterEach(async () => {
     delete process.env.OMNI_CDP_URL;
     setFindChromeForTests(null);
     setEverydayChromeRunningForTests(null);
+    setListOsProcessesForTests(null);
     await __resetAgentTabs();
 });
 
@@ -197,6 +199,9 @@ describe('runtime.ensure', () => {
         expect(typeof listed.body.error).toBe('string');
         expect(String(listed.body.error)).toMatch(/already open/i);
         expect(String(listed.body.error)).toMatch(/not debuggable/i);
+        expect(String(listed.body.error)).not.toMatch(
+            /cdpUrl|9222|BrowserContext|user-data-dir|\.omni|profile/i
+        );
         expect(listed.body.attached).toBeUndefined();
         expect(listed.body.launched).toBeUndefined();
         expectNoRuntimeLeak(listed.body);

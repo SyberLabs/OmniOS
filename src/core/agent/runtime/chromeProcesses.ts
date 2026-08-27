@@ -41,9 +41,14 @@ const LINUX_COMM_PREFIXES = [
 ];
 
 let everydayChromeOverride: boolean | null = null;
+let listOsProcessesOverride: (() => ChromeProcess[]) | null = null;
 
 export function setEverydayChromeRunningForTests(value: boolean | null): void {
     everydayChromeOverride = value;
+}
+
+export function setListOsProcessesForTests(fn: (() => ChromeProcess[]) | null): void {
+    listOsProcessesOverride = fn;
 }
 
 function processBasename(file: string): string {
@@ -70,7 +75,11 @@ function normalizePath(value: string): string {
 
 function isPlaywrightBrowser(haystack: string): boolean {
     const lower = normalizePath(haystack);
-    return lower.includes('ms-playwright') || /(?:^|\/)playwright(?:\/|$)/.test(lower);
+    return (
+        lower.includes('ms-playwright') ||
+        lower.includes('playwright-core') ||
+        /(?:^|\/)playwright(?:\/|$|-)/.test(lower)
+    );
 }
 
 function looksLikeBrowserName(raw: string): boolean {
@@ -192,13 +201,13 @@ function runCapture(command: string): string {
     });
 }
 
-function listLinuxProc(): ChromeProcess[] {
+function listLinuxProc(): ChromeProcess[] | null {
     const out: ChromeProcess[] = [];
     let entries: string[];
     try {
         entries = fs.readdirSync('/proc');
     } catch {
-        return out;
+        return null;
     }
     for (const entry of entries) {
         if (!/^\d+$/.test(entry)) continue;
@@ -220,19 +229,19 @@ function listLinuxProc(): ChromeProcess[] {
     return out;
 }
 
-function listViaPs(): ChromeProcess[] {
+function listViaPs(): ChromeProcess[] | null {
     try {
         return parsePsPidArgs(runCapture('ps -axo pid=,args='));
     } catch {
         try {
             return parsePsPidArgs(runCapture('ps -eo pid=,args='));
         } catch {
-            return [];
+            return null;
         }
     }
 }
 
-function listWindows(): ChromeProcess[] {
+function listWindows(): ChromeProcess[] | null {
     try {
         const json = runCapture(
             'powershell -NoProfile -NonInteractive -Command ' +
@@ -241,73 +250,86 @@ function listWindows(): ChromeProcess[] {
                 'Select-Object ProcessId,Name,ExecutablePath,CommandLine | ' +
                 'ConvertTo-Json -Compress"'
         ).trim();
-        if (json) {
-            const parsed = JSON.parse(json) as
-                | Array<{
-                      ProcessId?: number;
-                      Name?: string;
-                      ExecutablePath?: string;
-                      CommandLine?: string;
-                  }>
-                | {
-                      ProcessId?: number;
-                      Name?: string;
-                      ExecutablePath?: string;
-                      CommandLine?: string;
-                  };
-            const rows = Array.isArray(parsed) ? parsed : [parsed];
-            const out: ChromeProcess[] = [];
-            for (const row of rows) {
-                const pid = Number(row.ProcessId);
-                const name = String(row.Name || '').trim();
-                if (!name || !Number.isInteger(pid) || pid <= 0) continue;
-                out.push({
-                    pid,
-                    name,
-                    command: String(row.CommandLine || row.ExecutablePath || name)
-                });
-            }
-            if (out.length) return out;
+        if (!json) return [];
+        const parsed = JSON.parse(json) as
+            | Array<{
+                  ProcessId?: number;
+                  Name?: string;
+                  ExecutablePath?: string;
+                  CommandLine?: string;
+              }>
+            | {
+                  ProcessId?: number;
+                  Name?: string;
+                  ExecutablePath?: string;
+                  CommandLine?: string;
+              };
+        const rows = Array.isArray(parsed) ? parsed : [parsed];
+        const out: ChromeProcess[] = [];
+        for (const row of rows) {
+            const pid = Number(row.ProcessId);
+            const name = String(row.Name || '').trim();
+            if (!name || !Number.isInteger(pid) || pid <= 0) continue;
+            out.push({
+                pid,
+                name,
+                command: String(row.CommandLine || row.ExecutablePath || name)
+            });
         }
+        return out;
     } catch {
         // wmic / tasklist fallback
     }
 
     try {
-        const wmic = runCapture(
-            'wmic process where "Name=\'chrome.exe\' or Name=\'msedge.exe\' or Name=\'chromium.exe\'" ' +
-                'get ProcessId,Name,ExecutablePath,CommandLine /FORMAT:CSV'
+        return parseWmicCsv(
+            runCapture(
+                'wmic process where "Name=\'chrome.exe\' or Name=\'msedge.exe\' or Name=\'chromium.exe\'" ' +
+                    'get ProcessId,Name,ExecutablePath,CommandLine /FORMAT:CSV'
+            )
         );
-        const parsed = parseWmicCsv(wmic);
-        if (parsed.length) return parsed;
     } catch {
         // tasklist last resort
     }
 
-    try {
-        const chunks = ['chrome.exe', 'msedge.exe', 'chromium.exe'].flatMap((image) => {
-            try {
-                return parseTasklistCsv(runCapture(`tasklist /FI "IMAGENAME eq ${image}" /FO CSV /NH`));
-            } catch {
-                return [];
-            }
-        });
-        return chunks.filter((proc) => !/^INFO:/i.test(proc.name));
-    } catch {
-        return [];
+    const chunks: ChromeProcess[] = [];
+    let listed = false;
+    for (const image of ['chrome.exe', 'msedge.exe', 'chromium.exe']) {
+        try {
+            chunks.push(
+                ...parseTasklistCsv(runCapture(`tasklist /FI "IMAGENAME eq ${image}" /FO CSV /NH`))
+            );
+            listed = true;
+        } catch {
+            // try remaining image names
+        }
     }
+    if (!listed) return null;
+    return chunks.filter((proc) => !/^INFO:/i.test(proc.name));
 }
 
 export function listOsProcesses(): ChromeProcess[] {
-    if (process.platform === 'win32') return listWindows();
+    if (listOsProcessesOverride) return listOsProcessesOverride();
+    if (process.platform === 'win32') {
+        const listed = listWindows();
+        if (!listed) throw new Error('Cannot list Chrome processes on Windows');
+        return listed;
+    }
     if (process.platform === 'linux') {
         const fromProc = listLinuxProc();
-        if (fromProc.length) return fromProc;
+        if (fromProc) return fromProc;
     }
-    return listViaPs();
+    const fromPs = listViaPs();
+    if (fromPs) return fromPs;
+    throw new Error('Cannot list Chrome processes');
 }
 
 export function hasEverydayChrome(options: EverydayChromeOptions = {}): boolean {
     if (everydayChromeOverride !== null) return everydayChromeOverride;
-    return listOsProcesses().some((proc) => isEverydayChromeProcess(proc, options));
+    try {
+        return listOsProcesses().some((proc) => isEverydayChromeProcess(proc, options));
+    } catch {
+        // Fail closed: if we cannot tell, do not launch a second Chrome.
+        return true;
+    }
 }
