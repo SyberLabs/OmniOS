@@ -13,6 +13,8 @@ import {
     FORBIDDEN_CALLER_KEYS,
     validateAgainstSchema
 } from '../contract';
+import { runtimeStatePath, tabDir } from './paths';
+import { createCdpRuntime } from './cdpRuntime';
 import { listAttachedPages } from './targets';
 
 async function json(res: Response) {
@@ -180,6 +182,64 @@ describe('runtime.targets HTTP contract', () => {
             expect(missing.body.tab).toBeUndefined();
         } finally {
             await mock.close();
+        }
+    });
+
+    it('destroy of a bound tab does not contact Chrome to close the user page', async () => {
+        let versionHits = 0;
+        const probe = await new Promise<{ origin: string; close: () => Promise<void> }>(
+            (resolve, reject) => {
+                const server = http.createServer((req, res) => {
+                    if ((req.url ?? '').startsWith('/json/version')) versionHits += 1;
+                    res.writeHead(200, { 'content-type': 'application/json' });
+                    res.end(
+                        JSON.stringify({
+                            webSocketDebuggerUrl: 'ws://127.0.0.1:1/devtools/browser/fake'
+                        })
+                    );
+                });
+                server.listen(0, '127.0.0.1', () => {
+                    const addr = server.address();
+                    if (!addr || typeof addr === 'string') {
+                        reject(new Error('probe mock failed to bind'));
+                        return;
+                    }
+                    resolve({
+                        origin: `http://127.0.0.1:${addr.port}`,
+                        close: () =>
+                            new Promise((done, fail) => {
+                                server.close((err) => (err ? fail(err) : done()));
+                            })
+                    });
+                });
+                server.on('error', reject);
+            }
+        );
+
+        const writeState = (id: string, bound: boolean) => {
+            fs.mkdirSync(tabDir(id), { recursive: true });
+            fs.writeFileSync(
+                runtimeStatePath(id),
+                JSON.stringify({
+                    kind: 'cdp',
+                    attached: true,
+                    bound,
+                    attachHttp: probe.origin,
+                    targetId: 'USER-PAGE'
+                })
+            );
+        };
+
+        try {
+            writeState('tab_bound_guard', true);
+            await createCdpRuntime().destroy('tab_bound_guard');
+            expect(versionHits).toBe(0);
+
+            writeState('tab_created_guard', false);
+            await createCdpRuntime().destroy('tab_created_guard');
+            expect(versionHits).toBeGreaterThan(0);
+        } finally {
+            await probe.close();
         }
     });
 });

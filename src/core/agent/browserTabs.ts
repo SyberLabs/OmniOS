@@ -14,6 +14,7 @@ import {
     metaPath,
     persistRoot,
     profileRoot,
+    runtimeStatePath,
     screenshotHref,
     screenshotPath,
     tabDir
@@ -58,6 +59,17 @@ function readMeta(id: string): TabMeta | null {
         return raw;
     } catch {
         return null;
+    }
+}
+
+function isBoundTab(id: string): boolean {
+    try {
+        const state = JSON.parse(fs.readFileSync(runtimeStatePath(id), 'utf8')) as {
+            bound?: boolean;
+        };
+        return Boolean(state.bound);
+    } catch {
+        return false;
     }
 }
 
@@ -152,7 +164,9 @@ async function ensureLive(id: string): Promise<LiveTab> {
     if (existing) await closeLive(id);
 
     const session = await getTabRuntime().restore(id);
-    if (meta.url) await session.goto(meta.url);
+    // Bound pages stay where the user left them — do not yank the tab back
+    // to the last OmniOS snapshot URL after a process restart.
+    if (meta.url && !isBoundTab(id)) await session.goto(meta.url);
     const entry = { session, createdAt: meta.createdAt, updatedAt: diskUpdated };
     live.set(id, entry);
     return entry;
