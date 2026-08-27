@@ -110,7 +110,7 @@ async function launchChrome(id: string, existingPort?: number): Promise<Launched
         throw new AgentTabError(
             503,
             'No local Chrome/Chromium/Edge found. Install Chrome, set OMNI_CHROME_PATH, ' +
-                'or runtime.attach to an already-open Chrome. ' +
+                'or runtime.ensure / runtime.attach to an already-open Chrome. ' +
                 'Playwright is not the product runtime (OMNI_TAB_RUNTIME=playwright is test/CI only).'
         );
     }

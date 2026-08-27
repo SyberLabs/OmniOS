@@ -16,6 +16,7 @@ import {
     typeTab
 } from './browserTabs';
 import { attachRuntime } from './runtime/attach';
+import { ensureRuntime } from './runtime/ensure';
 import { listAttachedPages } from './runtime/targets';
 import type { HandlerResult, InvokeInput } from './types';
 
@@ -106,6 +107,17 @@ export async function invokeAffordance(
 
     try {
         switch (affordanceId) {
+            case 'runtime.ensure': {
+                const ensured = await ensureRuntime();
+                return {
+                    status: 200,
+                    body: {
+                        ...ensured,
+                        keyRequired: false
+                    }
+                };
+            }
+
             case 'runtime.attach': {
                 await attachRuntime(input);
                 return {

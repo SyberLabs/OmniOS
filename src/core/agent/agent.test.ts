@@ -122,6 +122,7 @@ describe('agent surface — live keyless browser tabs', () => {
 
         const ids = body.affordances.map((a: { id: string }) => a.id);
         expect(ids).toEqual(expect.arrayContaining([
+            'runtime.ensure',
             'runtime.attach',
             'runtime.targets',
             'tabs.list',

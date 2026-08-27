@@ -8,7 +8,7 @@ import fs from 'node:fs';
 import { generateId } from '@/lib/utils';
 import { AgentTabError } from './errors';
 import { EXTRACT_ACTIONS_SOURCE, actionsFromRaw, linksFromActions } from './extract';
-import { clearProcessAttachHttp, getTabRuntime } from './runtime';
+import { __stopEnsuredChrome, clearProcessAttachHttp, getTabRuntime } from './runtime';
 import { findTabIdByTarget } from './runtime/targets';
 import {
     metaPath,
@@ -211,7 +211,7 @@ export async function bindTab(targetId: string): Promise<AgentTab> {
 
     const runtime = getTabRuntime();
     if (typeof runtime.bind !== 'function') {
-        throw new AgentTabError(400, 'tabs.bind requires runtime.attach first');
+        throw new AgentTabError(400, 'tabs.bind requires runtime.ensure or runtime.attach first');
     }
 
     const id = generateId('tab');
@@ -323,8 +323,9 @@ export function __staleLive(id: string): void {
 
 /** Test hook: drop live sessions and wipe persisted tabs + profiles. */
 export async function __resetAgentTabs(): Promise<void> {
-    clearProcessAttachHttp();
     await __dropLiveContexts();
+    await __stopEnsuredChrome();
+    clearProcessAttachHttp();
     for (const root of [persistRoot(), profileRoot()]) {
         for (let attempt = 0; attempt < 8; attempt++) {
             try {

@@ -42,6 +42,11 @@ export function setTabRuntimeForTests(runtime: TabRuntime | null): void {
     cached = null;
 }
 
+/** Drop the resolved runtime cache after attach/ensure is cleared in tests. */
+export function clearTabRuntimeCache(): void {
+    cached = null;
+}
+
 export function getTabRuntime(): TabRuntime {
     if (override) return override;
     if (getProcessAttachHttp()) {

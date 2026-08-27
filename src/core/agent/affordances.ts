@@ -12,10 +12,11 @@ export const AGENT_PRODUCT = {
     name: 'OmniOS agent surface',
     keyRequired: false as const,
     description:
-        'Local lightweight tabs: attach to an already-open Chrome (runtime.attach), list its ' +
-        'pages (runtime.targets), bind one (tabs.bind), or launch a disposable Chrome/Chromium/Edge ' +
-        'profile (.omni/profiles/<tabId>). Not a Citadel canvas and not a hosted-model chat. ' +
-        'Playwright is a test/CI adapter (OMNI_TAB_RUNTIME=playwright). No API key is required.',
+        'Local lightweight tabs: runtime.ensure opens a debuggable Chrome (reuses one if already ' +
+        'up, otherwise launches), then list pages (runtime.targets), bind one (tabs.bind), or ' +
+        'launch a disposable profile (.omni/profiles/<tabId>). Not a Citadel canvas and not a ' +
+        'hosted-model chat. Playwright is a test/CI adapter (OMNI_TAB_RUNTIME=playwright). ' +
+        'No API key is required.',
     invoke: {
         method: 'POST' as const,
         path: '/api/agent',
@@ -27,12 +28,27 @@ const none: Affordance['inputSchema'] = { type: 'object', additionalProperties: 
 
 export const AGENT_AFFORDANCES: Affordance[] = [
     {
+        id: 'runtime.ensure',
+        description:
+            'Make a debuggable Chrome available and attach. Empty input. Reuses an already-open ' +
+            'debug Chrome if one is up; otherwise launches the user Chrome/Chromium/Edge with ' +
+            'remote debugging (dedicated .omni/chrome-debug profile) and attaches. After this call, ' +
+            'runtime.targets / tabs.bind / tabs.create work without a separate runtime.attach. ' +
+            'tabs.dispose never quits that Chrome — an ensure-launched process stays up after the ' +
+            'last tab. Optional companion: npm run chrome:debug.',
+        method: 'POST',
+        path: '/api/agent',
+        inputSchema: none,
+        mutates: ['runtime'],
+        keyRequired: false
+    },
+    {
         id: 'runtime.attach',
         description:
-            'Point OmniOS at an already-open Chrome with remote debugging ' +
-            '(chrome --remote-debugging-port=9222). After attach, runtime.targets lists already-open ' +
-            'pages and tabs.bind adopts one. tabs.create still opens a new page/target in that Chrome. ' +
-            'Launching a disposable profile remains the default when you do not attach.',
+            'Point OmniOS at a specific already-open Chrome DevTools endpoint ' +
+            '({cdpUrl} or {port}). The common path is runtime.ensure (empty input) — it finds or ' +
+            'launches a debug Chrome so you do not have to remember --remote-debugging-port. ' +
+            'After attach, runtime.targets lists pages and tabs.bind adopts one.',
         method: 'POST',
         path: '/api/agent',
         inputSchema: {
@@ -56,7 +72,8 @@ export const AGENT_AFFORDANCES: Affordance[] = [
         id: 'runtime.targets',
         description:
             'List already-open pages in the attached Chrome as {id, title, url}. ' +
-            'Requires runtime.attach first. Does not include CDP ports, profile paths, or BrowserContext.',
+            'Requires runtime.ensure or runtime.attach first. Does not include CDP ports, ' +
+            'profile paths, or BrowserContext.',
         method: 'POST',
         path: '/api/agent',
         inputSchema: none,
@@ -76,7 +93,7 @@ export const AGENT_AFFORDANCES: Affordance[] = [
         id: 'tabs.create',
         description:
             'Open a URL in a new isolated browser tab (own cookies/storage). ' +
-            'After runtime.attach, the page is created in that already-open Chrome; otherwise ' +
+            'After runtime.ensure or runtime.attach, the page is created in that Chrome; otherwise ' +
             'OmniOS launches a disposable profile. Response is a full page snapshot.',
         method: 'POST',
         path: '/api/agent/tabs',
@@ -95,7 +112,7 @@ export const AGENT_AFFORDANCES: Affordance[] = [
         id: 'tabs.bind',
         description:
             'Make an already-open Chrome page an OmniOS tab (snapshot + refs + screenshot + act-by-ref). ' +
-            'Input targetId is the id from runtime.targets. Requires runtime.attach. ' +
+            'Input targetId is the id from runtime.targets. Requires runtime.ensure or runtime.attach. ' +
             'tabs.dispose on a bound tab unbinds and does not close the user page.',
         method: 'POST',
         path: '/api/agent',
@@ -157,7 +174,7 @@ export const AGENT_AFFORDANCES: Affordance[] = [
             'Close the OmniOS tab and drop its cookies/storage. Later read/act fail. ' +
             'On a bound page (tabs.bind), this unbinds only — the user page stays open. ' +
             'On an OmniOS-created page (tabs.create), this closes that page/target. ' +
-            'It never quits an attached user Chrome process.',
+            'It never quits the user Chrome process, including a Chrome that runtime.ensure launched.',
         method: 'DELETE',
         path: '/api/agent/tabs/{id}',
         inputSchema: {

@@ -11,7 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "inspect-api": "npx tsx scripts/inspect-api.ts"
+    "inspect-api": "npx tsx scripts/inspect-api.ts",
+    "chrome:debug": "npx tsx scripts/chrome-debug.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

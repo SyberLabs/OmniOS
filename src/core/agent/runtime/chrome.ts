@@ -27,7 +27,15 @@ function isPlaywrightBrowser(file: string): boolean {
     return file.includes('ms-playwright') || file.includes('playwright');
 }
 
+let findChromeOverride: (() => string | null) | null = null;
+
+/** Test hook: force a missing (or fake) Chrome binary. */
+export function setFindChromeForTests(fn: (() => string | null) | null): void {
+    findChromeOverride = fn;
+}
+
 export function findChrome(): string | null {
+    if (findChromeOverride) return findChromeOverride();
     for (const candidate of CANDIDATES) {
         if (candidate && fs.existsSync(candidate) && !isPlaywrightBrowser(candidate)) {
             return candidate;
