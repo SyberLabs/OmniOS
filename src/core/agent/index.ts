@@ -11,4 +11,4 @@ export {
     __resetAgentTabs
 } from './browserTabs';
 export { invokeAffordance } from './invoke';
-export type { Affordance, AgentTab, HandlerResult, PageLink } from './types';
+export type { Affordance, Actionable, AgentTab, HandlerResult, PageLink } from './types';

@@ -28,12 +28,23 @@ export type PageLink = {
     text: string;
 };
 
+export type Actionable = {
+    ref: string;
+    role: 'button' | 'link' | 'textbox' | 'checkbox' | 'combobox';
+    name: string;
+    href?: string;
+    value?: string;
+    actions: Array<'click' | 'type'>;
+    selector?: string;
+};
+
 export type AgentTab = {
     id: string;
     title: string;
     url: string;
     text: string;
     links: PageLink[];
+    actions: Actionable[];
     createdAt: number;
     updatedAt: number;
 };

@@ -50,7 +50,7 @@ export const AGENT_AFFORDANCES: Affordance[] = [
     },
     {
         id: 'tabs.read',
-        description: 'Read the live page: title, URL, visible text, links.',
+        description: 'Read the live page: title, URL, visible text, and actionable refs.',
         method: 'GET',
         path: '/api/agent/tabs/{id}',
         inputSchema: {
@@ -121,16 +121,16 @@ export const AGENT_AFFORDANCES: Affordance[] = [
     },
     {
         id: 'tab.click',
-        description: 'Click an element on the live page (CSS selector).',
+        description: 'Click an element on the live page by snapshot ref (selector fallback).',
         method: 'POST',
         path: '/api/agent/tabs/{id}/act',
         inputSchema: {
             type: 'object',
-            required: ['selector'],
             additionalProperties: false,
             properties: {
                 tabId: { type: 'string' },
-                selector: { type: 'string', description: 'CSS selector' }
+                ref: { type: 'string', description: 'Stable ref from tabs.read actions[]' },
+                selector: { type: 'string', description: 'CSS selector fallback' }
             }
         },
         mutates: ['tab.page', 'tab.storage'],
@@ -138,16 +138,17 @@ export const AGENT_AFFORDANCES: Affordance[] = [
     },
     {
         id: 'tab.type',
-        description: 'Type into an element on the live page (CSS selector).',
+        description: 'Type into an element on the live page by snapshot ref (selector fallback).',
         method: 'POST',
         path: '/api/agent/tabs/{id}/act',
         inputSchema: {
             type: 'object',
-            required: ['selector', 'text'],
+            required: ['text'],
             additionalProperties: false,
             properties: {
                 tabId: { type: 'string' },
-                selector: { type: 'string', description: 'CSS selector' },
+                ref: { type: 'string', description: 'Stable ref from tabs.read actions[]' },
+                selector: { type: 'string', description: 'CSS selector fallback' },
                 text: { type: 'string', description: 'Text to fill' }
             }
         },

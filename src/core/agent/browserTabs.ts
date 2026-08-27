@@ -10,7 +10,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { chromium, type Browser, type BrowserContext, type Page } from 'playwright';
 import { generateId } from '@/lib/utils';
-import type { AgentTab, PageLink } from './types';
+import type { Actionable, AgentTab, PageLink } from './types';
 
 export class AgentTabError extends Error {
     status: number;
@@ -103,23 +103,145 @@ async function writePersist(id: string, context: BrowserContext, snapshot: Agent
     fs.writeFileSync(metaPath(id), JSON.stringify(meta));
 }
 
+type RawAction = {
+    ref: string;
+    role: Actionable['role'];
+    name: string;
+    href: string;
+    value: string;
+    actions: Array<'click' | 'type'>;
+    selector: string;
+};
+
+async function extractActions(page: Page): Promise<Actionable[]> {
+    const raw = await page.evaluate(() => {
+        const nodes = [
+            ...document.querySelectorAll('a[href], button, input:not([type="hidden"]), textarea, select')
+        ] as HTMLElement[];
+
+        const escape = (value: string) =>
+            typeof CSS !== 'undefined' && CSS.escape
+                ? CSS.escape(value)
+                : value.replace(/[^a-zA-Z0-9_-]/g, '\\$&');
+
+        function roleOf(el: HTMLElement): RawAction['role'] {
+            const tag = el.tagName.toLowerCase();
+            const type = (el.getAttribute('type') || '').toLowerCase();
+            if (tag === 'a') return 'link';
+            if (tag === 'button' || type === 'button' || type === 'submit') return 'button';
+            if (type === 'checkbox') return 'checkbox';
+            if (tag === 'select') return 'combobox';
+            return 'textbox';
+        }
+
+        function nameOf(el: HTMLElement): string {
+            const aria = el.getAttribute('aria-label');
+            if (aria) return aria.trim();
+            if (el.id) {
+                const labelled = document.querySelector(`label[for="${el.id}"]`);
+                if (labelled?.textContent) return labelled.textContent.trim();
+            }
+            const wrapped = el.closest('label');
+            if (wrapped) {
+                const clone = wrapped.cloneNode(true) as HTMLElement;
+                clone.querySelectorAll('input, textarea, select, button').forEach((n) => n.remove());
+                const labelText = clone.textContent?.trim();
+                if (labelText) return labelText;
+            }
+            const placeholder = el.getAttribute('placeholder');
+            if (placeholder) return placeholder.trim();
+            const text = el.textContent?.trim();
+            if (text) return text.slice(0, 80);
+            return el.getAttribute('name') || el.id || el.tagName.toLowerCase();
+        }
+
+        function selectorOf(el: HTMLElement, index: number): string {
+            if (el.id) return `#${escape(el.id)}`;
+            const name = el.getAttribute('name');
+            const tag = el.tagName.toLowerCase();
+            if (name) return `${tag}[name="${escape(name)}"]`;
+            return `${tag}[data-omni-ref="e${index}"]`;
+        }
+
+        return nodes.slice(0, 40).map((el, i) => {
+            const ref = `e${i + 1}`;
+            el.setAttribute('data-omni-ref', ref);
+            const role = roleOf(el);
+            const actions: Array<'click' | 'type'> =
+                role === 'textbox' ? ['type'] : ['click'];
+            const href = el instanceof HTMLAnchorElement ? el.href : '';
+            const value = 'value' in el ? String((el as HTMLInputElement).value || '') : '';
+            return {
+                ref,
+                role,
+                name: nameOf(el),
+                href,
+                value,
+                actions,
+                selector: selectorOf(el, i + 1)
+            };
+        });
+    }) as RawAction[];
+
+    return raw.map((item) => {
+        const action: Actionable = {
+            ref: item.ref,
+            role: item.role,
+            name: item.name,
+            actions: item.actions,
+            selector: item.selector
+        };
+        if (item.href) action.href = item.href;
+        if (item.value) action.value = item.value;
+        return action;
+    });
+}
+
+function linksFromActions(actions: Actionable[]): PageLink[] {
+    return actions
+        .filter((action) => action.role === 'link' && action.href)
+        .map((action) => ({ href: action.href as string, text: action.name }));
+}
+
+async function resolveTarget(
+    page: Page,
+    last: AgentTab | undefined,
+    target: { ref?: string; selector?: string }
+): Promise<ReturnType<Page['locator']>> {
+    if (target.selector?.trim()) {
+        return page.locator(target.selector);
+    }
+    const ref = target.ref?.trim();
+    if (!ref) {
+        throw new AgentTabError(400, 'tab.click/type requires ref or selector');
+    }
+
+    const stamped = page.locator(`[data-omni-ref="${ref}"]`);
+    if (await stamped.count()) return stamped.first();
+
+    const stored = last?.actions?.find((action) => action.ref === ref);
+    if (stored?.selector) return page.locator(stored.selector);
+
+    const fresh = await extractActions(page);
+    const again = fresh.find((action) => action.ref === ref);
+    if (again?.selector) return page.locator(again.selector);
+
+    throw new AgentTabError(400, `Unknown action ref: ${ref}`);
+}
+
 async function snapshot(page: Page, id: string, createdAt: number): Promise<AgentTab> {
     const title = await page.title();
     const url = page.url();
     const text = ((await page.locator('body').innerText().catch(() => '')) || '').slice(0, 4000);
-    const links = (await page.locator('a[href]').evaluateAll((els) =>
-        els.slice(0, 30).map((el) => ({
-            href: (el as HTMLAnchorElement).href,
-            text: ((el as HTMLElement).textContent || '').trim()
-        }))
-    ).catch(() => [])) as PageLink[];
+    const actions = await extractActions(page);
 
     return {
         id,
         title,
         url,
         text,
-        links,
+        links: linksFromActions(actions),
+        actions,
         createdAt,
         updatedAt: Date.now()
     };
@@ -206,18 +328,27 @@ export async function navigateTab(id: string, url: string): Promise<AgentTab> {
     return capture(id, entry);
 }
 
-export async function clickTab(id: string, selector: string): Promise<AgentTab> {
-    if (!selector.trim()) throw new AgentTabError(400, 'tab.click requires selector');
+export async function clickTab(
+    id: string,
+    target: { ref?: string; selector?: string }
+): Promise<AgentTab> {
     const entry = await ensureLive(id);
-    await entry.page.locator(selector).click({ timeout: 10_000 });
+    const last = readMeta(id)?.snapshot;
+    const locator = await resolveTarget(entry.page, last, target);
+    await locator.click({ timeout: 10_000 });
     await new Promise((resolve) => setTimeout(resolve, 50));
     return capture(id, entry);
 }
 
-export async function typeTab(id: string, selector: string, text: string): Promise<AgentTab> {
-    if (!selector.trim()) throw new AgentTabError(400, 'tab.type requires selector');
+export async function typeTab(
+    id: string,
+    target: { ref?: string; selector?: string },
+    text: string
+): Promise<AgentTab> {
     const entry = await ensureLive(id);
-    await entry.page.locator(selector).fill(text, { timeout: 10_000 });
+    const last = readMeta(id)?.snapshot;
+    const locator = await resolveTarget(entry.page, last, target);
+    await locator.fill(text, { timeout: 10_000 });
     return capture(id, entry);
 }
 

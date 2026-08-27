@@ -22,7 +22,6 @@ export default function AgentSurfacePage() {
     const [discovery, setDiscovery] = useState<Discovery | null>(null);
     const [tabs, setTabs] = useState<AgentTab[]>([]);
     const [url, setUrl] = useState(FIXTURE);
-    const [selectors, setSelectors] = useState<Record<string, string>>({});
     const [types, setTypes] = useState<Record<string, string>>({});
     const [navs, setNavs] = useState<Record<string, string>>({});
     const [error, setError] = useState<string | null>(null);
@@ -218,15 +217,60 @@ export default function AgentSurfacePage() {
                                     <pre className="mt-2 whitespace-pre-wrap text-xs text-[var(--text-secondary)] bg-[var(--citadel-elevated)] rounded-md px-2 py-2 max-h-40 overflow-auto">
                                         {tab.text || '(no visible text)'}
                                     </pre>
-                                    {tab.links?.length > 0 && (
-                                        <ul className="mt-2 text-[11px] text-[var(--text-muted)] space-y-0.5">
-                                            {tab.links.slice(0, 8).map((link) => (
-                                                <li key={link.href + link.text} className="truncate">
-                                                    {link.text || link.href} — {link.href}
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    )}
+                                    <ul className="mt-2 space-y-1">
+                                        {(tab.actions ?? []).map((action) => (
+                                            <li
+                                                key={action.ref}
+                                                className="flex flex-wrap items-center gap-2 text-[11px] bg-[var(--citadel-elevated)] rounded-md px-2 py-1.5"
+                                            >
+                                                <code className="text-[var(--citadel-secondary)]">{action.ref}</code>
+                                                <span className="text-[var(--text-muted)]">{action.role}</span>
+                                                <span className="text-[var(--text-primary)] truncate">
+                                                    {action.name}
+                                                </span>
+                                                {action.actions.includes('click') && (
+                                                    <button
+                                                        type="button"
+                                                        disabled={busy}
+                                                        onClick={() =>
+                                                            act(tab.id, 'tab.click', { ref: action.ref })
+                                                        }
+                                                        className="ml-auto px-2 py-0.5 rounded border border-[var(--citadel-border)] hover:border-[var(--citadel-primary)] disabled:opacity-50"
+                                                    >
+                                                        Click
+                                                    </button>
+                                                )}
+                                                {action.actions.includes('type') && (
+                                                    <>
+                                                        <input
+                                                            value={types[`${tab.id}:${action.ref}`] ?? ''}
+                                                            onChange={(e) =>
+                                                                setTypes((prev) => ({
+                                                                    ...prev,
+                                                                    [`${tab.id}:${action.ref}`]: e.target.value
+                                                                }))
+                                                            }
+                                                            placeholder="text"
+                                                            className="ml-auto w-28 bg-[var(--citadel-void)] border border-[var(--citadel-border)] rounded px-1 py-0.5"
+                                                        />
+                                                        <button
+                                                            type="button"
+                                                            disabled={busy}
+                                                            onClick={() =>
+                                                                act(tab.id, 'tab.type', {
+                                                                    ref: action.ref,
+                                                                    text: types[`${tab.id}:${action.ref}`] ?? ''
+                                                                })
+                                                            }
+                                                            className="px-2 py-0.5 rounded border border-[var(--citadel-border)] hover:border-[var(--citadel-primary)] disabled:opacity-50"
+                                                        >
+                                                            Type
+                                                        </button>
+                                                    </>
+                                                )}
+                                            </li>
+                                        ))}
+                                    </ul>
                                     <input
                                         value={navs[tab.id] ?? tab.url}
                                         onChange={(e) =>
@@ -235,57 +279,16 @@ export default function AgentSurfacePage() {
                                         placeholder="Navigate to URL"
                                         className="mt-2 w-full bg-[var(--citadel-elevated)] border border-[var(--citadel-border)] rounded-md px-2 py-1.5 text-sm"
                                     />
-                                    <input
-                                        value={selectors[tab.id] ?? ''}
-                                        onChange={(e) =>
-                                            setSelectors((prev) => ({ ...prev, [tab.id]: e.target.value }))
+                                    <button
+                                        type="button"
+                                        disabled={busy || !(navs[tab.id] ?? tab.url)}
+                                        onClick={() =>
+                                            act(tab.id, 'tab.navigate', { url: navs[tab.id] ?? tab.url })
                                         }
-                                        placeholder="CSS selector (e.g. #set-session)"
-                                        className="mt-2 w-full bg-[var(--citadel-elevated)] border border-[var(--citadel-border)] rounded-md px-2 py-1.5 text-sm"
-                                    />
-                                    <input
-                                        value={types[tab.id] ?? ''}
-                                        onChange={(e) =>
-                                            setTypes((prev) => ({ ...prev, [tab.id]: e.target.value }))
-                                        }
-                                        placeholder="Text to type"
-                                        className="mt-2 w-full bg-[var(--citadel-elevated)] border border-[var(--citadel-border)] rounded-md px-2 py-1.5 text-sm"
-                                    />
-                                    <div className="mt-2 flex flex-wrap gap-2">
-                                        <button
-                                            type="button"
-                                            disabled={busy || !(navs[tab.id] ?? tab.url)}
-                                            onClick={() =>
-                                                act(tab.id, 'tab.navigate', { url: navs[tab.id] ?? tab.url })
-                                            }
-                                            className="px-2 py-1 text-[11px] rounded-md border border-[var(--citadel-border)] hover:border-[var(--citadel-primary)] disabled:opacity-50"
-                                        >
-                                            Navigate
-                                        </button>
-                                        <button
-                                            type="button"
-                                            disabled={busy || !selectors[tab.id]}
-                                            onClick={() =>
-                                                act(tab.id, 'tab.click', { selector: selectors[tab.id] })
-                                            }
-                                            className="px-2 py-1 text-[11px] rounded-md border border-[var(--citadel-border)] hover:border-[var(--citadel-primary)] disabled:opacity-50"
-                                        >
-                                            Click
-                                        </button>
-                                        <button
-                                            type="button"
-                                            disabled={busy || !selectors[tab.id] || types[tab.id] == null}
-                                            onClick={() =>
-                                                act(tab.id, 'tab.type', {
-                                                    selector: selectors[tab.id],
-                                                    text: types[tab.id] ?? ''
-                                                })
-                                            }
-                                            className="px-2 py-1 text-[11px] rounded-md border border-[var(--citadel-border)] hover:border-[var(--citadel-primary)] disabled:opacity-50"
-                                        >
-                                            Type
-                                        </button>
-                                    </div>
+                                        className="mt-2 px-2 py-1 text-[11px] rounded-md border border-[var(--citadel-border)] hover:border-[var(--citadel-primary)] disabled:opacity-50"
+                                    >
+                                        Navigate
+                                    </button>
                                 </li>
                             ))}
                         </ul>

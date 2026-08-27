@@ -67,16 +67,20 @@ async function applyPageAct(
             return { status: 200, body: { tab, mutated: ['tab.page', 'tab.storage'], keyRequired: false } };
         }
         if (actId === 'tab.click') {
+            const ref = stringField(input, 'ref');
             const selector = stringField(input, 'selector');
-            if (!selector) return badRequest('tab.click requires input.selector');
-            const tab = await clickTab(tabId, selector);
+            if (!ref && !selector) return badRequest('tab.click requires input.ref or input.selector');
+            const tab = await clickTab(tabId, { ref, selector });
             return { status: 200, body: { tab, mutated: ['tab.page', 'tab.storage'], keyRequired: false } };
         }
         if (actId === 'tab.type') {
+            const ref = stringField(input, 'ref');
             const selector = stringField(input, 'selector');
             const text = stringField(input, 'text');
-            if (!selector || text == null) return badRequest('tab.type requires input.selector and input.text');
-            const tab = await typeTab(tabId, selector, text);
+            if ((!ref && !selector) || text == null) {
+                return badRequest('tab.type requires input.text and input.ref or input.selector');
+            }
+            const tab = await typeTab(tabId, { ref, selector }, text);
             return { status: 200, body: { tab, mutated: ['tab.page', 'tab.storage'], keyRequired: false } };
         }
         return badRequest(`Unknown page act: ${actId}`);

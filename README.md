@@ -69,8 +69,8 @@ Local fixture pages (no internet): `/agent-fixture.html` and `/agent-fixture-b.h
 | `POST` | `/api/agent` | Invoke `{ "affordance": "<id>", "input": { ... } }` |
 | `GET` | `/api/agent/tabs` | `tabs.list` |
 | `POST` | `/api/agent/tabs` | `tabs.create` — `{ "url" }` loads the page |
-| `GET` | `/api/agent/tabs/{id}` | `tabs.read` — live title, URL, visible text, links |
-| `POST` | `/api/agent/tabs/{id}/act` | `tab.navigate` / `tab.click` / `tab.type` |
+| `GET` | `/api/agent/tabs/{id}` | `tabs.read` — title, URL, visible text, `actions[]` refs |
+| `POST` | `/api/agent/tabs/{id}/act` | `tab.navigate` / `tab.click` / `tab.type` (prefer `ref`) |
 | `DELETE` | `/api/agent/tabs/{id}` | `tabs.dispose` — context gone |
 
 ```bash
@@ -82,13 +82,18 @@ curl -X POST http://localhost:3000/api/agent/tabs \
   -H 'content-type: application/json' \
   -d '{"url":"http://localhost:3000/agent-fixture.html"}'
 
-# 3. Read the live page (title / URL / visible text / links)
+# 3. Read the live snapshot (title / URL / text / actions with refs)
 curl http://localhost:3000/api/agent/tabs/TAB_ID
 
-# 4. Act — click (sets a cookie + localStorage on the fixture)
+# 4. Act by ref from that snapshot — no CSS required
+#    e.g. actions[] entry { "ref":"e2", "role":"button", "name":"Persist session" }
 curl -X POST http://localhost:3000/api/agent/tabs/TAB_ID/act \
   -H 'content-type: application/json' \
-  -d '{"affordance":"tab.click","input":{"selector":"#set-session"}}'
+  -d '{"affordance":"tab.click","input":{"ref":"e2"}}'
+
+curl -X POST http://localhost:3000/api/agent/tabs/TAB_ID/act \
+  -H 'content-type: application/json' \
+  -d '{"affordance":"tab.type","input":{"ref":"e3","text":"Ada"}}'
 
 # 5. Persist check: a later read still sees session: alive / persisted
 curl http://localhost:3000/api/agent/tabs/TAB_ID

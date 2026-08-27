@@ -104,7 +104,43 @@ describe('agent surface — live keyless browser tabs', () => {
             ])
         );
 
+        const openedActions = created.body.tab.actions as Array<{
+            ref: string;
+            role: string;
+            name: string;
+            actions: string[];
+        }>;
+        expect(openedActions.map((a) => a.ref)).toEqual(
+            expect.arrayContaining(['e1', 'e2', 'e3', 'e4'])
+        );
+        expect(openedActions.every((a) => /^e\d+$/.test(a.ref))).toBe(true);
+        expect(openedActions).toEqual(expect.arrayContaining([
+            expect.objectContaining({
+                role: 'link',
+                name: 'Go to Bravo',
+                actions: expect.arrayContaining(['click'])
+            }),
+            expect.objectContaining({
+                role: 'button',
+                name: 'Persist session',
+                actions: expect.arrayContaining(['click'])
+            }),
+            expect.objectContaining({
+                role: 'textbox',
+                name: 'Name',
+                actions: expect.arrayContaining(['type'])
+            }),
+            expect.objectContaining({
+                role: 'button',
+                name: 'Save name',
+                actions: expect.arrayContaining(['click'])
+            })
+        ]));
+
         const tabId = created.body.tab.id as string;
+        const persistRef = openedActions.find((a) => a.name === 'Persist session')!.ref;
+        const nameRef = openedActions.find((a) => a.role === 'textbox' && a.name === 'Name')!.ref;
+        const saveRef = openedActions.find((a) => a.name === 'Save name')!.ref;
 
         const clicked = await json(await tabAct(
             new Request(`http://local/api/agent/tabs/${tabId}/act`, {
@@ -112,7 +148,7 @@ describe('agent surface — live keyless browser tabs', () => {
                 headers: noKeyHeaders(),
                 body: JSON.stringify({
                     affordance: 'tab.click',
-                    input: { selector: '#set-session' }
+                    input: { ref: persistRef }
                 })
             }),
             { params: Promise.resolve({ id: tabId }) }
@@ -126,7 +162,7 @@ describe('agent surface — live keyless browser tabs', () => {
                 headers: noKeyHeaders(),
                 body: JSON.stringify({
                     affordance: 'tab.type',
-                    input: { selector: '#name', text: 'Ada' }
+                    input: { ref: nameRef, text: 'Ada' }
                 })
             }),
             { params: Promise.resolve({ id: tabId }) }
@@ -139,7 +175,7 @@ describe('agent surface — live keyless browser tabs', () => {
                 headers: noKeyHeaders(),
                 body: JSON.stringify({
                     affordance: 'tab.click',
-                    input: { selector: '#save-name' }
+                    input: { ref: saveRef }
                 })
             }),
             { params: Promise.resolve({ id: tabId }) }
@@ -158,6 +194,9 @@ describe('agent surface — live keyless browser tabs', () => {
         expect(persisted.body.tab.title).toBe('Agent Fixture A');
         expect(persisted.body.tab.text).toContain('session: alive / persisted');
         expect(persisted.body.tab.text).toContain('name: Ada');
+        expect(persisted.body.tab.actions).toEqual(expect.arrayContaining([
+            expect.objectContaining({ name: 'Persist session', role: 'button' })
+        ]));
 
         const navigated = await json(await tabAct(
             new Request(`http://local/api/agent/tabs/${tabId}/act`, {
@@ -231,7 +270,7 @@ describe('agent surface — live keyless browser tabs', () => {
             headers: noKeyHeaders(),
             body: JSON.stringify({
                 affordance: 'tab.click',
-                input: { tabId, selector: '#set-session' }
+                input: { tabId, ref: created.body.tab.actions.find((a: { name: string }) => a.name === 'Persist session').ref }
             })
         })));
         expect(acted.status).toBe(200);
@@ -277,4 +316,26 @@ describe('agent surface — live keyless browser tabs', () => {
         expect(missing.status).toBe(404);
         expect(missing.body.keyRequired).toBe(false);
     });
+
+    it('still accepts a CSS selector as a fallback', async () => {
+        const created = await json(await tabsPost(new Request('http://local/api/agent/tabs', {
+            method: 'POST',
+            headers: noKeyHeaders(),
+            body: JSON.stringify({ url: `${fixtureOrigin}/agent-fixture.html` })
+        })));
+        const tabId = created.body.tab.id as string;
+        const clicked = await json(await tabAct(
+            new Request(`http://local/api/agent/tabs/${tabId}/act`, {
+                method: 'POST',
+                headers: noKeyHeaders(),
+                body: JSON.stringify({
+                    affordance: 'tab.click',
+                    input: { selector: '#set-session' }
+                })
+            }),
+            { params: Promise.resolve({ id: tabId }) }
+        ));
+        expect(clicked.status).toBe(200);
+        expect(clicked.body.tab.text).toContain('session: alive / persisted');
+    }, 60_000);
 });
