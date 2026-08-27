@@ -52,6 +52,13 @@ OmniOS also exposes a **keyless** affordance surface for an arbitrary agent
 lightweight browser state** — not a JSON note, not a Citadel canvas, and not
 a hosted-model chat.
 
+**Product contract:** `GET /api/agent` (frozen in `src/core/agent/contract.ts`).
+Callers depend on named affordances and the snapshot shape
+(`id`, `title`, `url`, `text`, `actions[]`, `screenshot`) plus
+`keyRequired: false`. They do not depend on Chrome/CDP or Playwright.
+`tabRuntime` is discovery-only (`cdp` | `playwright`). No caller-visible
+`BrowserContext`, `storageState`, or CDP port.
+
 **Product runtime:** real Chrome / Chromium / Edge on the machine running
 OmniOS. Each tab id is a disposable local profile at
 `.omni/profiles/<tabId>/` (gitignored), launched with CDP
@@ -62,7 +69,8 @@ process restart: the same tab id rehydrates from disk (not from server memory).
 `tabs.dispose` deletes that profile.
 
 **Test / CI adapter only:** `OMNI_TAB_RUNTIME=playwright` uses Playwright's
-`chromium.launch`. That is not the product path. CI sets this explicitly so
+`chromium.launch`. That is not the product path. Playwright can be removed
+later without the agent HTTP API changing. CI sets the adapter explicitly so
 green CI is not a fake "local Chrome".
 
 No API key is required. Captain running `next dev` needs Chrome (or

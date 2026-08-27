@@ -11,6 +11,7 @@ export type JsonSchema = {
     required?: string[];
     additionalProperties?: boolean;
     enum?: string[];
+    items?: JsonSchema;
 };
 
 export type Affordance = {

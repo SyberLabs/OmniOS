@@ -1,5 +1,12 @@
 export { AGENT_AFFORDANCES, AGENT_PRODUCT, discoveryBody, getAffordance } from './affordances';
 export {
+    AGENT_CONTRACT_VERSION,
+    AGENT_DISCOVERY_SCHEMA,
+    AGENT_TAB_SNAPSHOT_SCHEMA,
+    FROZEN_AFFORDANCE_IDS,
+    SNAPSHOT_REQUIRED_FIELDS
+} from './contract';
+export {
     listTabs,
     openTab,
     readTab,

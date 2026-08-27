@@ -4,6 +4,7 @@
 // No API-key product. No Ollama/Anthropic/Gemini/NewsAPI.
 // ============================================
 
+import { contractDiscoveryMeta } from './contract';
 import { resolveTabRuntimeKind } from './runtime';
 import type { Affordance } from './types';
 
@@ -186,6 +187,7 @@ export function discoveryBody() {
     return {
         ...AGENT_PRODUCT,
         tabRuntime: resolveTabRuntimeKind(),
+        contract: contractDiscoveryMeta(),
         affordances: AGENT_AFFORDANCES
     };
 }
