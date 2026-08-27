@@ -114,6 +114,7 @@ describe('agent surface — live keyless browser tabs', () => {
             expect.arrayContaining(['e1', 'e2', 'e3', 'e4'])
         );
         expect(openedActions.every((a) => /^e\d+$/.test(a.ref))).toBe(true);
+        expect(openedActions.map((a) => a.name)).not.toContain('Reveal next');
         expect(openedActions).toEqual(expect.arrayContaining([
             expect.objectContaining({
                 role: 'link',
@@ -155,6 +156,10 @@ describe('agent surface — live keyless browser tabs', () => {
         ));
         expect(clicked.status).toBe(200);
         expect(clicked.body.tab.text).toContain('session: alive / persisted');
+        expect(clicked.body.tab.actions).toEqual(expect.arrayContaining([
+            expect.objectContaining({ name: 'Persist session', role: 'button' }),
+            expect.objectContaining({ name: 'Reveal next', role: 'button' })
+        ]));
 
         const typed = await json(await tabAct(
             new Request(`http://local/api/agent/tabs/${tabId}/act`, {
@@ -181,6 +186,9 @@ describe('agent surface — live keyless browser tabs', () => {
             { params: Promise.resolve({ id: tabId }) }
         ));
         expect(saved.body.tab.text).toContain('name: Ada');
+        expect(saved.body.tab.actions).toEqual(expect.arrayContaining([
+            expect.objectContaining({ role: 'textbox', name: 'Name', value: 'Ada' })
+        ]));
 
         // Second HTTP call must restore cookies/storage even if the live
         // Playwright page/context was dropped (process-local cache miss).
@@ -214,6 +222,9 @@ describe('agent surface — live keyless browser tabs', () => {
         expect(navigated.body.tab.text).toContain('Fixture Bravo');
         expect(navigated.body.tab.text).toContain('session: alive / persisted');
         expect(navigated.body.tab.text).toContain('name: Ada');
+        expect(navigated.body.tab.actions).toEqual(expect.arrayContaining([
+            expect.objectContaining({ role: 'link', name: 'Back to Alpha' })
+        ]));
 
         const listed = await json(await tabsGet());
         expect(listed.status).toBe(200);
@@ -275,6 +286,9 @@ describe('agent surface — live keyless browser tabs', () => {
         })));
         expect(acted.status).toBe(200);
         expect(acted.body.tab.text).toContain('session: alive / persisted');
+        expect(acted.body.tab.actions).toEqual(expect.arrayContaining([
+            expect.objectContaining({ name: 'Reveal next', role: 'button' })
+        ]));
 
         const read = await json(await discoverPost(new Request('http://local/api/agent', {
             method: 'POST',

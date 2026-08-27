@@ -15,6 +15,7 @@
         <input id="name" name="name" />
     </label>
     <button id="save-name" type="button">Save name</button>
+    <button id="reveal-next" type="button" hidden>Reveal next</button>
     <p id="saved-name">name: none</p>
     <script>
         function show() {
@@ -26,10 +27,12 @@
             const name = localStorage.getItem('omni_name') || 'none';
             document.getElementById('session').textContent = 'session: ' + cookie + ' / ' + marker;
             document.getElementById('saved-name').textContent = 'name: ' + name;
+            document.getElementById('reveal-next').hidden = localStorage.getItem('omni_reveal') !== '1';
         }
         document.getElementById('set-session').addEventListener('click', () => {
             document.cookie = 'omni_fixture=alive; path=/';
             localStorage.setItem('omni_marker', 'persisted');
+            localStorage.setItem('omni_reveal', '1');
             show();
         });
         document.getElementById('save-name').addEventListener('click', () => {

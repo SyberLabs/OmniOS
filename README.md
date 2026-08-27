@@ -77,33 +77,31 @@ Local fixture pages (no internet): `/agent-fixture.html` and `/agent-fixture-b.h
 # 1. Discover (no key)
 curl http://localhost:3000/api/agent
 
-# 2. Open a URL into a real tab
+# 2. Open a URL — the create body IS the snapshot (title / text / actions[])
 curl -X POST http://localhost:3000/api/agent/tabs \
   -H 'content-type: application/json' \
   -d '{"url":"http://localhost:3000/agent-fixture.html"}'
+# → { "tab": { "title":"Agent Fixture A", "actions":[
+#      {"ref":"e2","role":"button","name":"Persist session","actions":["click"]}
+#    ]}, "keyRequired": false }
 
-# 3. Read the live snapshot (title / URL / text / actions with refs)
-curl http://localhost:3000/api/agent/tabs/TAB_ID
-
-# 4. Act by ref from that snapshot — no CSS required
-#    e.g. actions[] entry { "ref":"e2", "role":"button", "name":"Persist session" }
+# 3. Act by ref — the act body is a FRESH snapshot (no extra GET)
 curl -X POST http://localhost:3000/api/agent/tabs/TAB_ID/act \
   -H 'content-type: application/json' \
   -d '{"affordance":"tab.click","input":{"ref":"e2"}}'
+# → tab.text includes "session: alive / persisted"
+# → tab.actions now also includes { "ref":"e5", "name":"Reveal next" }
 
 curl -X POST http://localhost:3000/api/agent/tabs/TAB_ID/act \
   -H 'content-type: application/json' \
   -d '{"affordance":"tab.type","input":{"ref":"e3","text":"Ada"}}'
 
-# 5. Persist check: a later read still sees session: alive / persisted
-curl http://localhost:3000/api/agent/tabs/TAB_ID
-
-# 6. Navigate or type
+# 4. Navigate — also returns a fresh snapshot
 curl -X POST http://localhost:3000/api/agent/tabs/TAB_ID/act \
   -H 'content-type: application/json' \
   -d '{"affordance":"tab.navigate","input":{"url":"http://localhost:3000/agent-fixture-b.html"}}'
 
-# 7. Dispose — later read/act return 404
+# 5. Dispose — later read/act return 404
 curl -X DELETE http://localhost:3000/api/agent/tabs/TAB_ID
 ```
 

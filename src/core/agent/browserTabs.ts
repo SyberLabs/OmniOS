@@ -117,7 +117,13 @@ async function extractActions(page: Page): Promise<Actionable[]> {
     const raw = await page.evaluate(() => {
         const nodes = [
             ...document.querySelectorAll('a[href], button, input:not([type="hidden"]), textarea, select')
-        ] as HTMLElement[];
+        ].filter((el) => {
+            const node = el as HTMLElement;
+            if (node.hidden || node.getAttribute('hidden') !== null) return false;
+            const style = window.getComputedStyle(node);
+            if (style.display === 'none' || style.visibility === 'hidden') return false;
+            return true;
+        }) as HTMLElement[];
 
         const escape = (value: string) =>
             typeof CSS !== 'undefined' && CSS.escape

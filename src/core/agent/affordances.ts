@@ -34,7 +34,7 @@ export const AGENT_AFFORDANCES: Affordance[] = [
     },
     {
         id: 'tabs.create',
-        description: 'Open a URL in a new isolated browser tab. The page actually loads.',
+        description: 'Open a URL in a new isolated browser tab. Response is a full page snapshot (title, text, action refs).',
         method: 'POST',
         path: '/api/agent/tabs',
         inputSchema: {
@@ -66,7 +66,7 @@ export const AGENT_AFFORDANCES: Affordance[] = [
     },
     {
         id: 'tabs.act',
-        description: 'Apply a named page act (navigate, click, type).',
+        description: 'Apply a named page act (navigate, click, type). Response is a fresh snapshot.',
         method: 'POST',
         path: '/api/agent/tabs/{id}/act',
         inputSchema: {
