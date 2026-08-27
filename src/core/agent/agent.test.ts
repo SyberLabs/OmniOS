@@ -173,6 +173,17 @@ describe('agent surface — live keyless browser tabs', () => {
             { params: Promise.resolve({ id: tabId }) }
         ));
         expect(typed.status).toBe(200);
+        expect(typed.body.tab.title).toBe('Agent Fixture A');
+        expect(typed.body.tab.url).toContain('/agent-fixture.html');
+        expect(typed.body.tab.actions).toEqual(expect.arrayContaining([
+            expect.objectContaining({
+                ref: nameRef,
+                role: 'textbox',
+                name: 'Name',
+                value: 'Ada',
+                actions: expect.arrayContaining(['type'])
+            })
+        ]));
 
         const saved = await json(await tabAct(
             new Request(`http://local/api/agent/tabs/${tabId}/act`, {
@@ -330,6 +341,56 @@ describe('agent surface — live keyless browser tabs', () => {
         expect(missing.status).toBe(404);
         expect(missing.body.keyRequired).toBe(false);
     });
+
+    it('returns a full snapshot on create and click so no follow-up read is required', async () => {
+        const created = await json(await tabsPost(new Request('http://local/api/agent/tabs', {
+            method: 'POST',
+            headers: noKeyHeaders(),
+            body: JSON.stringify({ url: `${fixtureOrigin}/agent-fixture.html` })
+        })));
+        expect(created.status).toBe(201);
+        expect(created.body.tab).toEqual(expect.objectContaining({
+            id: expect.stringMatching(/^tab_/),
+            title: 'Agent Fixture A',
+            url: expect.stringContaining('/agent-fixture.html'),
+            text: expect.stringContaining('Visible source text for agents.')
+        }));
+        const openedActions = created.body.tab.actions as Array<{
+            ref: string;
+            role: string;
+            name: string;
+            actions: string[];
+        }>;
+        expect(openedActions).toEqual(expect.arrayContaining([
+            expect.objectContaining({ ref: 'e1', role: 'link', name: 'Go to Bravo' }),
+            expect.objectContaining({ ref: 'e2', role: 'button', name: 'Persist session' }),
+            expect.objectContaining({ ref: 'e3', role: 'textbox', name: 'Name' }),
+            expect.objectContaining({ ref: 'e4', role: 'button', name: 'Save name' })
+        ]));
+        expect(openedActions.map((a) => a.name)).not.toContain('Reveal next');
+
+        const persistRef = openedActions.find((a) => a.name === 'Persist session')!.ref;
+        const clicked = await json(await tabAct(
+            new Request(`http://local/api/agent/tabs/${created.body.tab.id}/act`, {
+                method: 'POST',
+                headers: noKeyHeaders(),
+                body: JSON.stringify({
+                    affordance: 'tab.click',
+                    input: { ref: persistRef }
+                })
+            }),
+            { params: Promise.resolve({ id: created.body.tab.id }) }
+        ));
+        expect(clicked.status).toBe(200);
+        expect(clicked.body.tab.id).toBe(created.body.tab.id);
+        expect(clicked.body.tab.title).toBe('Agent Fixture A');
+        expect(clicked.body.tab.url).toContain('/agent-fixture.html');
+        expect(clicked.body.tab.text).toContain('session: alive / persisted');
+        expect(clicked.body.tab.actions).toEqual(expect.arrayContaining([
+            expect.objectContaining({ ref: persistRef, name: 'Persist session' }),
+            expect.objectContaining({ name: 'Reveal next', role: 'button' })
+        ]));
+    }, 60_000);
 
     it('still accepts a CSS selector as a fallback', async () => {
         const created = await json(await tabsPost(new Request('http://local/api/agent/tabs', {

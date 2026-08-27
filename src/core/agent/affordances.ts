@@ -104,7 +104,7 @@ export const AGENT_AFFORDANCES: Affordance[] = [
     },
     {
         id: 'tab.navigate',
-        description: 'Navigate the tab to a URL in the same isolated browser context.',
+        description: 'Navigate the tab to a URL. Response is a fresh snapshot of the new page.',
         method: 'POST',
         path: '/api/agent/tabs/{id}/act',
         inputSchema: {
@@ -121,7 +121,7 @@ export const AGENT_AFFORDANCES: Affordance[] = [
     },
     {
         id: 'tab.click',
-        description: 'Click an element on the live page by snapshot ref (selector fallback).',
+        description: 'Click by snapshot ref (selector fallback). Response is a fresh snapshot.',
         method: 'POST',
         path: '/api/agent/tabs/{id}/act',
         inputSchema: {
@@ -138,7 +138,7 @@ export const AGENT_AFFORDANCES: Affordance[] = [
     },
     {
         id: 'tab.type',
-        description: 'Type into an element on the live page by snapshot ref (selector fallback).',
+        description: 'Type by snapshot ref (selector fallback). Response is a fresh snapshot.',
         method: 'POST',
         path: '/api/agent/tabs/{id}/act',
         inputSchema: {
