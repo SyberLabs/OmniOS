@@ -59,6 +59,7 @@ describe('product entry is the agent surface', () => {
         expect(readme).toMatch(/targetId/);
         expect(readme).toMatch(/unbind/i);
         expect(readme).toMatch(/stays up/);
+        expect(readme).toMatch(/will not open a second Chrome/i);
         const ensureHeading = readme.indexOf('## Open a debuggable Chrome');
         const envFootnote = readme.indexOf('Optional attach to an already-running browser');
         expect(ensureHeading).toBeGreaterThan(-1);

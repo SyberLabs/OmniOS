@@ -17,8 +17,9 @@ import { GET as tabGet, DELETE as tabDelete } from '@/app/api/agent/tabs/[id]/ro
 import { __resetAgentTabs } from '../browserTabs';
 import { FORBIDDEN_CALLER_KEYS } from '../contract';
 import { findChrome } from './chrome';
+import { hasEverydayChrome, setEverydayChromeRunningForTests } from './chromeProcesses';
 import { createCdpRuntime } from './cdpRuntime';
-import { __stopEnsuredChrome } from './ensure';
+import { __hasLaunchedDebugChrome, __stopEnsuredChrome } from './ensure';
 import { setTabRuntimeForTests } from './resolve';
 
 const chrome = findChrome();
@@ -109,6 +110,7 @@ describe.skipIf(!runLiveEnsure)('runtime.ensure launches or reuses a real Chrome
     afterAll(async () => {
         await __resetAgentTabs();
         await __stopEnsuredChrome();
+        setEverydayChromeRunningForTests(null);
         setTabRuntimeForTests(null);
         await new Promise<void>((resolve, reject) => {
             fixtureServer.close((err) => (err ? reject(err) : resolve()));
@@ -119,6 +121,7 @@ describe.skipIf(!runLiveEnsure)('runtime.ensure launches or reuses a real Chrome
         await __resetAgentTabs();
         await __stopEnsuredChrome();
         delete process.env.OMNI_CDP_URL;
+        setEverydayChromeRunningForTests(false);
         setTabRuntimeForTests(createCdpRuntime());
     });
 
@@ -275,6 +278,93 @@ describe.skipIf(!runLiveEnsure)('runtime.ensure launches or reuses a real Chrome
                 // leftover profile
             }
         }
+    }, 90_000);
+
+    it('does not launch chrome-debug when everyday Chrome is already open without a debug port', async () => {
+        setEverydayChromeRunningForTests(null);
+        const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'omni-ensure-everyday-'));
+        let chromeProc: ChildProcess | null = spawn(
+            chrome!,
+            [
+                `--user-data-dir=${userDataDir}`,
+                '--no-first-run',
+                '--no-default-browser-check',
+                '--disable-sync',
+                '--disable-extensions',
+                '--disable-default-apps',
+                '--headless=new',
+                '--no-sandbox',
+                '--disable-dev-shm-usage',
+                'about:blank'
+            ],
+            { stdio: ['ignore', 'ignore', 'pipe'] }
+        );
+        try {
+            const seen = Date.now();
+            while (!hasEverydayChrome() && Date.now() - seen < 8_000) {
+                await new Promise((resolve) => setTimeout(resolve, 100));
+            }
+            expect(chromeProc.exitCode).toBeNull();
+            expect(hasEverydayChrome()).toBe(true);
+
+            const blocked = await json(
+                await discoverPost(
+                    new Request('http://local/api/agent', {
+                        method: 'POST',
+                        headers: { 'content-type': 'application/json' },
+                        body: JSON.stringify({ affordance: 'runtime.ensure', input: {} })
+                    })
+                )
+            );
+            expect(blocked.status).toBe(409);
+            expect(blocked.status).not.toBe(500);
+            expect(blocked.status).not.toBe(503);
+            expect(blocked.body.keyRequired).toBe(false);
+            expect(String(blocked.body.error)).toMatch(/already open/i);
+            expect(String(blocked.body.error)).toMatch(/not debuggable/i);
+            expect(blocked.body.attached).toBeUndefined();
+            expect(String(blocked.body.error)).not.toMatch(
+                /cdpUrl|9222|BrowserContext|user-data-dir|\.omni|profile/i
+            );
+            expectNoRuntimeLeak(blocked.body);
+            expect(__hasLaunchedDebugChrome()).toBe(false);
+            expect(chromeProc.exitCode).toBeNull();
+        } finally {
+            if (chromeProc && chromeProc.exitCode == null) {
+                chromeProc.kill('SIGTERM');
+                await new Promise((resolve) => setTimeout(resolve, 400));
+                if (chromeProc.exitCode == null) chromeProc.kill('SIGKILL');
+            }
+            chromeProc = null;
+            try {
+                fs.rmSync(userDataDir, { recursive: true, force: true });
+            } catch {
+                // leftover profile
+            }
+        }
+
+        const gone = Date.now();
+        while (hasEverydayChrome() && Date.now() - gone < 8_000) {
+            await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+        if (hasEverydayChrome()) {
+            // Another file's Chrome is still up; launch-when-idle is the next call.
+            return;
+        }
+
+        const launched = await json(
+            await discoverPost(
+                new Request('http://local/api/agent', {
+                    method: 'POST',
+                    headers: { 'content-type': 'application/json' },
+                    body: JSON.stringify({ affordance: 'runtime.ensure', input: {} })
+                })
+            )
+        );
+        expect(launched.status).toBe(200);
+        expect(launched.body.attached).toBe(true);
+        expect(launched.body.launched).toBe(true);
+        expectNoRuntimeLeak(launched.body);
     }, 90_000);
 });
 
