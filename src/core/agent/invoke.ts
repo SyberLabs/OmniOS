@@ -143,6 +143,20 @@ export async function invokeAffordance(
                 return applyPageAct(affordanceId, tabId, input);
             }
 
+            case 'tab.screenshot': {
+                const tabId = resolveTabId(input, pathTabId);
+                if (!tabId) return badRequest('tab.screenshot requires tabId');
+                const tab = await readTab(tabId);
+                return {
+                    status: 200,
+                    body: {
+                        tab,
+                        screenshot: { url: tab.screenshot, contentType: 'image/png' },
+                        keyRequired: false
+                    }
+                };
+            }
+
             default:
                 return badRequest(`Unknown affordance: ${affordanceId}`);
         }

@@ -7,6 +7,7 @@ export {
     clickTab,
     typeTab,
     disposeTab,
+    readTabScreenshot,
     __dropLiveContexts,
     __resetAgentTabs
 } from './browserTabs';

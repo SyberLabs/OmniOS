@@ -36,7 +36,7 @@ export const AGENT_AFFORDANCES: Affordance[] = [
         id: 'tabs.create',
         description:
             'Open a URL in a new isolated browser tab (own cookies/storage). ' +
-            'Response is a full page snapshot (title, text, action refs).',
+            'Response is a full page snapshot (title, text, action refs, screenshot URL).',
         method: 'POST',
         path: '/api/agent/tabs',
         inputSchema: {
@@ -52,7 +52,7 @@ export const AGENT_AFFORDANCES: Affordance[] = [
     },
     {
         id: 'tabs.read',
-        description: 'Read the live page: title, URL, visible text, and actionable refs.',
+        description: 'Read the live page: title, URL, visible text, action refs, and screenshot URL.',
         method: 'GET',
         path: '/api/agent/tabs/{id}',
         inputSchema: {
@@ -155,6 +155,24 @@ export const AGENT_AFFORDANCES: Affordance[] = [
             }
         },
         mutates: ['tab.page', 'tab.storage'],
+        keyRequired: false
+    },
+    {
+        id: 'tab.screenshot',
+        description:
+            'Capture a PNG of the live tab. Fetch the durable URL as image/png. ' +
+            'Create/read/act also include tab.screenshot.',
+        method: 'GET',
+        path: '/api/agent/tabs/{id}/screenshot',
+        inputSchema: {
+            type: 'object',
+            required: ['tabId'],
+            additionalProperties: false,
+            properties: {
+                tabId: { type: 'string' }
+            }
+        },
+        mutates: [],
         keyRequired: false
     }
 ];

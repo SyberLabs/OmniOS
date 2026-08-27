@@ -214,6 +214,14 @@ export default function AgentSurfacePage() {
                                             Dispose
                                         </button>
                                     </div>
+                                    {tab.screenshot && (
+                                        // eslint-disable-next-line @next/next/no-img-element
+                                        <img
+                                            src={tab.screenshot}
+                                            alt={tab.title || 'Tab screenshot'}
+                                            className="mt-2 w-full rounded-md border border-[var(--citadel-border)] bg-[var(--citadel-elevated)]"
+                                        />
+                                    )}
                                     <pre className="mt-2 whitespace-pre-wrap text-xs text-[var(--text-secondary)] bg-[var(--citadel-elevated)] rounded-md px-2 py-2 max-h-40 overflow-auto">
                                         {tab.text || '(no visible text)'}
                                     </pre>

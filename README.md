@@ -71,7 +71,8 @@ Local fixture pages (no internet): `/agent-fixture.html` and `/agent-fixture-b.h
 | `POST` | `/api/agent` | Invoke `{ "affordance": "<id>", "input": { ... } }` |
 | `GET` | `/api/agent/tabs` | `tabs.list` |
 | `POST` | `/api/agent/tabs` | `tabs.create` — `{ "url" }` loads the page |
-| `GET` | `/api/agent/tabs/{id}` | `tabs.read` — title, URL, visible text, `actions[]` refs |
+| `GET` | `/api/agent/tabs/{id}` | `tabs.read` — title, URL, visible text, `actions[]` refs, `screenshot` |
+| `GET` | `/api/agent/tabs/{id}/screenshot` | `tab.screenshot` — live PNG (`image/png`) |
 | `POST` | `/api/agent/tabs/{id}/act` | `tab.navigate` / `tab.click` / `tab.type` (prefer `ref`) |
 | `DELETE` | `/api/agent/tabs/{id}` | `tabs.dispose` — context gone |
 
@@ -103,7 +104,12 @@ curl -X POST http://localhost:3000/api/agent/tabs/TAB_ID/act \
   -H 'content-type: application/json' \
   -d '{"affordance":"tab.navigate","input":{"url":"http://localhost:3000/agent-fixture-b.html"}}'
 
-# 5. Dispose — later read/act return 404
+# 5. Screenshot — durable PNG of the live tab (no key)
+curl -o shot.png http://localhost:3000/api/agent/tabs/TAB_ID/screenshot
+# or POST { "affordance":"tab.screenshot", "input":{ "tabId":"TAB_ID" } }
+# → { "screenshot": { "url":"/api/agent/tabs/TAB_ID/screenshot?t=…", "contentType":"image/png" } }
+
+# 6. Dispose — later read/act return 404
 curl -X DELETE http://localhost:3000/api/agent/tabs/TAB_ID
 ```
 

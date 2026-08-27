@@ -45,6 +45,7 @@ export type AgentTab = {
     text: string;
     links: PageLink[];
     actions: Actionable[];
+    screenshot: string;
     createdAt: number;
     updatedAt: number;
 };

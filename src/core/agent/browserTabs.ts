@@ -58,6 +58,14 @@ function metaPath(id: string): string {
     return path.join(tabDir(id), 'meta.json');
 }
 
+function screenshotPath(id: string): string {
+    return path.join(tabDir(id), 'shot.png');
+}
+
+function screenshotHref(id: string, updatedAt: number): string {
+    return `/api/agent/tabs/${id}/screenshot?t=${updatedAt}`;
+}
+
 async function getBrowser(): Promise<Browser> {
     if (!browserPromise) {
         browserPromise = chromium.launch({
@@ -241,6 +249,7 @@ async function snapshot(page: Page, id: string, createdAt: number): Promise<Agen
     const text = ((await page.locator('body').innerText().catch(() => '')) || '').slice(0, 4000);
     const actions = await extractActions(page);
 
+    const updatedAt = Date.now();
     return {
         id,
         title,
@@ -248,8 +257,9 @@ async function snapshot(page: Page, id: string, createdAt: number): Promise<Agen
         text,
         links: linksFromActions(actions),
         actions,
+        screenshot: screenshotHref(id, updatedAt),
         createdAt,
-        updatedAt: Date.now()
+        updatedAt
     };
 }
 
@@ -289,8 +299,17 @@ async function ensureLive(id: string): Promise<LiveTab> {
 
 async function capture(id: string, entry: LiveTab): Promise<AgentTab> {
     const tab = await snapshot(entry.page, id, entry.createdAt);
+    const png = await entry.page.screenshot({ type: 'png' });
+    fs.mkdirSync(tabDir(id), { recursive: true });
+    fs.writeFileSync(screenshotPath(id), png);
     await writePersist(id, entry.context, tab);
     return tab;
+}
+
+export async function readTabScreenshot(id: string): Promise<Buffer> {
+    const entry = await ensureLive(id);
+    await capture(id, entry);
+    return fs.readFileSync(screenshotPath(id));
 }
 
 export async function listTabs(): Promise<AgentTab[]> {

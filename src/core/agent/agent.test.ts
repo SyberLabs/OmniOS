@@ -12,6 +12,7 @@ import { GET as discoverGet, POST as discoverPost } from '@/app/api/agent/route'
 import { GET as tabsGet, POST as tabsPost } from '@/app/api/agent/tabs/route';
 import { GET as tabGet, DELETE as tabDelete } from '@/app/api/agent/tabs/[id]/route';
 import { POST as tabAct } from '@/app/api/agent/tabs/[id]/act/route';
+import { GET as screenshotGet } from '@/app/api/agent/tabs/[id]/screenshot/route';
 import { __dropLiveContexts, __resetAgentTabs } from './browserTabs';
 
 async function json(res: Response) {
@@ -53,6 +54,28 @@ async function disposeTabHttp(tabId: string) {
         new Request(`http://local/api/agent/tabs/${tabId}`),
         { params: Promise.resolve({ id: tabId }) }
     ));
+}
+
+const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+
+async function fetchPng(tabId: string) {
+    const res = await screenshotGet(
+        new Request(`http://local/api/agent/tabs/${tabId}/screenshot`),
+        { params: Promise.resolve({ id: tabId }) }
+    );
+    const bytes = Buffer.from(await res.arrayBuffer());
+    return {
+        status: res.status,
+        contentType: res.headers.get('content-type') || '',
+        bytes
+    };
+}
+
+function expectPng(shot: { status: number; contentType: string; bytes: Buffer }) {
+    expect(shot.status).toBe(200);
+    expect(shot.contentType).toMatch(/image\/png/);
+    expect(shot.bytes.subarray(0, 8).equals(PNG_MAGIC)).toBe(true);
+    expect(shot.bytes.length).toBeGreaterThan(100);
 }
 
 function publicFile(name: string) {
@@ -105,7 +128,8 @@ describe('agent surface — live keyless browser tabs', () => {
             'tabs.dispose',
             'tab.navigate',
             'tab.click',
-            'tab.type'
+            'tab.type',
+            'tab.screenshot'
         ]));
         expect(ids).not.toContain('tab.write_note');
         expect(ids).not.toContain('tab.set_url');
@@ -500,6 +524,46 @@ describe('agent surface — live keyless browser tabs', () => {
         expect((await readTabHttp(tabA)).status).toBe(404);
         expect((await readTabHttp(tabB)).status).toBe(404);
     }, 90_000);
+
+    it('returns a real PNG of the live tab and a new shot after act', async () => {
+        const opened = await createTab(`${fixtureOrigin}/agent-fixture.html`);
+        expect(opened.status).toBe(201);
+        const tabId = opened.body.tab.id as string;
+        expect(opened.body.tab.screenshot).toMatch(
+            new RegExp(`^/api/agent/tabs/${tabId}/screenshot`)
+        );
+
+        const first = await fetchPng(tabId);
+        expectPng(first);
+
+        const viaAffordance = await json(await discoverPost(new Request('http://local/api/agent', {
+            method: 'POST',
+            headers: noKeyHeaders(),
+            body: JSON.stringify({ affordance: 'tab.screenshot', input: { tabId } })
+        })));
+        expect(viaAffordance.status).toBe(200);
+        expect(viaAffordance.body.keyRequired).toBe(false);
+        expect(viaAffordance.body.screenshot.url).toMatch(
+            new RegExp(`^/api/agent/tabs/${tabId}/screenshot`)
+        );
+        expect(viaAffordance.body.screenshot.contentType).toBe('image/png');
+        expect(viaAffordance.body.tab.screenshot).toBe(viaAffordance.body.screenshot.url);
+
+        const persistRef = (opened.body.tab.actions as Array<{ name: string; ref: string }>)
+            .find((a) => a.name === 'Persist session')!.ref;
+        const clicked = await actTab(tabId, 'tab.click', { ref: persistRef });
+        expect(clicked.body.tab.text).toContain('session: alive / persisted');
+        expect(clicked.body.tab.screenshot).toMatch(
+            new RegExp(`^/api/agent/tabs/${tabId}/screenshot`)
+        );
+
+        const second = await fetchPng(tabId);
+        expectPng(second);
+        expect(second.bytes.equals(first.bytes)).toBe(false);
+
+        const gone = await fetchPng('tab_missing');
+        expect(gone.status).toBe(404);
+    }, 60_000);
 
     it('still accepts a CSS selector as a fallback', async () => {
         const created = await json(await tabsPost(new Request('http://local/api/agent/tabs', {
