@@ -34,7 +34,9 @@ export const AGENT_AFFORDANCES: Affordance[] = [
     },
     {
         id: 'tabs.create',
-        description: 'Open a URL in a new isolated browser tab. Response is a full page snapshot (title, text, action refs).',
+        description:
+            'Open a URL in a new isolated browser tab (own cookies/storage). ' +
+            'Response is a full page snapshot (title, text, action refs).',
         method: 'POST',
         path: '/api/agent/tabs',
         inputSchema: {

@@ -50,8 +50,10 @@ environment variables and are **never** sent to or stored in the browser.
 OmniOS also exposes a **keyless** affordance surface for an arbitrary agent
 (`curl`, `fetch`, or another agent's HTTP client). A tab is a real disposable
 browser page with an isolated context — not a JSON note, not a Citadel canvas,
-and not a hosted-model chat. Cookies and `localStorage` persist across HTTP
-calls on that tab (Playwright `storageState` on disk). No API key is required.
+and not a hosted-model chat. Each tab id gets its own Playwright context and
+`storageState` directory. Cookies and `localStorage` persist across HTTP
+calls on that tab only. Two tabs on the same origin do not share a session.
+No API key is required.
 
 Citadel (`/`) and Garden (`/garden`) are unchanged.
 
@@ -103,6 +105,33 @@ curl -X POST http://localhost:3000/api/agent/tabs/TAB_ID/act \
 
 # 5. Dispose — later read/act return 404
 curl -X DELETE http://localhost:3000/api/agent/tabs/TAB_ID
+```
+
+Two tabs on the same fixture stay isolated:
+
+```bash
+# Open A and B on the same origin
+curl -X POST http://localhost:3000/api/agent/tabs \
+  -H 'content-type: application/json' \
+  -d '{"url":"http://localhost:3000/agent-fixture.html"}'
+curl -X POST http://localhost:3000/api/agent/tabs \
+  -H 'content-type: application/json' \
+  -d '{"url":"http://localhost:3000/agent-fixture.html"}'
+
+# Act only in A
+curl -X POST http://localhost:3000/api/agent/tabs/TAB_A/act \
+  -H 'content-type: application/json' \
+  -d '{"affordance":"tab.click","input":{"ref":"e2"}}'
+# → A: session: alive / persisted
+
+# B is still clean (reload so the snapshot is not a stale open page)
+curl -X POST http://localhost:3000/api/agent/tabs/TAB_B/act \
+  -H 'content-type: application/json' \
+  -d '{"affordance":"tab.navigate","input":{"url":"http://localhost:3000/agent-fixture-b.html"}}'
+# → B: session: empty / empty
+
+curl -X DELETE http://localhost:3000/api/agent/tabs/TAB_A
+# B still works; A is 404
 ```
 
 Same loop via one invoke endpoint:

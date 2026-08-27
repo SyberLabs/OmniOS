@@ -22,6 +22,39 @@ function noKeyHeaders(): HeadersInit {
     return { 'content-type': 'application/json' };
 }
 
+async function createTab(url: string) {
+    return json(await tabsPost(new Request('http://local/api/agent/tabs', {
+        method: 'POST',
+        headers: noKeyHeaders(),
+        body: JSON.stringify({ url })
+    })));
+}
+
+async function actTab(tabId: string, affordance: string, input: Record<string, string>) {
+    return json(await tabAct(
+        new Request(`http://local/api/agent/tabs/${tabId}/act`, {
+            method: 'POST',
+            headers: noKeyHeaders(),
+            body: JSON.stringify({ affordance, input })
+        }),
+        { params: Promise.resolve({ id: tabId }) }
+    ));
+}
+
+async function readTabHttp(tabId: string) {
+    return json(await tabGet(
+        new Request(`http://local/api/agent/tabs/${tabId}`),
+        { params: Promise.resolve({ id: tabId }) }
+    ));
+}
+
+async function disposeTabHttp(tabId: string) {
+    return json(await tabDelete(
+        new Request(`http://local/api/agent/tabs/${tabId}`),
+        { params: Promise.resolve({ id: tabId }) }
+    ));
+}
+
 function publicFile(name: string) {
     return fs.readFileSync(path.join(process.cwd(), 'public', name), 'utf8');
 }
@@ -391,6 +424,82 @@ describe('agent surface — live keyless browser tabs', () => {
             expect.objectContaining({ name: 'Reveal next', role: 'button' })
         ]));
     }, 60_000);
+
+    it('keeps cookies and storage isolated across two tabs on the same origin', async () => {
+        const openedA = await createTab(`${fixtureOrigin}/agent-fixture.html`);
+        const openedB = await createTab(`${fixtureOrigin}/agent-fixture.html`);
+        expect(openedA.status).toBe(201);
+        expect(openedB.status).toBe(201);
+        const tabA = openedA.body.tab.id as string;
+        const tabB = openedB.body.tab.id as string;
+        expect(tabA).not.toBe(tabB);
+        expect(openedA.body.tab.text).toContain('session: empty / empty');
+        expect(openedB.body.tab.text).toContain('session: empty / empty');
+
+        const persistRef = (openedA.body.tab.actions as Array<{ name: string; ref: string }>)
+            .find((a) => a.name === 'Persist session')!.ref;
+        const nameRef = (openedA.body.tab.actions as Array<{ name: string; ref: string; role: string }>)
+            .find((a) => a.role === 'textbox' && a.name === 'Name')!.ref;
+        const saveRef = (openedA.body.tab.actions as Array<{ name: string; ref: string }>)
+            .find((a) => a.name === 'Save name')!.ref;
+
+        const persistedA = await actTab(tabA, 'tab.click', { ref: persistRef });
+        expect(persistedA.status).toBe(200);
+        expect(persistedA.body.tab.text).toContain('session: alive / persisted');
+        expect(persistedA.body.tab.actions).toEqual(expect.arrayContaining([
+            expect.objectContaining({ name: 'Reveal next', role: 'button' })
+        ]));
+
+        await actTab(tabA, 'tab.type', { ref: nameRef, text: 'Ada' });
+        const savedA = await actTab(tabA, 'tab.click', { ref: saveRef });
+        expect(savedA.body.tab.text).toContain('name: Ada');
+
+        // Reload B while A is still live. A stale open page can hide a
+        // shared-context leak; a navigate/act response cannot.
+        const navigatedB = await actTab(tabB, 'tab.navigate', {
+            url: `${fixtureOrigin}/agent-fixture-b.html`
+        });
+        expect(navigatedB.status).toBe(200);
+        expect(navigatedB.body.tab.id).toBe(tabB);
+        expect(navigatedB.body.tab.title).toBe('Agent Fixture B');
+        expect(navigatedB.body.tab.text).toContain('session: empty / empty');
+        expect(navigatedB.body.tab.text).toContain('name: none');
+        expect(navigatedB.body.tab.text).not.toContain('session: alive / persisted');
+        expect(navigatedB.body.tab.text).not.toContain('name: Ada');
+
+        await __dropLiveContexts();
+        const restoredA = await readTabHttp(tabA);
+        expect(restoredA.body.tab.text).toContain('session: alive / persisted');
+        expect(restoredA.body.tab.text).toContain('name: Ada');
+        const restoredB = await readTabHttp(tabB);
+        expect(restoredB.body.tab.text).toContain('session: empty / empty');
+        expect(restoredB.body.tab.text).toContain('name: none');
+
+        const disposedA = await disposeTabHttp(tabA);
+        expect(disposedA.status).toBe(200);
+        expect(disposedA.body.disposed).toBe(tabA);
+
+        const goneA = await readTabHttp(tabA);
+        expect(goneA.status).toBe(404);
+
+        const stillB = await readTabHttp(tabB);
+        expect(stillB.status).toBe(200);
+        expect(stillB.body.tab.title).toBe('Agent Fixture B');
+        expect(stillB.body.tab.text).toContain('session: empty / empty');
+
+        const backOnA = await actTab(tabB, 'tab.navigate', {
+            url: `${fixtureOrigin}/agent-fixture.html`
+        });
+        const persistBRef = (backOnA.body.tab.actions as Array<{ name: string; ref: string }>)
+            .find((a) => a.name === 'Persist session')!.ref;
+        const mutatedB = await actTab(tabB, 'tab.click', { ref: persistBRef });
+        expect(mutatedB.body.tab.text).toContain('session: alive / persisted');
+
+        const disposedB = await disposeTabHttp(tabB);
+        expect(disposedB.status).toBe(200);
+        expect((await readTabHttp(tabA)).status).toBe(404);
+        expect((await readTabHttp(tabB)).status).toBe(404);
+    }, 90_000);
 
     it('still accepts a CSS selector as a fallback', async () => {
         const created = await json(await tabsPost(new Request('http://local/api/agent/tabs', {
