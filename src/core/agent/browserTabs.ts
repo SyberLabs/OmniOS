@@ -8,7 +8,7 @@ import fs from 'node:fs';
 import { generateId } from '@/lib/utils';
 import { AgentTabError } from './errors';
 import { EXTRACT_ACTIONS_SOURCE, actionsFromRaw, linksFromActions } from './extract';
-import { getTabRuntime } from './runtime';
+import { clearProcessAttachHttp, getTabRuntime } from './runtime';
 import {
     metaPath,
     persistRoot,
@@ -277,6 +277,7 @@ export function __staleLive(id: string): void {
 
 /** Test hook: drop live sessions and wipe persisted tabs + profiles. */
 export async function __resetAgentTabs(): Promise<void> {
+    clearProcessAttachHttp();
     await __dropLiveContexts();
     for (const root of [persistRoot(), profileRoot()]) {
         for (let attempt = 0; attempt < 8; attempt++) {

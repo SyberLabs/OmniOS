@@ -12,9 +12,10 @@ export const AGENT_PRODUCT = {
     name: 'OmniOS agent surface',
     keyRequired: false as const,
     description:
-        'Local lightweight tabs: each tab is a disposable Chrome/Chromium/Edge profile ' +
-        '(CDP attach or .omni/profiles/<tabId>). Not a Citadel canvas and not a hosted-model chat. ' +
-        'Playwright is a test/CI adapter (OMNI_TAB_RUNTIME=playwright). No API key is required.',
+        'Local lightweight tabs: attach to an already-open Chrome (runtime.attach) or launch ' +
+        'a disposable Chrome/Chromium/Edge profile (.omni/profiles/<tabId>). Not a Citadel canvas ' +
+        'and not a hosted-model chat. Playwright is a test/CI adapter (OMNI_TAB_RUNTIME=playwright). ' +
+        'No API key is required.',
     invoke: {
         method: 'POST' as const,
         path: '/api/agent',
@@ -25,6 +26,33 @@ export const AGENT_PRODUCT = {
 const none: Affordance['inputSchema'] = { type: 'object', additionalProperties: false };
 
 export const AGENT_AFFORDANCES: Affordance[] = [
+    {
+        id: 'runtime.attach',
+        description:
+            'Point OmniOS at an already-open Chrome with remote debugging ' +
+            '(chrome --remote-debugging-port=9222). After attach, tabs.create opens a new ' +
+            'page/target in that Chrome. tabs.dispose closes that OmniOS page/target only — ' +
+            'it does not quit the user Chrome process. Launching a disposable profile remains ' +
+            'the default when you do not attach.',
+        method: 'POST',
+        path: '/api/agent',
+        inputSchema: {
+            type: 'object',
+            additionalProperties: false,
+            properties: {
+                cdpUrl: {
+                    type: 'string',
+                    description: 'Chrome DevTools HTTP endpoint, e.g. http://127.0.0.1:9222'
+                },
+                port: {
+                    type: 'number',
+                    description: 'localhost remote-debugging-port (alternative to cdpUrl)'
+                }
+            }
+        },
+        mutates: ['runtime'],
+        keyRequired: false
+    },
     {
         id: 'tabs.list',
         description: 'List live local browser tabs (last title, URL, excerpt).',
@@ -38,7 +66,8 @@ export const AGENT_AFFORDANCES: Affordance[] = [
         id: 'tabs.create',
         description:
             'Open a URL in a new isolated browser tab (own cookies/storage). ' +
-            'Response is a full page snapshot (title, text, action refs, screenshot URL).',
+            'After runtime.attach, the page is created in that already-open Chrome; otherwise ' +
+            'OmniOS launches a disposable profile. Response is a full page snapshot.',
         method: 'POST',
         path: '/api/agent/tabs',
         inputSchema: {
@@ -92,7 +121,10 @@ export const AGENT_AFFORDANCES: Affordance[] = [
     },
     {
         id: 'tabs.dispose',
-        description: 'Close the tab context and drop cookies/storage. Later read/act fail.',
+        description:
+            'Close the OmniOS tab and drop its cookies/storage. Later read/act fail. ' +
+            'If the tab was created after runtime.attach, this closes that page/target only ' +
+            'and does not quit the user Chrome process.',
         method: 'DELETE',
         path: '/api/agent/tabs/{id}',
         inputSchema: {

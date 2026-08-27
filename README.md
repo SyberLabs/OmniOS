@@ -15,8 +15,9 @@ npm run dev
 - Contract (discover): [http://localhost:3000/api/agent](http://localhost:3000/api/agent)
 
 Needs local **Chrome / Chromium / Edge** on the machine running OmniOS
-(or `OMNI_CHROME_PATH` / `OMNI_CDP_URL`). **Playwright** is a **test adapter**
-only (`OMNI_TAB_RUNTIME=playwright` in CI / Vitest). It is not the product
+(or `OMNI_CHROME_PATH`). Attach to an already-open Chrome with
+`runtime.attach`. **Playwright** is a **test adapter** only
+(`OMNI_TAB_RUNTIME=playwright` in CI / Vitest). It is not the product
 path. Playwright can be removed later without the HTTP API changing.
 
 Local fixtures (no internet): `/agent-fixture.html` and `/agent-fixture-b.html`.
@@ -39,12 +40,13 @@ restart. `tabs.dispose` deletes that profile.
 |--------|------|------------|
 | `GET` | `/api/agent` | Discover named actions (id, description, input schema, what they mutate) |
 | `POST` | `/api/agent` | Invoke `{ "affordance": "<id>", "input": { ... } }` |
+| `POST` | `/api/agent` | `runtime.attach` — `{ "cdpUrl" }` or `{ "port" }` points at an open Chrome |
 | `GET` | `/api/agent/tabs` | `tabs.list` |
-| `POST` | `/api/agent/tabs` | `tabs.create` — `{ "url" }` loads the page |
+| `POST` | `/api/agent/tabs` | `tabs.create` — `{ "url" }` loads the page (attached Chrome or new profile) |
 | `GET` | `/api/agent/tabs/{id}` | `tabs.read` — title, URL, visible text, `actions[]` refs, `screenshot` |
 | `GET` | `/api/agent/tabs/{id}/screenshot` | `tab.screenshot` — live PNG (`image/png`) |
 | `POST` | `/api/agent/tabs/{id}/act` | `tab.navigate` / `tab.click` / `tab.type` (prefer `ref`) |
-| `DELETE` | `/api/agent/tabs/{id}` | `tabs.dispose` — context gone |
+| `DELETE` | `/api/agent/tabs/{id}` | `tabs.dispose` — OmniOS tab gone (does not quit an attached Chrome) |
 
 Closed loop on the product page (not a fixture):
 
@@ -80,13 +82,56 @@ curl -X POST http://localhost:3000/api/agent \
   -d '{"affordance":"tabs.create","input":{"url":"http://localhost:3000/surface"}}'
 ```
 
-Optional attach to an already-running browser:
+Without `runtime.attach`, `tabs.create` still launches a disposable local profile.
+
+## Attach to an already-open Chrome
+
+Attach is a first-class affordance (`GET /api/agent` lists `runtime.attach`).
+It is not hidden behind an environment variable.
+
+1. Start Chrome with remote debugging (existing profile, your windows stay up):
 
 ```bash
-# chrome --remote-debugging-port=9222
-# export OMNI_CDP_URL=http://127.0.0.1:9222
-npm run dev
+# macOS
+"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --remote-debugging-port=9222
+# Linux
+google-chrome --remote-debugging-port=9222
+# Windows
+chrome.exe --remote-debugging-port=9222
 ```
+
+2. Attach, then run the same create → act-by-ref → screenshot → dispose loop:
+
+```bash
+curl -X POST http://localhost:3000/api/agent \
+  -H 'content-type: application/json' \
+  -d '{"affordance":"runtime.attach","input":{"cdpUrl":"http://127.0.0.1:9222"}}'
+# equivalent: {"affordance":"runtime.attach","input":{"port":9222}}
+
+curl -X POST http://localhost:3000/api/agent \
+  -H 'content-type: application/json' \
+  -d '{"affordance":"tabs.create","input":{"url":"http://localhost:3000/surface"}}'
+# note TAB_ID and the ref whose name is "Mark ready"
+
+curl -X POST http://localhost:3000/api/agent/tabs/TAB_ID/act \
+  -H 'content-type: application/json' \
+  -d '{"affordance":"tab.click","input":{"ref":"eN"}}'
+
+curl -o shot.png http://localhost:3000/api/agent/tabs/TAB_ID/screenshot
+
+curl -X DELETE http://localhost:3000/api/agent/tabs/TAB_ID
+```
+
+`tabs.create` after attach opens a **new OmniOS page/target** in that Chrome
+(isolated context). `tabs.dispose` closes that page/target only. It does
+**not** quit the user Chrome process. If OmniOS only reconnected to a page it
+already created, dispose still closes that OmniOS target — never `Browser.close`.
+
+Launching a new disposable profile remains available: skip `runtime.attach`
+and call `tabs.create` as usual.
+
+`OMNI_CDP_URL` is an optional process default with the same effect. Prefer
+`runtime.attach` so an agent can point at Chrome without restarting OmniOS.
 
 This surface does not call Ollama, Anthropic, Gemini, or NewsAPI.
 
