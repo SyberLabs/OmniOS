@@ -394,13 +394,9 @@ async function killLaunched(id: string): Promise<void> {
 }
 
 async function openLaunched(id: string): Promise<LiveSession> {
-    const attachUrl = getProcessAttachHttp() || process.env.OMNI_CDP_URL;
     const state = readRuntimeState(id);
     if (state?.attached && state.attachHttp) {
         return openAttached(id, state.attachHttp, state);
-    }
-    if (attachUrl) {
-        return openAttached(id, attachUrl);
     }
     if (state?.debugPort && (await attachExisting(state.debugPort))) {
         const cdp = await connectPage(state.debugPort);
@@ -410,6 +406,10 @@ async function openLaunched(id: string): Promise<LiveSession> {
             proc: launched.get(id)?.proc
         });
         return new CdpSession(id, cdp, state.debugPort);
+    }
+    const attachUrl = getProcessAttachHttp() || process.env.OMNI_CDP_URL;
+    if (attachUrl) {
+        return openAttached(id, attachUrl);
     }
     const launchedTab = await launchChrome(id);
     const cdp = await connectPage(launchedTab.port);
