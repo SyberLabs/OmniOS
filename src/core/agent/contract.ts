@@ -9,8 +9,10 @@ export const AGENT_CONTRACT_VERSION = 1 as const;
 
 export const FROZEN_AFFORDANCE_IDS = [
     'runtime.attach',
+    'runtime.targets',
     'tabs.list',
     'tabs.create',
+    'tabs.bind',
     'tabs.read',
     'tabs.act',
     'tabs.dispose',
@@ -57,6 +59,16 @@ const actionSchema: JsonSchema = {
         href: { type: 'string' },
         value: { type: 'string' },
         selector: { type: 'string' }
+    }
+};
+
+export const AGENT_TARGET_SCHEMA: JsonSchema = {
+    type: 'object',
+    required: ['id', 'title', 'url'],
+    properties: {
+        id: { type: 'string' },
+        title: { type: 'string' },
+        url: { type: 'string' }
     }
 };
 

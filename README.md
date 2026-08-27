@@ -41,12 +41,14 @@ restart. `tabs.dispose` deletes that profile.
 | `GET` | `/api/agent` | Discover named actions (id, description, input schema, what they mutate) |
 | `POST` | `/api/agent` | Invoke `{ "affordance": "<id>", "input": { ... } }` |
 | `POST` | `/api/agent` | `runtime.attach` — `{ "cdpUrl" }` or `{ "port" }` points at an open Chrome |
-| `GET` | `/api/agent/tabs` | `tabs.list` |
-| `POST` | `/api/agent/tabs` | `tabs.create` — `{ "url" }` loads the page (attached Chrome or new profile) |
+| `POST` | `/api/agent` | `runtime.targets` — list already-open pages as `{id, title, url}` |
+| `GET` | `/api/agent/tabs` | `tabs.list` — OmniOS tabs (not the user's other Chrome pages) |
+| `POST` | `/api/agent/tabs` | `tabs.create` — `{ "url" }` loads a **new** page (attached Chrome or new profile) |
+| `POST` | `/api/agent` | `tabs.bind` — `{ "targetId" }` adopts an already-open page as an OmniOS tab |
 | `GET` | `/api/agent/tabs/{id}` | `tabs.read` — title, URL, visible text, `actions[]` refs, `screenshot` |
 | `GET` | `/api/agent/tabs/{id}/screenshot` | `tab.screenshot` — live PNG (`image/png`) |
 | `POST` | `/api/agent/tabs/{id}/act` | `tab.navigate` / `tab.click` / `tab.type` (prefer `ref`) |
-| `DELETE` | `/api/agent/tabs/{id}` | `tabs.dispose` — OmniOS tab gone (does not quit an attached Chrome) |
+| `DELETE` | `/api/agent/tabs/{id}` | `tabs.dispose` — unbinds a bound page (user page stays); closes an OmniOS-created page |
 
 Closed loop on the product page (not a fixture):
 
@@ -100,7 +102,7 @@ google-chrome --remote-debugging-port=9222
 chrome.exe --remote-debugging-port=9222
 ```
 
-2. Attach, then run the same create → act-by-ref → screenshot → dispose loop:
+2. Attach, list already-open pages, bind one, then act:
 
 ```bash
 curl -X POST http://localhost:3000/api/agent \
@@ -110,8 +112,13 @@ curl -X POST http://localhost:3000/api/agent \
 
 curl -X POST http://localhost:3000/api/agent \
   -H 'content-type: application/json' \
-  -d '{"affordance":"tabs.create","input":{"url":"http://localhost:3000/surface"}}'
-# note TAB_ID and the ref whose name is "Mark ready"
+  -d '{"affordance":"runtime.targets","input":{}}'
+# → { "targets": [{ "id": "TARGET_ID", "title": "...", "url": "..." }], ... }
+
+curl -X POST http://localhost:3000/api/agent \
+  -H 'content-type: application/json' \
+  -d '{"affordance":"tabs.bind","input":{"targetId":"TARGET_ID"}}'
+# note TAB_ID and a ref from tab.actions[]
 
 curl -X POST http://localhost:3000/api/agent/tabs/TAB_ID/act \
   -H 'content-type: application/json' \
@@ -120,12 +127,17 @@ curl -X POST http://localhost:3000/api/agent/tabs/TAB_ID/act \
 curl -o shot.png http://localhost:3000/api/agent/tabs/TAB_ID/screenshot
 
 curl -X DELETE http://localhost:3000/api/agent/tabs/TAB_ID
+# bound page stays open in Chrome; OmniOS tab is gone
 ```
 
-`tabs.create` after attach opens a **new OmniOS page/target** in that Chrome
-(isolated context). `tabs.dispose` closes that page/target only. It does
-**not** quit the user Chrome process. If OmniOS only reconnected to a page it
-already created, dispose still closes that OmniOS target — never `Browser.close`.
+`runtime.targets` is the already-open pages in that Chrome — not OmniOS
+`tabs.list`. `tabs.bind` makes one of those pages an OmniOS tab (snapshot,
+refs, screenshot, act-by-ref). `tabs.dispose` on a **bound** tab **unbinds**
+and does **not** close the user page.
+
+`tabs.create` after attach still opens a **new OmniOS page/target** in that
+Chrome (isolated context). `tabs.dispose` of that created page closes that
+target only. Neither path quits the user Chrome process. Never `Browser.close`.
 
 Launching a new disposable profile remains available: skip `runtime.attach`
 and call `tabs.create` as usual.

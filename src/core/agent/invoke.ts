@@ -6,6 +6,7 @@
 import { getAffordance } from './affordances';
 import {
     AgentTabError,
+    bindTab,
     clickTab,
     disposeTab,
     listTabs,
@@ -15,6 +16,7 @@ import {
     typeTab
 } from './browserTabs';
 import { attachRuntime } from './runtime/attach';
+import { listAttachedPages } from './runtime/targets';
 import type { HandlerResult, InvokeInput } from './types';
 
 function asObject(value: unknown): InvokeInput {
@@ -117,6 +119,11 @@ export async function invokeAffordance(
                 };
             }
 
+            case 'runtime.targets': {
+                const targets = await listAttachedPages();
+                return { status: 200, body: { targets, keyRequired: false } };
+            }
+
             case 'tabs.list':
                 return { status: 200, body: { tabs: await listTabs(), keyRequired: false } };
 
@@ -124,6 +131,13 @@ export async function invokeAffordance(
                 const url = stringField(input, 'url');
                 if (!url) return badRequest('tabs.create requires url');
                 const tab = await openTab(url);
+                return { status: 201, body: { tab, keyRequired: false } };
+            }
+
+            case 'tabs.bind': {
+                const targetId = stringField(input, 'targetId') || stringField(input, 'id');
+                if (!targetId) return badRequest('tabs.bind requires targetId');
+                const tab = await bindTab(targetId);
                 return { status: 201, body: { tab, keyRequired: false } };
             }
 
@@ -175,7 +189,12 @@ export async function invokeAffordance(
                 return badRequest(`Unknown affordance: ${affordanceId}`);
         }
     } catch (error) {
-        if (error instanceof AgentTabError && error.status === 404) {
+        if (
+            error instanceof AgentTabError &&
+            error.status === 404 &&
+            affordanceId !== 'tabs.bind' &&
+            affordanceId !== 'runtime.targets'
+        ) {
             const tabId = resolveTabId(input, pathTabId) || 'unknown';
             return missingTab(tabId);
         }

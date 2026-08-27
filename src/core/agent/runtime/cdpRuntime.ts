@@ -13,6 +13,7 @@ import { getProcessAttachHttp } from './attach';
 import { CdpClient } from './cdpClient';
 import { findChrome } from './chrome';
 import { ensureDir, profileDir, runtimeStatePath, tabDir } from './paths';
+import { resolveAttachedPage } from './targets';
 import type { LiveSession, RuntimeState, TabRuntime } from './types';
 
 type EvalResult = {
@@ -25,6 +26,7 @@ type Launched = {
     port: number;
     profile: string;
     attached?: boolean;
+    bound?: boolean;
     attachHttp?: string;
     targetId?: string;
     browserContextId?: string;
@@ -268,6 +270,7 @@ class CdpSession implements LiveSession {
             profileDir: profileDir(this.id),
             lastUrl: await this.url(),
             attached: entry?.attached ?? prev?.attached,
+            bound: entry?.bound ?? prev?.bound,
             attachHttp: entry?.attachHttp ?? prev?.attachHttp,
             targetId: entry?.targetId ?? prev?.targetId,
             browserContextId: entry?.browserContextId ?? prev?.browserContextId
@@ -353,6 +356,10 @@ async function killLaunched(id: string): Promise<void> {
     const entry = launched.get(id);
     launched.delete(id);
     const state = readRuntimeState(id);
+    if (entry?.bound || state?.bound) {
+        // Unbind only — do not close the user's page or its BrowserContext.
+        return;
+    }
     if (entry?.attached || state?.attached) {
         await closeAttachedTarget(state, entry);
         return;
@@ -445,6 +452,7 @@ async function openAttached(
             port: 0,
             profile: profileDir(id),
             attached: true,
+            bound: Boolean(existing?.bound),
             attachHttp: base,
             targetId: existing?.targetId,
             browserContextId: existing?.browserContextId
@@ -452,12 +460,17 @@ async function openAttached(
         writeRuntimeState(id, {
             kind: 'cdp',
             attached: true,
+            bound: Boolean(existing?.bound),
             attachHttp: base,
             targetId: existing?.targetId,
             browserContextId: existing?.browserContextId,
             profileDir: profileDir(id)
         });
         return new CdpSession(id, cdp, 0);
+    }
+
+    if (existing?.bound) {
+        throw new AgentTabError(404, `Bound page is gone: ${existing.targetId}`);
     }
 
     const browser = await CdpClient.connect(version.webSocketDebuggerUrl);
@@ -503,6 +516,35 @@ async function openAttached(
     return new CdpSession(id, cdp, 0);
 }
 
+async function openBound(id: string, targetId: string): Promise<LiveSession> {
+    const page = await resolveAttachedPage(targetId);
+    const wsUrl = page.webSocketDebuggerUrl;
+    if (!wsUrl) {
+        throw new AgentTabError(502, 'Attached page has no DevTools websocket');
+    }
+    const httpBase = (getProcessAttachHttp() || process.env.OMNI_CDP_URL || '').replace(/\/$/, '');
+    const cdp = await CdpClient.connect(wsUrl);
+    await cdp.send('Page.enable');
+    await cdp.send('Runtime.enable');
+    launched.set(id, {
+        port: 0,
+        profile: profileDir(id),
+        attached: true,
+        bound: true,
+        attachHttp: httpBase,
+        targetId: page.id
+    });
+    writeRuntimeState(id, {
+        kind: 'cdp',
+        attached: true,
+        bound: true,
+        attachHttp: httpBase,
+        targetId: page.id,
+        profileDir: profileDir(id)
+    });
+    return new CdpSession(id, cdp, 0);
+}
+
 export function createCdpRuntime(): TabRuntime {
     return {
         kind: 'cdp',
@@ -511,6 +553,9 @@ export function createCdpRuntime(): TabRuntime {
         },
         async restore(id: string) {
             return openLaunched(id);
+        },
+        async bind(id: string, targetId: string) {
+            return openBound(id, targetId);
         },
         async dropLive(id: string) {
             if (isAttachedTab(id)) {
