@@ -6,6 +6,7 @@ export {
     clearProcessAttachHttp,
     getProcessAttachHttp
 } from './attach';
+export { listAttachedPages, findTabIdByTarget } from './targets';
 export {
     getTabRuntime,
     resolveTabRuntimeKind,

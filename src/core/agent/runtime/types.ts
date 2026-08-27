@@ -25,6 +25,8 @@ export type TabRuntime = {
     restore(id: string): Promise<LiveSession>;
     destroy(id: string): Promise<void>;
     dropLive(id: string): Promise<void>;
+    /** Adopt an already-open Chrome page. CDP after runtime.attach only. */
+    bind?(id: string, targetId: string): Promise<LiveSession>;
 };
 
 export type RuntimeState = {
@@ -34,6 +36,8 @@ export type RuntimeState = {
     profileDir?: string;
     lastUrl?: string;
     attached?: boolean;
+    /** Bound to a user page — dispose unbinds and must not close that page. */
+    bound?: boolean;
     attachHttp?: string;
     targetId?: string;
     browserContextId?: string;

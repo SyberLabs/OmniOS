@@ -9,10 +9,12 @@ import { generateId } from '@/lib/utils';
 import { AgentTabError } from './errors';
 import { EXTRACT_ACTIONS_SOURCE, actionsFromRaw, linksFromActions } from './extract';
 import { clearProcessAttachHttp, getTabRuntime } from './runtime';
+import { findTabIdByTarget } from './runtime/targets';
 import {
     metaPath,
     persistRoot,
     profileRoot,
+    runtimeStatePath,
     screenshotHref,
     screenshotPath,
     tabDir
@@ -57,6 +59,17 @@ function readMeta(id: string): TabMeta | null {
         return raw;
     } catch {
         return null;
+    }
+}
+
+function isBoundTab(id: string): boolean {
+    try {
+        const state = JSON.parse(fs.readFileSync(runtimeStatePath(id), 'utf8')) as {
+            bound?: boolean;
+        };
+        return Boolean(state.bound);
+    } catch {
+        return false;
     }
 }
 
@@ -151,7 +164,9 @@ async function ensureLive(id: string): Promise<LiveTab> {
     if (existing) await closeLive(id);
 
     const session = await getTabRuntime().restore(id);
-    if (meta.url) await session.goto(meta.url);
+    // Bound pages stay where the user left them — do not yank the tab back
+    // to the last OmniOS snapshot URL after a process restart.
+    if (meta.url && !isBoundTab(id)) await session.goto(meta.url);
     const entry = { session, createdAt: meta.createdAt, updatedAt: diskUpdated };
     live.set(id, entry);
     return entry;
@@ -183,6 +198,37 @@ export async function listTabs(): Promise<AgentTab[]> {
         if (meta?.snapshot) tabs.push(meta.snapshot);
     }
     return tabs.sort((a, b) => b.updatedAt - a.updatedAt);
+}
+
+export async function bindTab(targetId: string): Promise<AgentTab> {
+    const trimmed = targetId.trim();
+    if (!trimmed) {
+        throw new AgentTabError(400, 'tabs.bind requires targetId');
+    }
+
+    const existing = findTabIdByTarget(trimmed);
+    if (existing) return readTab(existing);
+
+    const runtime = getTabRuntime();
+    if (typeof runtime.bind !== 'function') {
+        throw new AgentTabError(400, 'tabs.bind requires runtime.attach first');
+    }
+
+    const id = generateId('tab');
+    const createdAt = Date.now();
+    try {
+        const session = await runtime.bind(id, trimmed);
+        const entry = { session, createdAt, updatedAt: createdAt };
+        live.set(id, entry);
+        return await capture(id, entry);
+    } catch (error) {
+        await disposeTab(id).catch(() => undefined);
+        if (error instanceof AgentTabError) throw error;
+        throw new AgentTabError(
+            502,
+            error instanceof Error ? error.message : 'Failed to bind page'
+        );
+    }
 }
 
 export async function openTab(url: string): Promise<AgentTab> {

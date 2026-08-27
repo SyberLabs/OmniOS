@@ -12,10 +12,10 @@ export const AGENT_PRODUCT = {
     name: 'OmniOS agent surface',
     keyRequired: false as const,
     description:
-        'Local lightweight tabs: attach to an already-open Chrome (runtime.attach) or launch ' +
-        'a disposable Chrome/Chromium/Edge profile (.omni/profiles/<tabId>). Not a Citadel canvas ' +
-        'and not a hosted-model chat. Playwright is a test/CI adapter (OMNI_TAB_RUNTIME=playwright). ' +
-        'No API key is required.',
+        'Local lightweight tabs: attach to an already-open Chrome (runtime.attach), list its ' +
+        'pages (runtime.targets), bind one (tabs.bind), or launch a disposable Chrome/Chromium/Edge ' +
+        'profile (.omni/profiles/<tabId>). Not a Citadel canvas and not a hosted-model chat. ' +
+        'Playwright is a test/CI adapter (OMNI_TAB_RUNTIME=playwright). No API key is required.',
     invoke: {
         method: 'POST' as const,
         path: '/api/agent',
@@ -30,10 +30,9 @@ export const AGENT_AFFORDANCES: Affordance[] = [
         id: 'runtime.attach',
         description:
             'Point OmniOS at an already-open Chrome with remote debugging ' +
-            '(chrome --remote-debugging-port=9222). After attach, tabs.create opens a new ' +
-            'page/target in that Chrome. tabs.dispose closes that OmniOS page/target only — ' +
-            'it does not quit the user Chrome process. Launching a disposable profile remains ' +
-            'the default when you do not attach.',
+            '(chrome --remote-debugging-port=9222). After attach, runtime.targets lists already-open ' +
+            'pages and tabs.bind adopts one. tabs.create still opens a new page/target in that Chrome. ' +
+            'Launching a disposable profile remains the default when you do not attach.',
         method: 'POST',
         path: '/api/agent',
         inputSchema: {
@@ -51,6 +50,17 @@ export const AGENT_AFFORDANCES: Affordance[] = [
             }
         },
         mutates: ['runtime'],
+        keyRequired: false
+    },
+    {
+        id: 'runtime.targets',
+        description:
+            'List already-open pages in the attached Chrome as {id, title, url}. ' +
+            'Requires runtime.attach first. Does not include CDP ports, profile paths, or BrowserContext.',
+        method: 'POST',
+        path: '/api/agent',
+        inputSchema: none,
+        mutates: [],
         keyRequired: false
     },
     {
@@ -76,6 +86,28 @@ export const AGENT_AFFORDANCES: Affordance[] = [
             additionalProperties: false,
             properties: {
                 url: { type: 'string', description: 'http(s) URL to load' }
+            }
+        },
+        mutates: ['tabs'],
+        keyRequired: false
+    },
+    {
+        id: 'tabs.bind',
+        description:
+            'Make an already-open Chrome page an OmniOS tab (snapshot + refs + screenshot + act-by-ref). ' +
+            'Input targetId is the id from runtime.targets. Requires runtime.attach. ' +
+            'tabs.dispose on a bound tab unbinds and does not close the user page.',
+        method: 'POST',
+        path: '/api/agent',
+        inputSchema: {
+            type: 'object',
+            required: ['targetId'],
+            additionalProperties: false,
+            properties: {
+                targetId: {
+                    type: 'string',
+                    description: 'Page id from runtime.targets'
+                }
             }
         },
         mutates: ['tabs'],
@@ -123,8 +155,9 @@ export const AGENT_AFFORDANCES: Affordance[] = [
         id: 'tabs.dispose',
         description:
             'Close the OmniOS tab and drop its cookies/storage. Later read/act fail. ' +
-            'If the tab was created after runtime.attach, this closes that page/target only ' +
-            'and does not quit the user Chrome process.',
+            'On a bound page (tabs.bind), this unbinds only — the user page stays open. ' +
+            'On an OmniOS-created page (tabs.create), this closes that page/target. ' +
+            'It never quits an attached user Chrome process.',
         method: 'DELETE',
         path: '/api/agent/tabs/{id}',
         inputSchema: {

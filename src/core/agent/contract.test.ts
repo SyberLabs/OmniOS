@@ -17,6 +17,7 @@ import {
     AGENT_CONTRACT_VERSION,
     AGENT_DISCOVERY_SCHEMA,
     AGENT_TAB_SNAPSHOT_SCHEMA,
+    AGENT_TARGET_SCHEMA,
     FORBIDDEN_CALLER_KEYS,
     FROZEN_AFFORDANCE_IDS,
     SNAPSHOT_REQUIRED_FIELDS,
@@ -109,6 +110,8 @@ describe('frozen agent contract (runtime-agnostic)', () => {
         const ids = (body.affordances as Array<{ id: string }>).map((a) => a.id);
         expect(ids).toEqual([...FROZEN_AFFORDANCE_IDS]);
         expect(ids).toContain('runtime.attach');
+        expect(ids).toContain('runtime.targets');
+        expect(ids).toContain('tabs.bind');
         for (const affordance of body.affordances as Array<{ keyRequired: boolean }>) {
             expect(affordance.keyRequired).toBe(false);
         }
@@ -132,6 +135,83 @@ describe('frozen agent contract (runtime-agnostic)', () => {
         expect(attach!.path).toBe('/api/agent');
         expect(attach!.inputSchema.properties?.cdpUrl?.type).toBe('string');
         expect(attach!.inputSchema.properties?.port).toBeTruthy();
+
+        const targets = (body.affordances as Array<{
+            id: string;
+            keyRequired: boolean;
+            path: string;
+            method: string;
+            mutates: string[];
+        }>).find((a) => a.id === 'runtime.targets');
+        expect(targets).toBeTruthy();
+        expect(targets!.keyRequired).toBe(false);
+        expect(targets!.method).toBe('POST');
+        expect(targets!.path).toBe('/api/agent');
+        expect(targets!.mutates).toEqual([]);
+
+        const bind = (body.affordances as Array<{
+            id: string;
+            keyRequired: boolean;
+            path: string;
+            inputSchema: { required?: string[]; properties?: Record<string, { type?: string }> };
+        }>).find((a) => a.id === 'tabs.bind');
+        expect(bind).toBeTruthy();
+        expect(bind!.keyRequired).toBe(false);
+        expect(bind!.path).toBe('/api/agent');
+        expect(bind!.inputSchema.required).toEqual(['targetId']);
+        expect(bind!.inputSchema.properties?.targetId?.type).toBe('string');
+    });
+
+    it('runtime.targets and tabs.bind without attach fail cleanly, not 500', async () => {
+        const listed = await json(
+            await discoverPost(
+                new Request('http://local/api/agent', {
+                    method: 'POST',
+                    headers: { 'content-type': 'application/json' },
+                    body: JSON.stringify({ affordance: 'runtime.targets', input: {} })
+                })
+            )
+        );
+        expect(listed.status).toBe(400);
+        expect(listed.status).not.toBe(500);
+        expect(listed.body.keyRequired).toBe(false);
+        expect(String(listed.body.error)).toMatch(/runtime\.attach/i);
+        expectNoRuntimeLeak(listed.body);
+
+        const missing = await json(
+            await discoverPost(
+                new Request('http://local/api/agent', {
+                    method: 'POST',
+                    headers: { 'content-type': 'application/json' },
+                    body: JSON.stringify({ affordance: 'tabs.bind', input: {} })
+                })
+            )
+        );
+        expect(missing.status).toBe(400);
+        expect(missing.status).not.toBe(500);
+        expect(missing.body.keyRequired).toBe(false);
+        expect(String(missing.body.error)).toMatch(/targetId/i);
+        expectNoRuntimeLeak(missing.body);
+
+        const unbound = await json(
+            await discoverPost(
+                new Request('http://local/api/agent', {
+                    method: 'POST',
+                    headers: { 'content-type': 'application/json' },
+                    body: JSON.stringify({
+                        affordance: 'tabs.bind',
+                        input: { targetId: 'missing-target' }
+                    })
+                })
+            )
+        );
+        expect(unbound.status).toBe(400);
+        expect(unbound.status).not.toBe(500);
+        expect(unbound.body.keyRequired).toBe(false);
+        expect(String(unbound.body.error)).toMatch(/runtime\.attach/i);
+        expectNoRuntimeLeak(unbound.body);
+        expect(unbound.body.tab).toBeUndefined();
+        expect(AGENT_TARGET_SCHEMA.required).toEqual(['id', 'title', 'url']);
     });
 
     it('runtime.attach rejects invalid CDP with a clean error, not 500', async () => {
