@@ -32,9 +32,10 @@ Callers depend on named affordances and the snapshot shape
 `BrowserContext`, `storageState`, or CDP port.
 
 Each tab is a **local lightweight browser state** — not a JSON note, not a
-Citadel canvas, and not a hosted-model chat. Cookies / `localStorage` live in
-`.omni/profiles/<tabId>/`. The same tab id rehydrates after an OmniOS process
-restart. `tabs.dispose` deletes that profile.
+Citadel canvas, and not a hosted-model chat. OmniOS-created tabs keep cookies /
+`localStorage` in `.omni/profiles/<tabId>/` and rehydrate after a process
+restart. Bound pages (`tabs.bind`) stay in the user's Chrome; dispose unbinds
+and does not delete that profile.
 
 | Method | Path | Affordance |
 |--------|------|------------|
