@@ -243,10 +243,12 @@ export async function typeTab(
 export async function disposeTab(id: string): Promise<string> {
     const existed = live.has(id) || Boolean(readMeta(id));
     await closeLive(id);
+    // Destroy first so CDP can still read runtime.json (debug port) after a
+    // process restart attach, where this process has no ChildProcess handle.
+    await getTabRuntime().destroy(id);
     if (fs.existsSync(tabDir(id))) {
         fs.rmSync(tabDir(id), { recursive: true, force: true });
     }
-    await getTabRuntime().destroy(id);
     if (!existed) throw new AgentTabError(404, `Tab not found: ${id}`);
     return id;
 }

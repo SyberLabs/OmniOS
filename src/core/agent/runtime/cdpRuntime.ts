@@ -279,38 +279,49 @@ async function rmBestEffort(dir: string): Promise<void> {
     }
 }
 
+async function closeDebugPort(port?: number): Promise<void> {
+    if (!port) return;
+    try {
+        const version = (await waitForJson(
+            `http://127.0.0.1:${port}/json/version`,
+            800
+        )) as { webSocketDebuggerUrl?: string };
+        if (!version.webSocketDebuggerUrl) return;
+        const browser = await CdpClient.connect(version.webSocketDebuggerUrl);
+        await browser.send('Browser.close').catch(() => undefined);
+        browser.close();
+    } catch {
+        // already gone
+    }
+}
+
 async function killLaunched(id: string): Promise<void> {
     const entry = launched.get(id);
     launched.delete(id);
-    if (!entry?.proc) return;
-    const exited = new Promise<void>((resolve) => {
-        if (entry.proc!.exitCode != null) {
-            resolve();
-            return;
-        }
-        entry.proc!.once('exit', () => resolve());
-    });
-    try {
-        const version = (await waitForJson(
-            `http://127.0.0.1:${entry.port}/json/version`,
-            800
-        )) as { webSocketDebuggerUrl?: string };
-        if (version.webSocketDebuggerUrl) {
-            const browser = await CdpClient.connect(version.webSocketDebuggerUrl);
-            await browser.send('Browser.close').catch(() => undefined);
-            browser.close();
-        }
-    } catch {
+    const state = readRuntimeState(id);
+    const port = entry?.port ?? state?.debugPort;
+    const proc = entry?.proc;
+    const exited = proc
+        ? new Promise<void>((resolve) => {
+              if (proc.exitCode != null) {
+                  resolve();
+                  return;
+              }
+              proc.once('exit', () => resolve());
+          })
+        : sleep(400);
+    await closeDebugPort(port);
+    if (proc && proc.exitCode == null) {
         try {
-            entry.proc.kill('SIGTERM');
+            proc.kill('SIGTERM');
         } catch {
             // already gone
         }
     }
     await Promise.race([exited, sleep(2500)]);
-    if (entry.proc.exitCode == null) {
+    if (proc && proc.exitCode == null) {
         try {
-            entry.proc.kill('SIGKILL');
+            proc.kill('SIGKILL');
         } catch {
             // already gone
         }
