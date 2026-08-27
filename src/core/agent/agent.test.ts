@@ -563,6 +563,10 @@ describe('agent surface — live keyless browser tabs', () => {
 
         const gone = await fetchPng('tab_missing');
         expect(gone.status).toBe(404);
+
+        await disposeTabHttp(tabId);
+        const disposedShot = await fetchPng(tabId);
+        expect(disposedShot.status).toBe(404);
     }, 60_000);
 
     it('still accepts a CSS selector as a fallback', async () => {
