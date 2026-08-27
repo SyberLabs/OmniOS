@@ -1,28 +1,29 @@
 // ============================================
-// PROJECT OMNI: AGENT SURFACE — LIVE BROWSER TABS
-// One isolated Playwright context per tab. Cookies and
-// storageState are written to disk so the next HTTP call
-// can restore the page even if the live context was dropped.
+// PROJECT OMNI: AGENT SURFACE — LOCAL TABS
+// A tab is a local lightweight browser state (Chrome/CDP profile).
+// Playwright is only the test/CI adapter (OMNI_TAB_RUNTIME=playwright).
 // ============================================
 
 import fs from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
-import { chromium, type Browser, type BrowserContext, type Page } from 'playwright';
 import { generateId } from '@/lib/utils';
-import type { Actionable, AgentTab, PageLink } from './types';
+import { AgentTabError } from './errors';
+import { EXTRACT_ACTIONS_SOURCE, actionsFromRaw, linksFromActions } from './extract';
+import { getTabRuntime } from './runtime';
+import {
+    metaPath,
+    persistRoot,
+    profileRoot,
+    screenshotHref,
+    screenshotPath,
+    tabDir
+} from './runtime/paths';
+import type { LiveSession } from './runtime/types';
+import type { Actionable, AgentTab } from './types';
 
-export class AgentTabError extends Error {
-    status: number;
-    constructor(status: number, message: string) {
-        super(message);
-        this.status = status;
-    }
-}
+export { AgentTabError };
 
 type LiveTab = {
-    context: BrowserContext;
-    page: Page;
+    session: LiveSession;
     createdAt: number;
     updatedAt: number;
 };
@@ -35,47 +36,6 @@ type TabMeta = {
 };
 
 const live = new Map<string, LiveTab>();
-let browserPromise: Promise<Browser> | null = null;
-
-function inTest(): boolean {
-    return process.env.VITEST === 'true' || process.env.NODE_ENV === 'test';
-}
-
-function persistRoot(): string {
-    if (process.env.OMNI_AGENT_TABS_DIR) return process.env.OMNI_AGENT_TABS_DIR;
-    if (inTest()) return path.join(os.tmpdir(), 'omni-agent-tabs-vitest');
-    return path.join(process.cwd(), '.omni', 'tabs');
-}
-
-function tabDir(id: string): string {
-    return path.join(persistRoot(), id);
-}
-
-function storagePath(id: string): string {
-    return path.join(tabDir(id), 'storage.json');
-}
-
-function metaPath(id: string): string {
-    return path.join(tabDir(id), 'meta.json');
-}
-
-function screenshotPath(id: string): string {
-    return path.join(tabDir(id), 'shot.png');
-}
-
-function screenshotHref(id: string, updatedAt: number): string {
-    return `/api/agent/tabs/${id}/screenshot?t=${updatedAt}`;
-}
-
-async function getBrowser(): Promise<Browser> {
-    if (!browserPromise) {
-        browserPromise = chromium.launch({
-            headless: true,
-            args: ['--no-sandbox', '--disable-dev-shm-usage']
-        });
-    }
-    return browserPromise;
-}
 
 function assertHttpUrl(raw: string): string {
     let parsed: URL;
@@ -100,9 +60,8 @@ function readMeta(id: string): TabMeta | null {
     }
 }
 
-async function writePersist(id: string, context: BrowserContext, snapshot: AgentTab): Promise<void> {
+function writeMeta(id: string, snapshot: AgentTab): void {
     fs.mkdirSync(tabDir(id), { recursive: true });
-    await context.storageState({ path: storagePath(id) });
     const meta: TabMeta = {
         id,
         url: snapshot.url,
@@ -112,144 +71,52 @@ async function writePersist(id: string, context: BrowserContext, snapshot: Agent
     fs.writeFileSync(metaPath(id), JSON.stringify(meta));
 }
 
-type RawAction = {
-    ref: string;
-    role: Actionable['role'];
-    name: string;
-    href: string;
-    value: string;
-    actions: Array<'click' | 'type'>;
-    selector: string;
-};
-
-async function extractActions(page: Page): Promise<Actionable[]> {
-    const raw = await page.evaluate(() => {
-        const nodes = [
-            ...document.querySelectorAll('a[href], button, input:not([type="hidden"]), textarea, select')
-        ].filter((el) => {
-            const node = el as HTMLElement;
-            if (node.hidden || node.getAttribute('hidden') !== null) return false;
-            const style = window.getComputedStyle(node);
-            if (style.display === 'none' || style.visibility === 'hidden') return false;
-            return true;
-        }) as HTMLElement[];
-
-        const escape = (value: string) =>
-            typeof CSS !== 'undefined' && CSS.escape
-                ? CSS.escape(value)
-                : value.replace(/[^a-zA-Z0-9_-]/g, '\\$&');
-
-        function roleOf(el: HTMLElement): RawAction['role'] {
-            const tag = el.tagName.toLowerCase();
-            const type = (el.getAttribute('type') || '').toLowerCase();
-            if (tag === 'a') return 'link';
-            if (tag === 'button' || type === 'button' || type === 'submit') return 'button';
-            if (type === 'checkbox') return 'checkbox';
-            if (tag === 'select') return 'combobox';
-            return 'textbox';
-        }
-
-        function nameOf(el: HTMLElement): string {
-            const aria = el.getAttribute('aria-label');
-            if (aria) return aria.trim();
-            if (el.id) {
-                const labelled = document.querySelector(`label[for="${el.id}"]`);
-                if (labelled?.textContent) return labelled.textContent.trim();
-            }
-            const wrapped = el.closest('label');
-            if (wrapped) {
-                const clone = wrapped.cloneNode(true) as HTMLElement;
-                clone.querySelectorAll('input, textarea, select, button').forEach((n) => n.remove());
-                const labelText = clone.textContent?.trim();
-                if (labelText) return labelText;
-            }
-            const placeholder = el.getAttribute('placeholder');
-            if (placeholder) return placeholder.trim();
-            const text = el.textContent?.trim();
-            if (text) return text.slice(0, 80);
-            return el.getAttribute('name') || el.id || el.tagName.toLowerCase();
-        }
-
-        function selectorOf(el: HTMLElement, index: number): string {
-            if (el.id) return `#${escape(el.id)}`;
-            const name = el.getAttribute('name');
-            const tag = el.tagName.toLowerCase();
-            if (name) return `${tag}[name="${escape(name)}"]`;
-            return `${tag}[data-omni-ref="e${index}"]`;
-        }
-
-        return nodes.slice(0, 40).map((el, i) => {
-            const ref = `e${i + 1}`;
-            el.setAttribute('data-omni-ref', ref);
-            const role = roleOf(el);
-            const actions: Array<'click' | 'type'> =
-                role === 'textbox' ? ['type'] : ['click'];
-            const href = el instanceof HTMLAnchorElement ? el.href : '';
-            const value = 'value' in el ? String((el as HTMLInputElement).value || '') : '';
-            return {
-                ref,
-                role,
-                name: nameOf(el),
-                href,
-                value,
-                actions,
-                selector: selectorOf(el, i + 1)
-            };
-        });
-    }) as RawAction[];
-
-    return raw.map((item) => {
-        const action: Actionable = {
-            ref: item.ref,
-            role: item.role,
-            name: item.name,
-            actions: item.actions,
-            selector: item.selector
-        };
-        if (item.href) action.href = item.href;
-        if (item.value) action.value = item.value;
-        return action;
-    });
+async function extractActions(session: LiveSession): Promise<Actionable[]> {
+    const raw = await session.evaluate<
+        Array<{
+            ref: string;
+            role: Actionable['role'];
+            name: string;
+            href: string;
+            value: string;
+            actions: Array<'click' | 'type'>;
+            selector: string;
+        }>
+    >(EXTRACT_ACTIONS_SOURCE);
+    return actionsFromRaw(raw || []);
 }
 
-function linksFromActions(actions: Actionable[]): PageLink[] {
-    return actions
-        .filter((action) => action.role === 'link' && action.href)
-        .map((action) => ({ href: action.href as string, text: action.name }));
-}
-
-async function resolveTarget(
-    page: Page,
+async function resolveSelector(
+    session: LiveSession,
     last: AgentTab | undefined,
     target: { ref?: string; selector?: string }
-): Promise<ReturnType<Page['locator']>> {
-    if (target.selector?.trim()) {
-        return page.locator(target.selector);
-    }
+): Promise<string> {
+    if (target.selector?.trim()) return target.selector.trim();
     const ref = target.ref?.trim();
     if (!ref) {
         throw new AgentTabError(400, 'tab.click/type requires ref or selector');
     }
 
-    const stamped = page.locator(`[data-omni-ref="${ref}"]`);
-    if (await stamped.count()) return stamped.first();
+    const count = await session.evaluate<number>(
+        `document.querySelectorAll(${JSON.stringify(`[data-omni-ref="${ref}"]`)}).length`
+    );
+    if (count) return `[data-omni-ref="${ref}"]`;
 
     const stored = last?.actions?.find((action) => action.ref === ref);
-    if (stored?.selector) return page.locator(stored.selector);
+    if (stored?.selector) return stored.selector;
 
-    const fresh = await extractActions(page);
+    const fresh = await extractActions(session);
     const again = fresh.find((action) => action.ref === ref);
-    if (again?.selector) return page.locator(again.selector);
+    if (again?.selector) return again.selector;
 
     throw new AgentTabError(400, `Unknown action ref: ${ref}`);
 }
 
-async function snapshot(page: Page, id: string, createdAt: number): Promise<AgentTab> {
-    const title = await page.title();
-    const url = page.url();
-    const text = ((await page.locator('body').innerText().catch(() => '')) || '').slice(0, 4000);
-    const actions = await extractActions(page);
-
+async function snapshot(session: LiveSession, id: string, createdAt: number): Promise<AgentTab> {
+    const title = await session.title();
+    const url = await session.url();
+    const text = await session.bodyText();
+    const actions = await extractActions(session);
     const updatedAt = Date.now();
     return {
         id,
@@ -268,20 +135,7 @@ async function closeLive(id: string): Promise<void> {
     const entry = live.get(id);
     if (!entry) return;
     live.delete(id);
-    await entry.page.close().catch(() => undefined);
-    await entry.context.close().catch(() => undefined);
-}
-
-async function attach(id: string, createdAt: number, updatedAt = createdAt): Promise<LiveTab> {
-    const browser = await getBrowser();
-    const stored = storagePath(id);
-    const context = await browser.newContext({
-        storageState: fs.existsSync(stored) ? stored : undefined
-    });
-    const page = await context.newPage();
-    const entry = { context, page, createdAt, updatedAt };
-    live.set(id, entry);
-    return entry;
+    await entry.session.close().catch(() => undefined);
 }
 
 async function ensureLive(id: string): Promise<LiveTab> {
@@ -293,25 +147,24 @@ async function ensureLive(id: string): Promise<LiveTab> {
 
     const existing = live.get(id);
     const diskUpdated = meta.snapshot?.updatedAt ?? 0;
-    // Next may keep a stale live page in another route worker. If disk is
-    // newer (another request persisted), drop and restore from storageState.
     if (existing && existing.updatedAt >= diskUpdated) return existing;
     if (existing) await closeLive(id);
 
-    const entry = await attach(id, meta.createdAt, diskUpdated);
-    if (meta.url) {
-        await entry.page.goto(meta.url, { waitUntil: 'domcontentloaded', timeout: 20_000 });
-    }
+    const session = await getTabRuntime().restore(id);
+    if (meta.url) await session.goto(meta.url);
+    const entry = { session, createdAt: meta.createdAt, updatedAt: diskUpdated };
+    live.set(id, entry);
     return entry;
 }
 
 async function capture(id: string, entry: LiveTab): Promise<AgentTab> {
-    const tab = await snapshot(entry.page, id, entry.createdAt);
-    const png = await entry.page.screenshot({ type: 'png' });
+    const tab = await snapshot(entry.session, id, entry.createdAt);
+    const png = await entry.session.screenshotPng();
     fs.mkdirSync(tabDir(id), { recursive: true });
     fs.writeFileSync(screenshotPath(id), png);
     entry.updatedAt = tab.updatedAt;
-    await writePersist(id, entry.context, tab);
+    await entry.session.persist();
+    writeMeta(id, tab);
     return tab;
 }
 
@@ -336,9 +189,11 @@ export async function openTab(url: string): Promise<AgentTab> {
     const target = assertHttpUrl(url);
     const id = generateId('tab');
     const createdAt = Date.now();
-    const entry = await attach(id, createdAt);
+    const session = await getTabRuntime().open(id);
+    const entry = { session, createdAt, updatedAt: createdAt };
+    live.set(id, entry);
     try {
-        await entry.page.goto(target, { waitUntil: 'domcontentloaded', timeout: 20_000 });
+        await session.goto(target);
         return await capture(id, entry);
     } catch (error) {
         await disposeTab(id).catch(() => undefined);
@@ -358,7 +213,7 @@ export async function readTab(id: string): Promise<AgentTab> {
 export async function navigateTab(id: string, url: string): Promise<AgentTab> {
     const target = assertHttpUrl(url);
     const entry = await ensureLive(id);
-    await entry.page.goto(target, { waitUntil: 'domcontentloaded', timeout: 20_000 });
+    await entry.session.goto(target);
     return capture(id, entry);
 }
 
@@ -368,9 +223,8 @@ export async function clickTab(
 ): Promise<AgentTab> {
     const entry = await ensureLive(id);
     const last = readMeta(id)?.snapshot;
-    const locator = await resolveTarget(entry.page, last, target);
-    await locator.click({ timeout: 10_000 });
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    const selector = await resolveSelector(entry.session, last, target);
+    await entry.session.clickSelector(selector);
     return capture(id, entry);
 }
 
@@ -381,8 +235,8 @@ export async function typeTab(
 ): Promise<AgentTab> {
     const entry = await ensureLive(id);
     const last = readMeta(id)?.snapshot;
-    const locator = await resolveTarget(entry.page, last, target);
-    await locator.fill(text, { timeout: 10_000 });
+    const selector = await resolveSelector(entry.session, last, target);
+    await entry.session.fillSelector(selector, text);
     return capture(id, entry);
 }
 
@@ -392,14 +246,20 @@ export async function disposeTab(id: string): Promise<string> {
     if (fs.existsSync(tabDir(id))) {
         fs.rmSync(tabDir(id), { recursive: true, force: true });
     }
+    await getTabRuntime().destroy(id);
     if (!existed) throw new AgentTabError(404, `Tab not found: ${id}`);
     return id;
 }
 
-/** Close live Playwright pages/contexts. Disk storageState stays. */
+/** Close live sessions. Disk profile / storageState stays. */
 export async function __dropLiveContexts(): Promise<void> {
     const ids = [...live.keys()];
-    await Promise.all(ids.map((id) => closeLive(id)));
+    await Promise.all(
+        ids.map(async (id) => {
+            await closeLive(id);
+            await getTabRuntime().dropLive(id);
+        })
+    );
 }
 
 /** Test hook: mark the live page older than disk so the next call restores. */
@@ -408,11 +268,23 @@ export function __staleLive(id: string): void {
     if (entry) entry.updatedAt = 0;
 }
 
-/** Test hook: drop live contexts and wipe persisted tabs. */
+/** Test hook: drop live sessions and wipe persisted tabs + profiles. */
 export async function __resetAgentTabs(): Promise<void> {
     await __dropLiveContexts();
-    const root = persistRoot();
-    if (fs.existsSync(root)) {
-        fs.rmSync(root, { recursive: true, force: true });
+    for (const root of [persistRoot(), profileRoot()]) {
+        for (let attempt = 0; attempt < 8; attempt++) {
+            try {
+                if (fs.existsSync(root)) {
+                    fs.rmSync(root, { recursive: true, force: true });
+                }
+                break;
+            } catch {
+                await new Promise((resolve) => setTimeout(resolve, 80));
+            }
+        }
     }
+}
+
+export function currentTabRuntimeKind() {
+    return getTabRuntime().kind;
 }

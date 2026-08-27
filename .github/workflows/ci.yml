@@ -23,8 +23,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # Chromium is required by agent-surface Vitest (live disposable tabs)
-      # and by the golden-path Playwright e2e later in this job.
+      # Playwright Chromium is the agent-surface *test adapter* and the
+      # golden-path e2e browser. Product tabs are local Chrome/CDP
+      # (OMNI_TAB_RUNTIME unset → cdp). CI forces the adapter.
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium
 
@@ -35,6 +36,8 @@ jobs:
 
       - name: Test
         run: npm test
+        env:
+          OMNI_TAB_RUNTIME: playwright
 
       # Blocking as of Phase 5: lint errors = 0. ESLint exits non-zero only on
       # errors, so this fails CI on new errors while pre-existing warnings

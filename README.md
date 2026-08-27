@@ -48,12 +48,23 @@ environment variables and are **never** sent to or stored in the browser.
 ## Agent surface (no API key)
 
 OmniOS also exposes a **keyless** affordance surface for an arbitrary agent
-(`curl`, `fetch`, or another agent's HTTP client). A tab is a real disposable
-browser page with an isolated context — not a JSON note, not a Citadel canvas,
-and not a hosted-model chat. Each tab id gets its own Playwright context and
-`storageState` directory. Cookies and `localStorage` persist across HTTP
-calls on that tab only. Two tabs on the same origin do not share a session.
-No API key is required.
+(`curl`, `fetch`, or another agent's HTTP client). A tab is a **local
+lightweight browser state** — not a JSON note, not a Citadel canvas, and not
+a hosted-model chat.
+
+**Product runtime:** real Chrome / Chromium / Edge on the machine running
+OmniOS. Each tab id is a disposable local profile at
+`.omni/profiles/<tabId>/` (gitignored), launched with CDP
+(`--remote-debugging-port`). Or attach to an already-running browser via
+`OMNI_CDP_URL` (e.g. `http://127.0.0.1:9222`). Two tabs are two profiles;
+they do not share cookies or `localStorage`.
+
+**Test / CI adapter only:** `OMNI_TAB_RUNTIME=playwright` uses Playwright's
+`chromium.launch`. That is not the product path. CI sets this explicitly so
+green CI is not a fake "local Chrome".
+
+No API key is required. Captain running `next dev` needs Chrome (or
+`OMNI_CHROME_PATH` / `OMNI_CDP_URL`).
 
 Citadel (`/`) and Garden (`/garden`) are unchanged.
 
@@ -148,8 +159,18 @@ curl -X POST http://localhost:3000/api/agent \
   -d '{"affordance":"tabs.create","input":{"url":"http://localhost:3000/agent-fixture.html"}}'
 ```
 
-This surface does not call Ollama, Anthropic, Gemini, or NewsAPI. It launches
-a local headless Chromium (`npx playwright install chromium`).
+This surface does not call Ollama, Anthropic, Gemini, or NewsAPI. The HTTP
+API is unchanged. Product tabs launch (or attach to) local Chrome:
+
+```bash
+# optional: already-running browser
+# chrome --remote-debugging-port=9222
+# export OMNI_CDP_URL=http://127.0.0.1:9222
+
+npm run dev
+```
+
+CI / `vitest` uses `OMNI_TAB_RUNTIME=playwright` (test adapter only).
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 

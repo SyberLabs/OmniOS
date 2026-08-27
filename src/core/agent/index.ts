@@ -8,8 +8,10 @@ export {
     typeTab,
     disposeTab,
     readTabScreenshot,
+    currentTabRuntimeKind,
     __dropLiveContexts,
     __resetAgentTabs
 } from './browserTabs';
+export { findChrome, resolveTabRuntimeKind } from './runtime';
 export { invokeAffordance } from './invoke';
 export type { Affordance, Actionable, AgentTab, HandlerResult, PageLink } from './types';

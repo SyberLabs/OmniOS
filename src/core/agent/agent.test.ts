@@ -118,6 +118,7 @@ describe('agent surface — live keyless browser tabs', () => {
         expect(status).toBe(200);
         expect(body.keyRequired).toBe(false);
         expect(body.auth).toBeUndefined();
+        expect(body.tabRuntime).toBe('playwright');
 
         const ids = body.affordances.map((a: { id: string }) => a.id);
         expect(ids).toEqual(expect.arrayContaining([

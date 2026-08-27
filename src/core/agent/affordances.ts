@@ -4,15 +4,16 @@
 // No API-key product. No Ollama/Anthropic/Gemini/NewsAPI.
 // ============================================
 
+import { resolveTabRuntimeKind } from './runtime';
 import type { Affordance } from './types';
 
 export const AGENT_PRODUCT = {
     name: 'OmniOS agent surface',
     keyRequired: false as const,
     description:
-        'Local lightweight tabs: each tab is a real disposable browser page ' +
-        'with isolated cookies/storage. Not a Citadel canvas and not a hosted-model chat. ' +
-        'No API key is required.',
+        'Local lightweight tabs: each tab is a disposable Chrome/Chromium/Edge profile ' +
+        '(CDP attach or .omni/profiles/<tabId>). Not a Citadel canvas and not a hosted-model chat. ' +
+        'Playwright is a test/CI adapter (OMNI_TAB_RUNTIME=playwright). No API key is required.',
     invoke: {
         method: 'POST' as const,
         path: '/api/agent',
@@ -184,6 +185,7 @@ export function getAffordance(id: string): Affordance | undefined {
 export function discoveryBody() {
     return {
         ...AGENT_PRODUCT,
+        tabRuntime: resolveTabRuntimeKind(),
         affordances: AGENT_AFFORDANCES
     };
 }
