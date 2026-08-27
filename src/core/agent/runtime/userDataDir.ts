@@ -12,7 +12,7 @@ export type BrowserKind = 'chrome' | 'chromium' | 'edge';
 
 export type UserDataDirLookup = {
     platform?: NodeJS.Platform;
-    env?: NodeJS.ProcessEnv;
+    env?: Record<string, string | undefined>;
     home?: string;
     chromeBinary?: string | null;
 };
@@ -24,7 +24,7 @@ export function setDefaultUserDataDirForTests(value: string | false | null): voi
     defaultDirOverride = value;
 }
 
-function safeHome(env: NodeJS.ProcessEnv = process.env): string {
+function safeHome(env: Record<string, string | undefined> = process.env): string {
     try {
         return os.homedir() || env.HOME || env.USERPROFILE || '';
     } catch {
@@ -60,7 +60,7 @@ function dirsForKind(
     kind: BrowserKind,
     platform: NodeJS.Platform,
     home: string,
-    env: NodeJS.ProcessEnv
+    env: Record<string, string | undefined>
 ): string[] {
     if (platform === 'win32') {
         const local = env.LOCALAPPDATA || joinOs(platform, home, 'AppData', 'Local');
