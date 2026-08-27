@@ -37,6 +37,9 @@ yarn-error.log*
 # local editor / agent config
 .claude/
 
+# local agent-surface tab persistence
+.omni/
+
 # playwright
 /test-results/
 /playwright-report/

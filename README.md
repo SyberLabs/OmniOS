@@ -45,6 +45,64 @@ environment variables and are **never** sent to or stored in the browser.
 > would expose them to every visitor. Add authentication before deploying
 > publicly. See `IMPLEMENTATION_PLAN.md`.
 
+## Agent surface (no API key)
+
+OmniOS also exposes a **keyless** affordance surface for an arbitrary agent
+(`curl`, `fetch`, or another agent's HTTP client). A tab is a local,
+lightweight, persistent browser/session state record — not a Citadel canvas
+and not a hosted-model chat. No API key is required. Do not send
+`Authorization` or provider keys.
+
+Citadel (`/`) and Garden (`/garden`) are unchanged.
+
+```bash
+npm run dev
+```
+
+Human / browser-agent view: [http://localhost:3000/surface](http://localhost:3000/surface)
+
+| Method | Path | Affordance |
+|--------|------|------------|
+| `GET` | `/api/agent` | Discover named actions (id, description, input schema, what they mutate) |
+| `POST` | `/api/agent` | Invoke `{ "affordance": "<id>", "input": { ... } }` |
+| `GET` | `/api/agent/tabs` | `tabs.list` |
+| `POST` | `/api/agent/tabs` | `tabs.create` |
+| `GET` | `/api/agent/tabs/{id}` | `tabs.read` |
+| `POST` | `/api/agent/tabs/{id}/act` | `tabs.act` (`tab.write_note`, `tab.set_url`) |
+| `DELETE` | `/api/agent/tabs/{id}` | `tabs.dispose` |
+
+```bash
+# 1. Discover (no key)
+curl http://localhost:3000/api/agent
+
+# 2. Create a tab
+curl -X POST http://localhost:3000/api/agent/tabs \
+  -H 'content-type: application/json' \
+  -d '{"title":"research","url":"https://example.com"}'
+
+# 3. Act (write a local note) — replace TAB_ID
+curl -X POST http://localhost:3000/api/agent/tabs/TAB_ID/act \
+  -H 'content-type: application/json' \
+  -d '{"affordance":"tab.write_note","input":{"text":"follow the citations"}}'
+
+# 4. Read persisted state
+curl http://localhost:3000/api/agent/tabs/TAB_ID
+
+# 5. Dispose
+curl -X DELETE http://localhost:3000/api/agent/tabs/TAB_ID
+```
+
+Same loop via one invoke endpoint:
+
+```bash
+curl -X POST http://localhost:3000/api/agent \
+  -H 'content-type: application/json' \
+  -d '{"affordance":"tabs.create","input":{"title":"research"}}'
+```
+
+Seeded acts are local only. This surface does not call Ollama, Anthropic,
+Gemini, or NewsAPI.
+
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
