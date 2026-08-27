@@ -11,7 +11,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { AgentTabError } from '../errors';
 import { attachRuntime, clearProcessAttachHttp, getProcessAttachHttp, probeCdpHttp } from './attach';
-import { findChrome } from './chrome';
+import { findChrome, setFindChromeForTests } from './chrome';
 import { ensureDir, inTest } from './paths';
 import { clearTabRuntimeCache } from './resolve';
 
@@ -92,6 +92,8 @@ async function freePort(): Promise<number> {
 }
 
 async function pickDebugPort(): Promise<number> {
+    // Tests use an ephemeral port so parallel files do not collide on 9222.
+    if (inTest() && !process.env.OMNI_CHROME_DEBUG_PORT) return freePort();
     const preferred = Number(process.env.OMNI_CHROME_DEBUG_PORT || DEFAULT_DEBUG_PORT);
     if (Number.isInteger(preferred) && preferred > 0 && preferred <= 65535) {
         if (await isPortFree(preferred)) return preferred;
@@ -114,7 +116,14 @@ async function findExistingDebugChrome(): Promise<string | null> {
     if (attached) candidates.push(attached);
     if (launchedDebug?.httpBase) candidates.push(launchedDebug.httpBase);
     if (process.env.OMNI_CDP_URL) candidates.push(process.env.OMNI_CDP_URL);
-    candidates.push(`http://127.0.0.1:${DEFAULT_DEBUG_PORT}`);
+    // Product probes the well-known debug port. Tests skip it so a leftover
+    // or parallel-file Chrome on 9222 cannot steal the missing-binary path.
+    if (!inTest() || process.env.OMNI_CHROME_DEBUG_PORT) {
+        const preferred = Number(process.env.OMNI_CHROME_DEBUG_PORT || DEFAULT_DEBUG_PORT);
+        if (Number.isInteger(preferred) && preferred > 0 && preferred <= 65535) {
+            candidates.push(`http://127.0.0.1:${preferred}`);
+        }
+    }
 
     const seen = new Set<string>();
     for (const raw of candidates) {
@@ -213,6 +222,11 @@ export async function ensureRuntime(): Promise<EnsureResult> {
         tabRuntime: 'cdp',
         disposeCloses: 'omni-target'
     };
+}
+
+/** Test hook: force a missing Chrome binary for the fail-clean path. */
+export function setEnsureChromeLocatorForTests(fn: (() => string | null) | null): void {
+    setFindChromeForTests(fn);
 }
 
 /**

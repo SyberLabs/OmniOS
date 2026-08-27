@@ -44,20 +44,24 @@ describe('product entry is the agent surface', () => {
         expect(client).not.toMatch(/redirect\(['"]\/['"]\)/);
     });
 
-    it('README documents attach-to-open Chrome as a first-class how-to', () => {
+    it('README documents runtime.ensure as the first-class how-to', () => {
         const readme = read('README.md');
-        expect(readme).toMatch(/^## Attach to an already-open Chrome/m);
-        expect(readme).toMatch(/remote-debugging-port/);
+        expect(readme).toMatch(/^## Open a debuggable Chrome/m);
+        expect(readme).toMatch(/runtime\.ensure/);
+        expect(readme).toMatch(/npm run chrome:debug/);
+        expect(readme).not.toMatch(/^## Attach to an already-open Chrome/m);
+        expect(readme).toMatch(/do not need to remember|--remote-debugging-port for the agent/);
         expect(readme).toMatch(/runtime\.attach/);
-        expect(readme).toMatch(/cdpUrl/);
+        expect(readme).toMatch(/cdpUrl|port/);
         expect(readme).toMatch(/does not quit/i);
         expect(readme).toMatch(/runtime\.targets/);
         expect(readme).toMatch(/tabs\.bind/);
         expect(readme).toMatch(/targetId/);
         expect(readme).toMatch(/unbind/i);
-        const attachHeading = readme.indexOf('## Attach to an already-open Chrome');
+        expect(readme).toMatch(/stays up/);
+        const ensureHeading = readme.indexOf('## Open a debuggable Chrome');
         const envFootnote = readme.indexOf('Optional attach to an already-running browser');
-        expect(attachHeading).toBeGreaterThan(-1);
+        expect(ensureHeading).toBeGreaterThan(-1);
         expect(envFootnote).toBe(-1);
     });
 
