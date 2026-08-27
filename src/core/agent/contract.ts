@@ -8,6 +8,7 @@ import type { JsonSchema } from './types';
 export const AGENT_CONTRACT_VERSION = 1 as const;
 
 export const FROZEN_AFFORDANCE_IDS = [
+    'runtime.ensure',
     'runtime.attach',
     'runtime.targets',
     'tabs.list',

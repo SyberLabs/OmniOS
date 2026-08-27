@@ -15,10 +15,11 @@ npm run dev
 - Contract (discover): [http://localhost:3000/api/agent](http://localhost:3000/api/agent)
 
 Needs local **Chrome / Chromium / Edge** on the machine running OmniOS
-(or `OMNI_CHROME_PATH`). Attach to an already-open Chrome with
-`runtime.attach`. **Playwright** is a **test adapter** only
-(`OMNI_TAB_RUNTIME=playwright` in CI / Vitest). It is not the product
-path. Playwright can be removed later without the HTTP API changing.
+(or `OMNI_CHROME_PATH`). Call `runtime.ensure` — it reuses an already-debuggable
+Chrome or launches one. You do not need to remember `--remote-debugging-port`.
+**Playwright** is a **test adapter** only (`OMNI_TAB_RUNTIME=playwright` in
+CI / Vitest). It is not the product path. Playwright can be removed later
+without the HTTP API changing.
 
 Local fixtures (no internet): `/agent-fixture.html` and `/agent-fixture-b.html`.
 
@@ -41,7 +42,8 @@ and does not delete that profile.
 |--------|------|------------|
 | `GET` | `/api/agent` | Discover named actions (id, description, input schema, what they mutate) |
 | `POST` | `/api/agent` | Invoke `{ "affordance": "<id>", "input": { ... } }` |
-| `POST` | `/api/agent` | `runtime.attach` — `{ "cdpUrl" }` or `{ "port" }` points at an open Chrome |
+| `POST` | `/api/agent` | `runtime.ensure` — empty input; reuse or launch a debug Chrome and attach |
+| `POST` | `/api/agent` | `runtime.attach` — `{ "cdpUrl" }` or `{ "port" }` points at a specific open Chrome |
 | `POST` | `/api/agent` | `runtime.targets` — list already-open pages as `{id, title, url}` |
 | `GET` | `/api/agent/tabs` | `tabs.list` — OmniOS tabs (not the user's other Chrome pages) |
 | `POST` | `/api/agent/tabs` | `tabs.create` — `{ "url" }` loads a **new** page (attached Chrome or new profile) |
@@ -85,31 +87,22 @@ curl -X POST http://localhost:3000/api/agent \
   -d '{"affordance":"tabs.create","input":{"url":"http://localhost:3000/surface"}}'
 ```
 
-Without `runtime.attach`, `tabs.create` still launches a disposable local profile.
+Without `runtime.ensure` / `runtime.attach`, `tabs.create` still launches a
+disposable local profile.
 
-## Attach to an already-open Chrome
+## Open a debuggable Chrome
 
-Attach is a first-class affordance (`GET /api/agent` lists `runtime.attach`).
-It is not hidden behind an environment variable.
-
-1. Start Chrome with remote debugging (existing profile, your windows stay up):
-
-```bash
-# macOS
-"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --remote-debugging-port=9222
-# Linux
-google-chrome --remote-debugging-port=9222
-# Windows
-chrome.exe --remote-debugging-port=9222
-```
-
-2. Attach, list already-open pages, bind one, then act:
+The product path is `runtime.ensure` (`GET /api/agent` lists it). An agent
+does not remember a CLI flag. Empty input: reuse an already-debuggable
+Chrome if one is up, otherwise launch Chrome/Chromium/Edge with remote
+debugging (dedicated `.omni/chrome-debug` profile) and attach.
 
 ```bash
+# no --remote-debugging-port for the agent
 curl -X POST http://localhost:3000/api/agent \
   -H 'content-type: application/json' \
-  -d '{"affordance":"runtime.attach","input":{"cdpUrl":"http://127.0.0.1:9222"}}'
-# equivalent: {"affordance":"runtime.attach","input":{"port":9222}}
+  -d '{"affordance":"runtime.ensure","input":{}}'
+# → { "attached": true, "launched": true|false, "tabRuntime": "cdp", ... }
 
 curl -X POST http://localhost:3000/api/agent \
   -H 'content-type: application/json' \
@@ -128,23 +121,35 @@ curl -X POST http://localhost:3000/api/agent/tabs/TAB_ID/act \
 curl -o shot.png http://localhost:3000/api/agent/tabs/TAB_ID/screenshot
 
 curl -X DELETE http://localhost:3000/api/agent/tabs/TAB_ID
-# bound page stays open in Chrome; OmniOS tab is gone
+# bound page stays open; OmniOS tab is gone. Chrome stays up.
 ```
+
+Optional companion if you want a Chrome window first (then `runtime.ensure`
+attaches to it):
+
+```bash
+npm run chrome:debug
+```
+
+`runtime.attach` remains for a specific `{ "cdpUrl" }` or `{ "port" }`.
+The common path does not need it.
 
 `runtime.targets` is the already-open pages in that Chrome — not OmniOS
 `tabs.list`. `tabs.bind` makes one of those pages an OmniOS tab (snapshot,
 refs, screenshot, act-by-ref). `tabs.dispose` on a **bound** tab **unbinds**
 and does **not** close the user page.
 
-`tabs.create` after attach still opens a **new OmniOS page/target** in that
-Chrome (isolated context). `tabs.dispose` of that created page closes that
-target only. It does **not** quit the user Chrome process. Never `Browser.close`.
+`tabs.create` after ensure/attach still opens a **new OmniOS page/target** in
+that Chrome (isolated context). `tabs.dispose` of that created page closes that
+target only. It does **not** quit Chrome — not the user's process, and not a
+Chrome that `runtime.ensure` launched. Dispose of the last tab leaves that
+process up. Never `Browser.close`.
 
-Launching a new disposable profile remains available: skip `runtime.attach`
+Launching a new disposable profile remains available: skip ensure/attach
 and call `tabs.create` as usual.
 
-`OMNI_CDP_URL` is an optional process default with the same effect. Prefer
-`runtime.attach` so an agent can point at Chrome without restarting OmniOS.
+`OMNI_CDP_URL` is an optional process default. Prefer `runtime.ensure` so an
+agent can get a debug Chrome without a flag or an OmniOS restart.
 
 This surface does not call Ollama, Anthropic, Gemini, or NewsAPI.
 

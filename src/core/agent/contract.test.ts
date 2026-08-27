@@ -13,6 +13,7 @@ import { GET as tabGet, DELETE as tabDelete } from '@/app/api/agent/tabs/[id]/ro
 import { POST as tabAct } from '@/app/api/agent/tabs/[id]/act/route';
 import { GET as screenshotGet } from '@/app/api/agent/tabs/[id]/screenshot/route';
 import { invokeAffordance } from './invoke';
+import { __stopEnsuredChrome } from './runtime/ensure';
 import {
     AGENT_CONTRACT_VERSION,
     AGENT_DISCOVERY_SCHEMA,
@@ -109,6 +110,7 @@ describe('frozen agent contract (runtime-agnostic)', () => {
 
         const ids = (body.affordances as Array<{ id: string }>).map((a) => a.id);
         expect(ids).toEqual([...FROZEN_AFFORDANCE_IDS]);
+        expect(ids).toContain('runtime.ensure');
         expect(ids).toContain('runtime.attach');
         expect(ids).toContain('runtime.targets');
         expect(ids).toContain('tabs.bind');
@@ -119,6 +121,22 @@ describe('frozen agent contract (runtime-agnostic)', () => {
         expect(body.cdpUrl).toBeUndefined();
         expect(body.debugPort).toBeUndefined();
         expectNoRuntimeLeak(body, ['cdpUrl']);
+
+        const ensure = (body.affordances as Array<{
+            id: string;
+            keyRequired: boolean;
+            path: string;
+            method: string;
+            inputSchema: {
+                required?: string[];
+                properties?: Record<string, unknown>;
+            };
+        }>).find((a) => a.id === 'runtime.ensure');
+        expect(ensure).toBeTruthy();
+        expect(ensure!.keyRequired).toBe(false);
+        expect(ensure!.method).toBe('POST');
+        expect(ensure!.path).toBe('/api/agent');
+        expect(ensure!.inputSchema.required ?? []).toEqual([]);
 
         const attach = (body.affordances as Array<{
             id: string;
@@ -212,6 +230,54 @@ describe('frozen agent contract (runtime-agnostic)', () => {
         expectNoRuntimeLeak(unbound.body);
         expect(unbound.body.tab).toBeUndefined();
         expect(AGENT_TARGET_SCHEMA.required).toEqual(['id', 'title', 'url']);
+    });
+
+    it('runtime.ensure succeeds or fails clean, not 500, and never leaks debug fields', async () => {
+        process.env.OMNI_CHROME_HEADLESS = '1';
+        const ensured = await json(
+            await discoverPost(
+                new Request('http://local/api/agent', {
+                    method: 'POST',
+                    headers: { 'content-type': 'application/json' },
+                    body: JSON.stringify({ affordance: 'runtime.ensure', input: {} })
+                })
+            )
+        );
+        expect(ensured.status).not.toBe(500);
+        expect(ensured.body.keyRequired).toBe(false);
+        expectNoRuntimeLeak(ensured.body);
+        expect(ensured.body.debugPort).toBeUndefined();
+        expect(ensured.body.profileDir).toBeUndefined();
+        expect(ensured.body.userDataDir).toBeUndefined();
+        expect(ensured.body.BrowserContext).toBeUndefined();
+
+        try {
+            if (ensured.status === 200) {
+                expect(ensured.body.attached).toBe(true);
+                expect(ensured.body.tabRuntime).toBe('cdp');
+                expect(typeof ensured.body.launched).toBe('boolean');
+                const targets = await json(
+                    await discoverPost(
+                        new Request('http://local/api/agent', {
+                            method: 'POST',
+                            headers: { 'content-type': 'application/json' },
+                            body: JSON.stringify({ affordance: 'runtime.targets', input: {} })
+                        })
+                    )
+                );
+                expect(targets.status).toBe(200);
+                expect(targets.status).not.toBe(500);
+                expect(Array.isArray(targets.body.targets)).toBe(true);
+                expectNoRuntimeLeak(targets.body);
+            } else {
+                expect(ensured.status).toBeGreaterThanOrEqual(400);
+                expect(typeof ensured.body.error).toBe('string');
+                expect(String(ensured.body.error).length).toBeGreaterThan(0);
+                expect(ensured.body.attached).toBeUndefined();
+            }
+        } finally {
+            await __stopEnsuredChrome();
+        }
     });
 
     it('runtime.attach rejects invalid CDP with a clean error, not 500', async () => {

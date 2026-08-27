@@ -22,7 +22,7 @@ export type AttachedPageRecord = AttachedPage & {
 function attachHttp(affordance: string): string {
     const base = (getProcessAttachHttp() || process.env.OMNI_CDP_URL || '').replace(/\/$/, '');
     if (!base) {
-        throw new AgentTabError(400, `${affordance} requires runtime.attach first`);
+        throw new AgentTabError(400, `${affordance} requires runtime.ensure or runtime.attach first`);
     }
     return base;
 }

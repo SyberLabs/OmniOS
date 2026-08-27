@@ -25,7 +25,7 @@ export type TabRuntime = {
     restore(id: string): Promise<LiveSession>;
     destroy(id: string): Promise<void>;
     dropLive(id: string): Promise<void>;
-    /** Adopt an already-open Chrome page. CDP after runtime.attach only. */
+    /** Adopt an already-open Chrome page. CDP after runtime.ensure or runtime.attach. */
     bind?(id: string, targetId: string): Promise<LiveSession>;
 };
 

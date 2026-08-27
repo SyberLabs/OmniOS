@@ -6,6 +6,7 @@ export {
     clearProcessAttachHttp,
     getProcessAttachHttp
 } from './attach';
+export { ensureRuntime, __stopEnsuredChrome } from './ensure';
 export { listAttachedPages, findTabIdByTarget } from './targets';
 export {
     getTabRuntime,
