@@ -24,6 +24,7 @@ type LiveTab = {
     context: BrowserContext;
     page: Page;
     createdAt: number;
+    updatedAt: number;
 };
 
 type TabMeta = {
@@ -271,26 +272,33 @@ async function closeLive(id: string): Promise<void> {
     await entry.context.close().catch(() => undefined);
 }
 
-async function attach(id: string, createdAt: number): Promise<LiveTab> {
+async function attach(id: string, createdAt: number, updatedAt = createdAt): Promise<LiveTab> {
     const browser = await getBrowser();
     const stored = storagePath(id);
     const context = await browser.newContext({
         storageState: fs.existsSync(stored) ? stored : undefined
     });
     const page = await context.newPage();
-    const entry = { context, page, createdAt };
+    const entry = { context, page, createdAt, updatedAt };
     live.set(id, entry);
     return entry;
 }
 
 async function ensureLive(id: string): Promise<LiveTab> {
-    const existing = live.get(id);
-    if (existing) return existing;
-
     const meta = readMeta(id);
-    if (!meta) throw new AgentTabError(404, `Tab not found: ${id}`);
+    if (!meta) {
+        await closeLive(id);
+        throw new AgentTabError(404, `Tab not found: ${id}`);
+    }
 
-    const entry = await attach(id, meta.createdAt);
+    const existing = live.get(id);
+    const diskUpdated = meta.snapshot?.updatedAt ?? 0;
+    // Next may keep a stale live page in another route worker. If disk is
+    // newer (another request persisted), drop and restore from storageState.
+    if (existing && existing.updatedAt >= diskUpdated) return existing;
+    if (existing) await closeLive(id);
+
+    const entry = await attach(id, meta.createdAt, diskUpdated);
     if (meta.url) {
         await entry.page.goto(meta.url, { waitUntil: 'domcontentloaded', timeout: 20_000 });
     }
@@ -302,6 +310,7 @@ async function capture(id: string, entry: LiveTab): Promise<AgentTab> {
     const png = await entry.page.screenshot({ type: 'png' });
     fs.mkdirSync(tabDir(id), { recursive: true });
     fs.writeFileSync(screenshotPath(id), png);
+    entry.updatedAt = tab.updatedAt;
     await writePersist(id, entry.context, tab);
     return tab;
 }
@@ -391,6 +400,12 @@ export async function disposeTab(id: string): Promise<string> {
 export async function __dropLiveContexts(): Promise<void> {
     const ids = [...live.keys()];
     await Promise.all(ids.map((id) => closeLive(id)));
+}
+
+/** Test hook: mark the live page older than disk so the next call restores. */
+export function __staleLive(id: string): void {
+    const entry = live.get(id);
+    if (entry) entry.updatedAt = 0;
 }
 
 /** Test hook: drop live contexts and wipe persisted tabs. */

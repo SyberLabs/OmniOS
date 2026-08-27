@@ -13,7 +13,7 @@ import { GET as tabsGet, POST as tabsPost } from '@/app/api/agent/tabs/route';
 import { GET as tabGet, DELETE as tabDelete } from '@/app/api/agent/tabs/[id]/route';
 import { POST as tabAct } from '@/app/api/agent/tabs/[id]/act/route';
 import { GET as screenshotGet } from '@/app/api/agent/tabs/[id]/screenshot/route';
-import { __dropLiveContexts, __resetAgentTabs } from './browserTabs';
+import { __dropLiveContexts, __resetAgentTabs, __staleLive } from './browserTabs';
 
 async function json(res: Response) {
     return { status: res.status, body: await res.json() };
@@ -560,6 +560,14 @@ describe('agent surface — live keyless browser tabs', () => {
         const second = await fetchPng(tabId);
         expectPng(second);
         expect(second.bytes.equals(first.bytes)).toBe(false);
+
+        // Simulate another Next worker holding a stale live page.
+        __staleLive(tabId);
+        const restored = await readTabHttp(tabId);
+        expect(restored.body.tab.text).toContain('session: alive / persisted');
+        const third = await fetchPng(tabId);
+        expectPng(third);
+        expect(third.bytes.equals(first.bytes)).toBe(false);
 
         const gone = await fetchPng('tab_missing');
         expect(gone.status).toBe(404);
