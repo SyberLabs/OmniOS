@@ -10,6 +10,7 @@ export {
     readTabScreenshot,
     currentTabRuntimeKind,
     __dropLiveContexts,
+    __simulateProcessRestart,
     __resetAgentTabs
 } from './browserTabs';
 export { findChrome, resolveTabRuntimeKind } from './runtime';

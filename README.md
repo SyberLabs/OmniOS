@@ -57,7 +57,9 @@ OmniOS. Each tab id is a disposable local profile at
 `.omni/profiles/<tabId>/` (gitignored), launched with CDP
 (`--remote-debugging-port`). Or attach to an already-running browser via
 `OMNI_CDP_URL` (e.g. `http://127.0.0.1:9222`). Two tabs are two profiles;
-they do not share cookies or `localStorage`.
+they do not share cookies or `localStorage`. The profile survives an OmniOS
+process restart: the same tab id rehydrates from disk (not from server memory).
+`tabs.dispose` deletes that profile.
 
 **Test / CI adapter only:** `OMNI_TAB_RUNTIME=playwright` uses Playwright's
 `chromium.launch`. That is not the product path. CI sets this explicitly so
@@ -120,7 +122,11 @@ curl -o shot.png http://localhost:3000/api/agent/tabs/TAB_ID/screenshot
 # or POST { "affordance":"tab.screenshot", "input":{ "tabId":"TAB_ID" } }
 # → { "screenshot": { "url":"/api/agent/tabs/TAB_ID/screenshot?t=…", "contentType":"image/png" } }
 
-# 6. Dispose — later read/act return 404
+# 6. After OmniOS/Next restarts, the same tab id still reads from the profile
+curl http://localhost:3000/api/agent/tabs/TAB_ID
+# → session: alive / persisted  (did not dispose)
+
+# 7. Dispose — later read/act return 404; profile dir is gone
 curl -X DELETE http://localhost:3000/api/agent/tabs/TAB_ID
 ```
 

@@ -12,7 +12,7 @@ import { POST as tabsPost } from '@/app/api/agent/tabs/route';
 import { GET as tabGet, DELETE as tabDelete } from '@/app/api/agent/tabs/[id]/route';
 import { POST as tabAct } from '@/app/api/agent/tabs/[id]/act/route';
 import { GET as screenshotGet } from '@/app/api/agent/tabs/[id]/screenshot/route';
-import { __resetAgentTabs } from '../browserTabs';
+import { __resetAgentTabs, __simulateProcessRestart } from '../browserTabs';
 import { findChrome } from './chrome';
 import { createCdpRuntime } from './cdpRuntime';
 import { setTabRuntimeForTests } from './resolve';
@@ -174,6 +174,98 @@ describe.skipIf(!runLiveCdp)('local Chrome/CDP product runtime', () => {
             { params: Promise.resolve({ id: tabB }) }
         );
         expect(goneB.status).toBe(404);
+    }, 90_000);
+
+    it('rehydrates cookies from the local Chrome profile after process restart', async () => {
+        const openedA = await json(
+            await tabsPost(
+                new Request('http://local/api/agent/tabs', {
+                    method: 'POST',
+                    headers: { 'content-type': 'application/json' },
+                    body: JSON.stringify({ url: `${fixtureOrigin}/agent-fixture.html` })
+                })
+            )
+        );
+        const openedB = await json(
+            await tabsPost(
+                new Request('http://local/api/agent/tabs', {
+                    method: 'POST',
+                    headers: { 'content-type': 'application/json' },
+                    body: JSON.stringify({ url: `${fixtureOrigin}/agent-fixture.html` })
+                })
+            )
+        );
+        const tabA = openedA.body.tab.id as string;
+        const tabB = openedB.body.tab.id as string;
+        const persistRef = (
+            openedA.body.tab.actions as Array<{ name: string; ref: string }>
+        ).find((a) => a.name === 'Persist session')!.ref;
+        await json(
+            await tabAct(
+                new Request(`http://local/api/agent/tabs/${tabA}/act`, {
+                    method: 'POST',
+                    headers: { 'content-type': 'application/json' },
+                    body: JSON.stringify({
+                        affordance: 'tab.click',
+                        input: { ref: persistRef }
+                    })
+                }),
+                { params: Promise.resolve({ id: tabA }) }
+            )
+        );
+
+        await __simulateProcessRestart();
+
+        const readA = await json(
+            await tabGet(new Request(`http://local/api/agent/tabs/${tabA}`), {
+                params: Promise.resolve({ id: tabA })
+            })
+        );
+        expect(readA.status).toBe(200);
+        expect(readA.body.tab.text).toContain('session: alive / persisted');
+
+        const readB = await json(
+            await tabGet(new Request(`http://local/api/agent/tabs/${tabB}`), {
+                params: Promise.resolve({ id: tabB })
+            })
+        );
+        expect(readB.body.tab.text).toContain('session: empty / empty');
+
+        await json(
+            await tabDelete(new Request(`http://local/api/agent/tabs/${tabA}`), {
+                params: Promise.resolve({ id: tabA })
+            })
+        );
+        expect(
+            (
+                await json(
+                    await tabGet(new Request(`http://local/api/agent/tabs/${tabA}`), {
+                        params: Promise.resolve({ id: tabA })
+                    })
+                )
+            ).status
+        ).toBe(404);
+
+        const openedC = await json(
+            await tabsPost(
+                new Request('http://local/api/agent/tabs', {
+                    method: 'POST',
+                    headers: { 'content-type': 'application/json' },
+                    body: JSON.stringify({ url: `${fixtureOrigin}/agent-fixture.html` })
+                })
+            )
+        );
+        expect(openedC.body.tab.text).toContain('session: empty / empty');
+        await json(
+            await tabDelete(new Request(`http://local/api/agent/tabs/${tabB}`), {
+                params: Promise.resolve({ id: tabB })
+            })
+        );
+        await json(
+            await tabDelete(new Request(`http://local/api/agent/tabs/${openedC.body.tab.id}`), {
+                params: Promise.resolve({ id: openedC.body.tab.id })
+            })
+        );
     }, 90_000);
 });
 

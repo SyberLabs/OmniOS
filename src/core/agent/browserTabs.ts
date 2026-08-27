@@ -262,6 +262,11 @@ export async function __dropLiveContexts(): Promise<void> {
     );
 }
 
+/** Simulate OmniOS/Next process restart: drop memory, keep disk profiles. */
+export async function __simulateProcessRestart(): Promise<void> {
+    await __dropLiveContexts();
+}
+
 /** Test hook: mark the live page older than disk so the next call restores. */
 export function __staleLive(id: string): void {
     const entry = live.get(id);

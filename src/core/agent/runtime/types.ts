@@ -32,4 +32,5 @@ export type RuntimeState = {
     debugPort?: number;
     pid?: number;
     profileDir?: string;
+    lastUrl?: string;
 };

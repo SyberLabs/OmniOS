@@ -13,7 +13,7 @@ import { GET as tabsGet, POST as tabsPost } from '@/app/api/agent/tabs/route';
 import { GET as tabGet, DELETE as tabDelete } from '@/app/api/agent/tabs/[id]/route';
 import { POST as tabAct } from '@/app/api/agent/tabs/[id]/act/route';
 import { GET as screenshotGet } from '@/app/api/agent/tabs/[id]/screenshot/route';
-import { __dropLiveContexts, __resetAgentTabs, __staleLive } from './browserTabs';
+import { __dropLiveContexts, __resetAgentTabs, __simulateProcessRestart, __staleLive } from './browserTabs';
 
 async function json(res: Response) {
     return { status: res.status, body: await res.json() };
@@ -524,6 +524,59 @@ describe('agent surface — live keyless browser tabs', () => {
         expect(disposedB.status).toBe(200);
         expect((await readTabHttp(tabA)).status).toBe(404);
         expect((await readTabHttp(tabB)).status).toBe(404);
+    }, 90_000);
+
+    it('rehydrates the same tab id after a process restart without dispose', async () => {
+        const openedA = await createTab(`${fixtureOrigin}/agent-fixture.html`);
+        const openedB = await createTab(`${fixtureOrigin}/agent-fixture.html`);
+        const tabA = openedA.body.tab.id as string;
+        const tabB = openedB.body.tab.id as string;
+        const persistRef = (openedA.body.tab.actions as Array<{ name: string; ref: string }>)
+            .find((a) => a.name === 'Persist session')!.ref;
+        const nameRef = (openedA.body.tab.actions as Array<{ name: string; ref: string; role: string }>)
+            .find((a) => a.role === 'textbox' && a.name === 'Name')!.ref;
+        const saveRef = (openedA.body.tab.actions as Array<{ name: string; ref: string }>)
+            .find((a) => a.name === 'Save name')!.ref;
+
+        await actTab(tabA, 'tab.click', { ref: persistRef });
+        await actTab(tabA, 'tab.type', { ref: nameRef, text: 'Ada' });
+        const savedA = await actTab(tabA, 'tab.click', { ref: saveRef });
+        expect(savedA.body.tab.text).toContain('session: alive / persisted');
+        expect(savedA.body.tab.text).toContain('name: Ada');
+
+        await __simulateProcessRestart();
+
+        const listed = await json(await tabsGet());
+        expect(listed.body.tabs.map((t: { id: string }) => t.id)).toEqual(
+            expect.arrayContaining([tabA, tabB])
+        );
+
+        const readA = await readTabHttp(tabA);
+        expect(readA.status).toBe(200);
+        expect(readA.body.tab.id).toBe(tabA);
+        expect(readA.body.tab.text).toContain('session: alive / persisted');
+        expect(readA.body.tab.text).toContain('name: Ada');
+        expectPng(await fetchPng(tabA));
+
+        const readB = await readTabHttp(tabB);
+        expect(readB.status).toBe(200);
+        expect(readB.body.tab.text).toContain('session: empty / empty');
+        expect(readB.body.tab.text).not.toContain('name: Ada');
+
+        const disposedA = await disposeTabHttp(tabA);
+        expect(disposedA.status).toBe(200);
+        expect((await readTabHttp(tabA)).status).toBe(404);
+
+        const openedC = await createTab(`${fixtureOrigin}/agent-fixture.html`);
+        expect(openedC.body.tab.id).not.toBe(tabA);
+        expect(openedC.body.tab.text).toContain('session: empty / empty');
+        expect(openedC.body.tab.text).not.toContain('name: Ada');
+
+        const stillB = await readTabHttp(tabB);
+        expect(stillB.status).toBe(200);
+        expect(stillB.body.tab.text).toContain('session: empty / empty');
+        await disposeTabHttp(tabB);
+        await disposeTabHttp(openedC.body.tab.id);
     }, 90_000);
 
     it('returns a real PNG of the live tab and a new shot after act', async () => {

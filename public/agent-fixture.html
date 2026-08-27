@@ -30,7 +30,7 @@
             document.getElementById('reveal-next').hidden = localStorage.getItem('omni_reveal') !== '1';
         }
         document.getElementById('set-session').addEventListener('click', () => {
-            document.cookie = 'omni_fixture=alive; path=/';
+            document.cookie = 'omni_fixture=alive; path=/; max-age=86400';
             localStorage.setItem('omni_marker', 'persisted');
             localStorage.setItem('omni_reveal', '1');
             show();

@@ -5,6 +5,7 @@
 
 import { spawn, type ChildProcess } from 'node:child_process';
 import fs from 'node:fs';
+import path from 'node:path';
 import { createServer } from 'node:net';
 import { AgentTabError } from '../errors';
 import { CdpClient } from './cdpClient';
@@ -106,6 +107,7 @@ async function launchChrome(id: string, existingPort?: number): Promise<Launched
     }
     const profile = profileDir(id);
     ensureDir(profile);
+    clearChromeLocks(profile);
     const port = existingPort && existingPort > 0 ? existingPort : await freePort();
     const args = [
         `--user-data-dir=${profile}`,
@@ -244,12 +246,24 @@ class CdpSession implements LiveSession {
             kind: 'cdp',
             debugPort: this.port,
             pid: launched.get(this.id)?.proc?.pid,
-            profileDir: profileDir(this.id)
+            profileDir: profileDir(this.id),
+            lastUrl: await this.url()
         });
     }
 
     async close(): Promise<void> {
         this.cdp.close();
+    }
+}
+
+function clearChromeLocks(profile: string): void {
+    for (const name of ['SingletonLock', 'SingletonSocket', 'SingletonCookie', 'DevToolsActivePort']) {
+        const file = path.join(profile, name);
+        try {
+            if (fs.existsSync(file)) fs.rmSync(file, { force: true });
+        } catch {
+            // stale lock from a killed Chrome
+        }
     }
 }
 
@@ -277,11 +291,31 @@ async function killLaunched(id: string): Promise<void> {
         entry.proc!.once('exit', () => resolve());
     });
     try {
-        entry.proc.kill('SIGKILL');
+        const version = (await waitForJson(
+            `http://127.0.0.1:${entry.port}/json/version`,
+            800
+        )) as { webSocketDebuggerUrl?: string };
+        if (version.webSocketDebuggerUrl) {
+            const browser = await CdpClient.connect(version.webSocketDebuggerUrl);
+            await browser.send('Browser.close').catch(() => undefined);
+            browser.close();
+        }
     } catch {
-        // already gone
+        try {
+            entry.proc.kill('SIGTERM');
+        } catch {
+            // already gone
+        }
     }
-    await Promise.race([exited, sleep(1000)]);
+    await Promise.race([exited, sleep(2500)]);
+    if (entry.proc.exitCode == null) {
+        try {
+            entry.proc.kill('SIGKILL');
+        } catch {
+            // already gone
+        }
+        await Promise.race([exited, sleep(500)]);
+    }
 }
 
 async function openLaunched(id: string): Promise<LiveSession> {
