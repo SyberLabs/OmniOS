@@ -46,49 +46,38 @@ restart. `tabs.dispose` deletes that profile.
 | `POST` | `/api/agent/tabs/{id}/act` | `tab.navigate` / `tab.click` / `tab.type` (prefer `ref`) |
 | `DELETE` | `/api/agent/tabs/{id}` | `tabs.dispose` — context gone |
 
+Closed loop on the product page (not a fixture):
+
 ```bash
 # 1. Discover (no key)
 curl http://localhost:3000/api/agent
+# → keyRequired: false, affordances[], contract.version
 
-# 2. Open a URL — the create body IS the snapshot (title / text / actions[])
+# 2. Open /surface — create body IS the snapshot (title / text / actions[] / screenshot)
 curl -X POST http://localhost:3000/api/agent/tabs \
   -H 'content-type: application/json' \
-  -d '{"url":"http://localhost:3000/agent-fixture.html"}'
-# → { "tab": { "title":"Agent Fixture A", "actions":[
-#      {"ref":"e2","role":"button","name":"Persist session","actions":["click"]}
-#    ]}, "keyRequired": false }
+  -d '{"url":"http://localhost:3000/surface"}'
+# note TAB_ID and the ref whose name is "Mark ready"
 
 # 3. Act by ref — the act body is a FRESH snapshot (no extra GET)
 curl -X POST http://localhost:3000/api/agent/tabs/TAB_ID/act \
   -H 'content-type: application/json' \
-  -d '{"affordance":"tab.click","input":{"ref":"e2"}}'
-# → tab.text includes "session: alive / persisted"
+  -d '{"affordance":"tab.click","input":{"ref":"eN"}}'
+# → tab.text includes "loop: ready"
 
-curl -X POST http://localhost:3000/api/agent/tabs/TAB_ID/act \
-  -H 'content-type: application/json' \
-  -d '{"affordance":"tab.type","input":{"ref":"e3","text":"Ada"}}'
-
-# 4. Navigate — also returns a fresh snapshot
-curl -X POST http://localhost:3000/api/agent/tabs/TAB_ID/act \
-  -H 'content-type: application/json' \
-  -d '{"affordance":"tab.navigate","input":{"url":"http://localhost:3000/agent-fixture-b.html"}}'
-
-# 5. Screenshot — durable PNG of the live tab (no key)
+# 4. Screenshot
 curl -o shot.png http://localhost:3000/api/agent/tabs/TAB_ID/screenshot
 
-# 6. After OmniOS/Next restarts, the same tab id still reads from the profile
-curl http://localhost:3000/api/agent/tabs/TAB_ID
-
-# 7. Dispose — later read/act return 404; profile dir is gone
+# 5. Dispose — later read is 404
 curl -X DELETE http://localhost:3000/api/agent/tabs/TAB_ID
 ```
 
-Two tabs on the same origin stay isolated. Same loop via one invoke endpoint:
+Isolation / persist fixtures (`/agent-fixture.html`) still exist for cookie tests. Same loop via one invoke endpoint:
 
 ```bash
 curl -X POST http://localhost:3000/api/agent \
   -H 'content-type: application/json' \
-  -d '{"affordance":"tabs.create","input":{"url":"http://localhost:3000/agent-fixture.html"}}'
+  -d '{"affordance":"tabs.create","input":{"url":"http://localhost:3000/surface"}}'
 ```
 
 Optional attach to an already-running browser:

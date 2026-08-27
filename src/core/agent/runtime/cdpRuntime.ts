@@ -191,12 +191,22 @@ class CdpSession implements LiveSession {
     }
 
     async clickSelector(selector: string): Promise<void> {
-        const found = await this.evaluate<boolean>(
+        const loaded = this.cdp.once('Page.loadEventFired', 8_000).catch(() => undefined);
+        const result = await this.evaluate<'missing' | 'nav' | 'stay'>(
             `(() => { const el = document.querySelector(${JSON.stringify(selector)});` +
-                ` if (!el) return false; el.click(); return true; })()`
+                ` if (!el) return 'missing';` +
+                ` const goes = el.tagName === 'A' || (el.tagName === 'BUTTON' && (el.getAttribute('type') || 'submit') === 'submit');` +
+                ` el.click(); return goes ? 'nav' : 'stay'; })()`
         );
-        if (!found) throw new AgentTabError(400, `No element for selector: ${selector}`);
-        await sleep(50);
+        if (result === 'missing') {
+            throw new AgentTabError(400, `No element for selector: ${selector}`);
+        }
+        if (result === 'nav') {
+            await loaded;
+            await sleep(250);
+            return;
+        }
+        await sleep(80);
     }
 
     async fillSelector(selector: string, text: string): Promise<void> {

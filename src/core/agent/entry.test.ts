@@ -32,12 +32,16 @@ describe('product entry is the agent surface', () => {
 
     it('/surface copy names the product and links discover', () => {
         const page = read('src/app/surface/page.tsx');
-        expect(page).toMatch(/this is the product/i);
-        expect(page).toMatch(/no API key/i);
-        expect(page).toMatch(/href=["']\/api\/agent["']/);
-        expect(page).toMatch(/refs?/);
-        expect(page).toMatch(/screenshot/i);
+        const client = read('src/app/surface/SurfaceClient.tsx');
+        expect(client).toMatch(/this is the product/i);
+        expect(client).toMatch(/no API key/i);
+        expect(client).toMatch(/href=["']\/api\/agent["']/);
+        expect(client).toMatch(/refs?/);
+        expect(client).toMatch(/screenshot/i);
+        expect(page).toContain('LOOP_BUTTON_ID');
+        expect(page).toContain('loop');
         expect(page).not.toMatch(/redirect\(['"]\/['"]\)/);
+        expect(client).not.toMatch(/redirect\(['"]\/['"]\)/);
     });
 
     it('does not rewrite Citadel home', () => {
