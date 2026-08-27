@@ -44,6 +44,19 @@ describe('product entry is the agent surface', () => {
         expect(client).not.toMatch(/redirect\(['"]\/['"]\)/);
     });
 
+    it('README documents attach-to-open Chrome as a first-class how-to', () => {
+        const readme = read('README.md');
+        expect(readme).toMatch(/^## Attach to an already-open Chrome/m);
+        expect(readme).toMatch(/remote-debugging-port/);
+        expect(readme).toMatch(/runtime\.attach/);
+        expect(readme).toMatch(/cdpUrl/);
+        expect(readme).toMatch(/does not quit/i);
+        const attachHeading = readme.indexOf('## Attach to an already-open Chrome');
+        const envFootnote = readme.indexOf('Optional attach to an already-running browser');
+        expect(attachHeading).toBeGreaterThan(-1);
+        expect(envFootnote).toBe(-1);
+    });
+
     it('does not rewrite Citadel home', () => {
         const home = read('src/app/page.tsx');
         expect(home).toContain('CitadelApp');

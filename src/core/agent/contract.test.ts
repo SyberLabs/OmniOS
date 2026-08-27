@@ -41,9 +41,10 @@ function collectKeys(value: unknown, into: Set<string> = new Set()): Set<string>
     return into;
 }
 
-function expectNoRuntimeLeak(value: unknown) {
+function expectNoRuntimeLeak(value: unknown, allowed: readonly string[] = []) {
     const keys = collectKeys(value);
     for (const forbidden of FORBIDDEN_CALLER_KEYS) {
+        if (allowed.includes(forbidden)) continue;
         expect(keys.has(forbidden), `caller-visible leak: ${forbidden}`).toBe(false);
     }
 }
@@ -107,10 +108,85 @@ describe('frozen agent contract (runtime-agnostic)', () => {
 
         const ids = (body.affordances as Array<{ id: string }>).map((a) => a.id);
         expect(ids).toEqual([...FROZEN_AFFORDANCE_IDS]);
+        expect(ids).toContain('runtime.attach');
         for (const affordance of body.affordances as Array<{ keyRequired: boolean }>) {
             expect(affordance.keyRequired).toBe(false);
         }
-        expectNoRuntimeLeak(body);
+        // cdpUrl is the advertised attach input, not a snapshot leak.
+        expect(body.cdpUrl).toBeUndefined();
+        expect(body.debugPort).toBeUndefined();
+        expectNoRuntimeLeak(body, ['cdpUrl']);
+
+        const attach = (body.affordances as Array<{
+            id: string;
+            keyRequired: boolean;
+            path: string;
+            method: string;
+            inputSchema: {
+                properties?: Record<string, { type?: string }>;
+            };
+        }>).find((a) => a.id === 'runtime.attach');
+        expect(attach).toBeTruthy();
+        expect(attach!.keyRequired).toBe(false);
+        expect(attach!.method).toBe('POST');
+        expect(attach!.path).toBe('/api/agent');
+        expect(attach!.inputSchema.properties?.cdpUrl?.type).toBe('string');
+        expect(attach!.inputSchema.properties?.port).toBeTruthy();
+    });
+
+    it('runtime.attach rejects invalid CDP with a clean error, not 500', async () => {
+        const missing = await json(
+            await discoverPost(
+                new Request('http://local/api/agent', {
+                    method: 'POST',
+                    headers: { 'content-type': 'application/json' },
+                    body: JSON.stringify({ affordance: 'runtime.attach', input: {} })
+                })
+            )
+        );
+        expect(missing.status).toBe(400);
+        expect(missing.status).not.toBe(500);
+        expect(missing.body.keyRequired).toBe(false);
+        expect(String(missing.body.error)).toMatch(/cdpUrl|port/i);
+        expectNoRuntimeLeak(missing.body);
+
+        const malformed = await json(
+            await discoverPost(
+                new Request('http://local/api/agent', {
+                    method: 'POST',
+                    headers: { 'content-type': 'application/json' },
+                    body: JSON.stringify({
+                        affordance: 'runtime.attach',
+                        input: { cdpUrl: 'not-a-url' }
+                    })
+                })
+            )
+        );
+        expect(malformed.status).toBe(400);
+        expect(malformed.status).not.toBe(500);
+        expect(malformed.body.keyRequired).toBe(false);
+        expect(String(malformed.body.error)).toMatch(/cdpUrl|invalid/i);
+        expectNoRuntimeLeak(malformed.body);
+
+        const unreachable = await json(
+            await discoverPost(
+                new Request('http://local/api/agent', {
+                    method: 'POST',
+                    headers: { 'content-type': 'application/json' },
+                    body: JSON.stringify({
+                        affordance: 'runtime.attach',
+                        input: { cdpUrl: 'http://127.0.0.1:1' }
+                    })
+                })
+            )
+        );
+        expect(unreachable.status).toBeGreaterThanOrEqual(400);
+        expect(unreachable.status).not.toBe(500);
+        expect(unreachable.body.keyRequired).toBe(false);
+        expect(typeof unreachable.body.error).toBe('string');
+        expect(String(unreachable.body.error).length).toBeGreaterThan(0);
+        expectNoRuntimeLeak(unreachable.body);
+        expect(unreachable.body.tab).toBeUndefined();
     });
 
     it('create/read/list/act/screenshot/dispose stay on the snapshot shape', async () => {

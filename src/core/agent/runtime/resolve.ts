@@ -3,6 +3,7 @@
 // Playwright is an explicit test/CI adapter.
 // ============================================
 
+import { getProcessAttachHttp } from './attach';
 import { createCdpRuntime } from './cdpRuntime';
 import { findChrome } from './chrome';
 import { createPlaywrightRuntime } from './playwrightRuntime';
@@ -20,6 +21,7 @@ export function resolveTabRuntimeKind(opts: ResolveOpts = {}): TabRuntimeKind {
     const explicit = env.OMNI_TAB_RUNTIME;
     if (explicit === 'playwright') return 'playwright';
     if (explicit === 'cdp') return 'cdp';
+    if (getProcessAttachHttp()) return 'cdp';
 
     const inTest =
         opts.inTest ?? (env.VITEST === 'true' || env.NODE_ENV === 'test');
@@ -42,6 +44,12 @@ export function setTabRuntimeForTests(runtime: TabRuntime | null): void {
 
 export function getTabRuntime(): TabRuntime {
     if (override) return override;
+    if (getProcessAttachHttp()) {
+        if (!cached || cached.kind !== 'cdp') {
+            cached = createCdpRuntime();
+        }
+        return cached;
+    }
     if (cached) return cached;
     const kind = resolveTabRuntimeKind();
     cached = kind === 'playwright' ? createPlaywrightRuntime() : createCdpRuntime();

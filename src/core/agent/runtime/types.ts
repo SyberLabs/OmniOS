@@ -33,4 +33,8 @@ export type RuntimeState = {
     pid?: number;
     profileDir?: string;
     lastUrl?: string;
+    attached?: boolean;
+    attachHttp?: string;
+    targetId?: string;
+    browserContextId?: string;
 };

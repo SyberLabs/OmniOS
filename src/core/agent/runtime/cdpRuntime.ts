@@ -1,6 +1,7 @@
 // ============================================
 // Product runtime: local Chrome/Chromium/Edge via CDP.
-// Launch a disposable user-data-dir per tab, or attach to OMNI_CDP_URL.
+// Launch a disposable user-data-dir per tab, or attach via runtime.attach
+// (process attach or optional OMNI_CDP_URL).
 // ============================================
 
 import { spawn, type ChildProcess } from 'node:child_process';
@@ -8,6 +9,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createServer } from 'node:net';
 import { AgentTabError } from '../errors';
+import { getProcessAttachHttp } from './attach';
 import { CdpClient } from './cdpClient';
 import { findChrome } from './chrome';
 import { ensureDir, profileDir, runtimeStatePath, tabDir } from './paths';
@@ -22,6 +24,10 @@ type Launched = {
     proc?: ChildProcess;
     port: number;
     profile: string;
+    attached?: boolean;
+    attachHttp?: string;
+    targetId?: string;
+    browserContextId?: string;
 };
 
 const launched = new Map<string, Launched>();
@@ -101,7 +107,8 @@ async function launchChrome(id: string, existingPort?: number): Promise<Launched
     if (!chrome) {
         throw new AgentTabError(
             503,
-            'No local Chrome/Chromium/Edge found. Install Chrome or set OMNI_CHROME_PATH / OMNI_CDP_URL. ' +
+            'No local Chrome/Chromium/Edge found. Install Chrome, set OMNI_CHROME_PATH, ' +
+                'or runtime.attach to an already-open Chrome. ' +
                 'Playwright is not the product runtime (OMNI_TAB_RUNTIME=playwright is test/CI only).'
         );
     }
@@ -252,12 +259,18 @@ class CdpSession implements LiveSession {
     }
 
     async persist(): Promise<void> {
+        const prev = readRuntimeState(this.id);
+        const entry = launched.get(this.id);
         writeRuntimeState(this.id, {
             kind: 'cdp',
-            debugPort: this.port,
-            pid: launched.get(this.id)?.proc?.pid,
+            debugPort: this.port || prev?.debugPort,
+            pid: entry?.proc?.pid ?? prev?.pid,
             profileDir: profileDir(this.id),
-            lastUrl: await this.url()
+            lastUrl: await this.url(),
+            attached: entry?.attached ?? prev?.attached,
+            attachHttp: entry?.attachHttp ?? prev?.attachHttp,
+            targetId: entry?.targetId ?? prev?.targetId,
+            browserContextId: entry?.browserContextId ?? prev?.browserContextId
         });
     }
 
@@ -305,10 +318,45 @@ async function closeDebugPort(port?: number): Promise<void> {
     }
 }
 
+async function closeAttachedTarget(state: RuntimeState | null, entry?: Launched): Promise<void> {
+    const httpBase = (entry?.attachHttp || state?.attachHttp || '').replace(/\/$/, '');
+    const targetId = entry?.targetId || state?.targetId;
+    const browserContextId = entry?.browserContextId || state?.browserContextId;
+    if (!httpBase) return;
+    try {
+        const version = (await waitForJson(`${httpBase}/json/version`, 800)) as {
+            webSocketDebuggerUrl?: string;
+        };
+        if (!version.webSocketDebuggerUrl) return;
+        const browser = await CdpClient.connect(version.webSocketDebuggerUrl);
+        if (targetId) {
+            await browser.send('Target.closeTarget', { targetId }).catch(() => undefined);
+        }
+        if (browserContextId) {
+            await browser
+                .send('Target.disposeBrowserContext', { browserContextId })
+                .catch(() => undefined);
+        }
+        browser.close();
+    } catch {
+        // user Chrome already gone — no-op
+    }
+}
+
+function isAttachedTab(id: string): boolean {
+    const entry = launched.get(id);
+    if (entry?.attached) return true;
+    return Boolean(readRuntimeState(id)?.attached);
+}
+
 async function killLaunched(id: string): Promise<void> {
     const entry = launched.get(id);
     launched.delete(id);
     const state = readRuntimeState(id);
+    if (entry?.attached || state?.attached) {
+        await closeAttachedTarget(state, entry);
+        return;
+    }
     const port = entry?.port ?? state?.debugPort;
     const proc = entry?.proc;
     const exited = proc
@@ -346,11 +394,14 @@ async function killLaunched(id: string): Promise<void> {
 }
 
 async function openLaunched(id: string): Promise<LiveSession> {
-    const attachUrl = process.env.OMNI_CDP_URL;
+    const attachUrl = getProcessAttachHttp() || process.env.OMNI_CDP_URL;
+    const state = readRuntimeState(id);
+    if (state?.attached && state.attachHttp) {
+        return openAttached(id, state.attachHttp, state);
+    }
     if (attachUrl) {
         return openAttached(id, attachUrl);
     }
-    const state = readRuntimeState(id);
     if (state?.debugPort && (await attachExisting(state.debugPort))) {
         const cdp = await connectPage(state.debugPort);
         launched.set(id, {
@@ -365,33 +416,67 @@ async function openLaunched(id: string): Promise<LiveSession> {
     return new CdpSession(id, cdp, launchedTab.port);
 }
 
-async function openAttached(id: string, cdpHttp: string): Promise<LiveSession> {
+async function openAttached(
+    id: string,
+    cdpHttp: string,
+    existing?: RuntimeState | null
+): Promise<LiveSession> {
     const base = cdpHttp.replace(/\/$/, '');
     const version = (await waitForJson(`${base}/json/version`)) as {
         webSocketDebuggerUrl?: string;
     };
     if (!version.webSocketDebuggerUrl) {
-        throw new AgentTabError(502, 'OMNI_CDP_URL has no webSocketDebuggerUrl');
+        throw new AgentTabError(502, 'Attached Chrome has no webSocketDebuggerUrl');
     }
+
+    const list = (await waitForJson(`${base}/json/list`)) as Array<{
+        id?: string;
+        type?: string;
+        webSocketDebuggerUrl?: string;
+    }>;
+    const reused = existing?.targetId
+        ? list.find((item) => item.id === existing.targetId && item.webSocketDebuggerUrl)
+        : undefined;
+    if (reused?.webSocketDebuggerUrl) {
+        const cdp = await CdpClient.connect(reused.webSocketDebuggerUrl);
+        await cdp.send('Page.enable');
+        await cdp.send('Runtime.enable');
+        launched.set(id, {
+            port: 0,
+            profile: profileDir(id),
+            attached: true,
+            attachHttp: base,
+            targetId: existing?.targetId,
+            browserContextId: existing?.browserContextId
+        });
+        writeRuntimeState(id, {
+            kind: 'cdp',
+            attached: true,
+            attachHttp: base,
+            targetId: existing?.targetId,
+            browserContextId: existing?.browserContextId,
+            profileDir: profileDir(id)
+        });
+        return new CdpSession(id, cdp, 0);
+    }
+
     const browser = await CdpClient.connect(version.webSocketDebuggerUrl);
     const created = await browser.send<{ browserContextId: string }>('Target.createBrowserContext');
     const target = await browser.send<{ targetId: string }>('Target.createTarget', {
         url: 'about:blank',
         browserContextId: created.browserContextId
     });
-    const attached = await browser.send<{ sessionId: string }>('Target.attachToTarget', {
+    await browser.send('Target.attachToTarget', {
         targetId: target.targetId,
         flatten: true
     });
-    // Flattened sessions still speak on the same socket with sessionId;
-    // fall back to the page WS from /json/list for a simpler session.
     browser.close();
-    const list = (await waitForJson(`${base}/json/list`)) as Array<{
+    const createdList = (await waitForJson(`${base}/json/list`)) as Array<{
         id?: string;
         type?: string;
         webSocketDebuggerUrl?: string;
     }>;
-    const page = list.find((item) => item.id === target.targetId && item.webSocketDebuggerUrl);
+    const page = createdList.find((item) => item.id === target.targetId && item.webSocketDebuggerUrl);
     const wsUrl = page?.webSocketDebuggerUrl;
     if (!wsUrl) {
         throw new AgentTabError(502, 'Attached Chrome has no page websocket');
@@ -399,8 +484,22 @@ async function openAttached(id: string, cdpHttp: string): Promise<LiveSession> {
     const cdp = await CdpClient.connect(wsUrl);
     await cdp.send('Page.enable');
     await cdp.send('Runtime.enable');
-    writeRuntimeState(id, { kind: 'cdp', profileDir: profileDir(id) });
-    void attached;
+    launched.set(id, {
+        port: 0,
+        profile: profileDir(id),
+        attached: true,
+        attachHttp: base,
+        targetId: target.targetId,
+        browserContextId: created.browserContextId
+    });
+    writeRuntimeState(id, {
+        kind: 'cdp',
+        attached: true,
+        attachHttp: base,
+        targetId: target.targetId,
+        browserContextId: created.browserContextId,
+        profileDir: profileDir(id)
+    });
     return new CdpSession(id, cdp, 0);
 }
 
@@ -414,6 +513,10 @@ export function createCdpRuntime(): TabRuntime {
             return openLaunched(id);
         },
         async dropLive(id: string) {
+            if (isAttachedTab(id)) {
+                launched.delete(id);
+                return;
+            }
             const entry = launched.get(id);
             if (entry?.proc) {
                 await killLaunched(id);

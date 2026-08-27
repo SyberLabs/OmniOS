@@ -14,6 +14,7 @@ import {
     readTab,
     typeTab
 } from './browserTabs';
+import { attachRuntime } from './runtime/attach';
 import type { HandlerResult, InvokeInput } from './types';
 
 function asObject(value: unknown): InvokeInput {
@@ -103,6 +104,19 @@ export async function invokeAffordance(
 
     try {
         switch (affordanceId) {
+            case 'runtime.attach': {
+                await attachRuntime(input);
+                return {
+                    status: 200,
+                    body: {
+                        attached: true,
+                        tabRuntime: 'cdp',
+                        disposeCloses: 'omni-target',
+                        keyRequired: false
+                    }
+                };
+            }
+
             case 'tabs.list':
                 return { status: 200, body: { tabs: await listTabs(), keyRequired: false } };
 
