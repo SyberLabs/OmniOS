@@ -309,16 +309,22 @@ async function killLaunched(id: string): Promise<void> {
               }
               proc.once('exit', () => resolve());
           })
-        : sleep(400);
+        : null;
     await closeDebugPort(port);
+    // Give Chrome time to flush cookies to the profile before SIGTERM.
+    if (exited) {
+        await Promise.race([exited, sleep(2500)]);
+    } else {
+        await sleep(600);
+    }
     if (proc && proc.exitCode == null) {
         try {
             proc.kill('SIGTERM');
         } catch {
             // already gone
         }
+        await Promise.race([exited, sleep(800)]);
     }
-    await Promise.race([exited, sleep(2500)]);
     if (proc && proc.exitCode == null) {
         try {
             proc.kill('SIGKILL');
