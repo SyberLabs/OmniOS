@@ -20,8 +20,7 @@ import { MindPanel } from '@/components/mind';
 import { MindDock } from '@/components/mind/MindDock';
 import { SettingsPanel } from '@/components/settings/SettingsPanel';
 import { ContextCaptureModal } from '@/components/mind/ContextCaptureModal';
-import { EquilibriumDashboard } from '@/components/EquilibriumDashboard';
-import { useBlockStore, useUIStore, useToolStore, useCognitiveStore } from '@/core/stores';
+import { useBlockStore, useUIStore, useToolStore } from '@/core/stores';
 import { useApiStore } from '@/core/stores/apiStore';
 import { blockRegistry } from '@/core/registry/BlockRegistry';
 import { useMindShellSync, useShellNavigation } from '@/core/hooks';
@@ -31,14 +30,12 @@ export default function CitadelApp() {
     const { draggingBlockId, setDraggingBlock } = useUIStore();
     const { activeTool, selection, captureSelection, clearSelection } = useToolStore();
     const { initializeDefaults } = useApiStore();
-    const { initializeSystems } = useCognitiveStore();
 
     const [isMindOpen, setIsMindOpen] = useState(false);
     const [isSkinOpen, setIsSkinOpen] = useState(false);
     const [isApiOpen, setIsApiOpen] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [isShellsOpen, setIsShellsOpen] = useState(false);
-    const [isEquilibriumOpen, setIsEquilibriumOpen] = useState(false);
 
     // Initialize Mind-Shell synchronization
     const { mindStatus } = useMindShellSync();
@@ -49,8 +46,7 @@ export default function CitadelApp() {
     // Initialize default APIs and Systems
     useEffect(() => {
         initializeDefaults();
-        initializeSystems();
-    }, [initializeDefaults, initializeSystems]);
+    }, [initializeDefaults]);
 
     const sensors = useSensors(
         useSensor(PointerSensor, {
@@ -142,7 +138,6 @@ export default function CitadelApp() {
                     onOpenApi={() => setIsApiOpen(true)}
                     onOpenSettings={() => setIsSettingsOpen(true)}
                     onOpenShells={() => setIsShellsOpen(true)}
-                    onOpenEquilibrium={() => setIsEquilibriumOpen(true)}
                 />
 
                 {/* Main Content */}
@@ -189,36 +184,6 @@ export default function CitadelApp() {
                 {/* Settings Panel */}
                 <SettingsPanel isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
 
-                {/* Equilibrium Dashboard Overlay */}
-                <AnimatePresence>
-                    {isEquilibriumOpen && (
-                        <>
-                            <motion.div 
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                exit={{ opacity: 0 }}
-                                onClick={() => setIsEquilibriumOpen(false)}
-                                className="fixed inset-0 bg-black/60 backdrop-blur-md z-[100]"
-                            />
-                            <motion.div 
-                                initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                                animate={{ opacity: 1, scale: 1, y: 0 }}
-                                exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                                className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[101] w-full max-w-2xl pointer-events-none"
-                            >
-                                <div className="pointer-events-auto shadow-2xl shadow-indigo-500/20">
-                                    <EquilibriumDashboard />
-                                    <button 
-                                        onClick={() => setIsEquilibriumOpen(false)}
-                                        className="absolute top-4 right-4 text-slate-500 hover:text-white"
-                                    >
-                                        ✕
-                                    </button>
-                                </div>
-                            </motion.div>
-                        </>
-                    )}
-                </AnimatePresence>
 
                 {/* Context Capture Modal (for Highlighter tool) */}
                 <ContextCaptureModal
