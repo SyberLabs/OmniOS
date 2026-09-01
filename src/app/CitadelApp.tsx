@@ -5,7 +5,6 @@
 // ============================================
 
 import { useState, useEffect, useCallback } from 'react';
-import { DndContext, DragEndEvent, useSensor, useSensors, PointerSensor } from '@dnd-kit/core';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Canvas } from '@/canvas/Canvas';
 import { Sidebar } from '@/components/Sidebar';
@@ -27,7 +26,7 @@ import { useMindShellSync, useShellNavigation } from '@/core/hooks';
 
 export default function CitadelApp() {
     const { addBlock, activeShellId } = useBlockStore();
-    const { draggingBlockId, setDraggingBlock } = useUIStore();
+    const { setDraggingBlock } = useUIStore();
     const { activeTool, selection, captureSelection, clearSelection } = useToolStore();
     const { initializeDefaults } = useApiStore();
 
@@ -48,14 +47,6 @@ export default function CitadelApp() {
         initializeDefaults();
     }, [initializeDefaults]);
 
-    const sensors = useSensors(
-        useSensor(PointerSensor, {
-            activationConstraint: {
-                distance: 8
-            }
-        })
-    );
-
     // Global selection handler for Highlighter tool
     const handleMouseUp = useCallback(() => {
         if (activeTool !== 'highlighter') return;
@@ -68,20 +59,6 @@ export default function CitadelApp() {
             // windowSelection?.removeAllRanges(); // Optional: clear selection
         }
     }, [activeTool, captureSelection]);
-    const handleDragEnd = useCallback((event: DragEndEvent) => {
-        const { over } = event;
-
-        if (draggingBlockId && over?.id === 'canvas-drop-zone') {
-            const schema = blockRegistry.get(draggingBlockId);
-            if (schema) {
-                // Add block at a reasonable position
-                addBlock(schema, { x: 350, y: 100 });
-            }
-        }
-
-        setDraggingBlock(null);
-    }, [draggingBlockId, addBlock, setDraggingBlock]);
-
     // Handle native drag events from sidebar
     useEffect(() => {
         const handleDrop = (e: DragEvent) => {
@@ -127,73 +104,71 @@ export default function CitadelApp() {
     }, [addBlock, setDraggingBlock]);
 
     return (
-        <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-            <div
-                className={`flex flex-col h-screen overflow-hidden bg-[var(--citadel-void)] ${activeTool === 'highlighter' ? 'cursor-text' : ''}`}
-                onMouseUp={handleMouseUp}
-            >
-                {/* Top Bar */}
-                <TopBar
-                    onOpenSkin={() => setIsSkinOpen(true)}
-                    onOpenApi={() => setIsApiOpen(true)}
-                    onOpenSettings={() => setIsSettingsOpen(true)}
-                    onOpenShells={() => setIsShellsOpen(true)}
-                />
+        <div
+            className={`flex flex-col h-screen overflow-hidden bg-[var(--citadel-void)] ${activeTool === 'highlighter' ? 'cursor-text' : ''}`}
+            onMouseUp={handleMouseUp}
+        >
+            {/* Top Bar */}
+            <TopBar
+                onOpenSkin={() => setIsSkinOpen(true)}
+                onOpenApi={() => setIsApiOpen(true)}
+                onOpenSettings={() => setIsSettingsOpen(true)}
+                onOpenShells={() => setIsShellsOpen(true)}
+            />
 
-                {/* Main Content */}
-                <div className="flex flex-1 overflow-hidden">
-                    {/* Sidebar / Armory */}
-                    <Sidebar />
+            {/* Main Content */}
+            <div className="flex flex-1 overflow-hidden">
+                {/* Sidebar / Armory */}
+                <Sidebar />
 
-                    {/* Canvas Workspace - follows the active shell (root by default,
-                        or a template-spawned shell after using the Shell Store) */}
-                    <main className="flex-1 overflow-hidden relative">
-                        <Canvas shellId={activeShellId} />
+                {/* Canvas Workspace - follows the active shell (root by default,
+                    or a template-spawned shell after using the Shell Store) */}
+                <main className="flex-1 overflow-hidden relative">
+                    <Canvas shellId={activeShellId} />
 
-                        {/* Mind Dock - Always Visible */}
-                        <MindDock onExpandPanel={() => setIsMindOpen(true)} />
+                    {/* Mind Dock - Always Visible */}
+                    <MindDock onExpandPanel={() => setIsMindOpen(true)} />
 
-                        {/* Garden FAB - Bottom Right */}
-                        <Link
-                            href="/garden"
-                            className="absolute bottom-6 right-6 z-30 group"
-                        >
-                            <div className="flex items-center gap-2 px-4 py-3 rounded-full bg-gradient-to-r from-emerald-600 to-teal-500 text-white shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 hover:scale-105 transition-all duration-200">
-                                <Sprout className="w-5 h-5" />
-                                <span className="text-sm font-medium">Garden</span>
-                            </div>
-                        </Link>
-                    </main>
-                </div>
-
-                {/* Command Palette */}
-                <CommandPalette />
-
-                {/* Shell Manager Panel */}
-                <ShellPanel isOpen={isShellsOpen} onClose={() => setIsShellsOpen(false)} />
-
-                {/* Mind Panel */}
-                <MindPanel isOpen={isMindOpen} onClose={() => setIsMindOpen(false)} />
-
-                {/* Skin Modal */}
-                <SkinModal isOpen={isSkinOpen} onClose={() => setIsSkinOpen(false)} />
-
-                {/* API Dashboard Modal */}
-                <ApiDashboardModal isOpen={isApiOpen} onClose={() => setIsApiOpen(false)} />
-
-                {/* Settings Panel */}
-                <SettingsPanel isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
-
-
-                {/* Context Capture Modal (for Highlighter tool) */}
-                <ContextCaptureModal
-                    isOpen={!!selection?.text}
-                    onClose={clearSelection}
-                    selectedText={selection?.text || ''}
-                />
+                    {/* Garden FAB - Bottom Right */}
+                    <Link
+                        href="/garden"
+                        className="absolute bottom-6 right-6 z-30 group"
+                    >
+                        <div className="flex items-center gap-2 px-4 py-3 rounded-full bg-gradient-to-r from-emerald-600 to-teal-500 text-white shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 hover:scale-105 transition-all duration-200">
+                            <Sprout className="w-5 h-5" />
+                            <span className="text-sm font-medium">Garden</span>
+                        </div>
+                    </Link>
+                </main>
             </div>
-        </DndContext>
-    );
+
+            {/* Command Palette */}
+            <CommandPalette />
+
+            {/* Shell Manager Panel */}
+            <ShellPanel isOpen={isShellsOpen} onClose={() => setIsShellsOpen(false)} />
+
+            {/* Mind Panel */}
+            <MindPanel isOpen={isMindOpen} onClose={() => setIsMindOpen(false)} />
+
+            {/* Skin Modal */}
+            <SkinModal isOpen={isSkinOpen} onClose={() => setIsSkinOpen(false)} />
+
+            {/* API Dashboard Modal */}
+            <ApiDashboardModal isOpen={isApiOpen} onClose={() => setIsApiOpen(false)} />
+
+            {/* Settings Panel */}
+            <SettingsPanel isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
+
+
+            {/* Context Capture Modal (for Highlighter tool) */}
+            <ContextCaptureModal
+                isOpen={!!selection?.text}
+                onClose={clearSelection}
+                selectedText={selection?.text || ''}
+            />
+        </div>
+);
 }
 
 

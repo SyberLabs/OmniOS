@@ -53,7 +53,6 @@ export function MindPanel({ isOpen, onClose }: MindPanelProps) {
             // Add block to canvas with random offset for visual stacking
             const offset = Math.random() * 50;
             addBlock(schema, { x: 350 + offset, y: 120 + offset });
-            console.log(`Added block: ${schema.display_name}`);
         } else {
             console.warn(`Block schema not found for: ${blockType}`);
         }
