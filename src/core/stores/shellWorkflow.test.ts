@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 // localStorage is polyfilled in vitest.setup.ts.
-import { useShellStore, useBlockStore } from './index';
+import { useShellStore } from './shellStore';
+import { useBlockStore } from './blockStore';
 import { useWireStore } from './wireStore';
 import { getShellTemplate, type ShellTemplate } from '../shells/templates';
 

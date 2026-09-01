@@ -1,0 +1,183 @@
+// ============================================
+// PROJECT OMNI: BLOCK STORE
+// The blocks on the canvas. Persisted to OmniVault so a canvas survives a
+// reload; wires live alongside in wireStore and the two move together.
+// ============================================
+
+import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import {
+    BlockInstance,
+    ConnectionStatus,
+    OmniBlockSchema
+} from '../schemas/block.schema';
+import { vaultStorage } from '../vault';
+import { useWireStore } from './wireStore';
+
+// ============================================
+// BLOCK STORE
+// ============================================
+
+interface BlockState {
+    /** Active block instances on the canvas */
+    blocks: BlockInstance[];
+
+    /** Currently active shell ID */
+    activeShellId: string;
+
+    /** Add a new block to the canvas */
+    addBlock: (schema: OmniBlockSchema, position: { x: number; y: number }, shellId?: string) => string;
+
+    /** Remove a block from the canvas */
+    removeBlock: (instanceId: string) => void;
+
+    /** Update block position */
+    updatePosition: (instanceId: string, position: { x: number; y: number }) => void;
+
+    /** Update block dimensions */
+    updateDimensions: (instanceId: string, dimensions: { width: number; height: number }) => void;
+
+    /** Update block data */
+    updateData: (instanceId: string, data: unknown) => void;
+
+    /** Update block status */
+    updateStatus: (instanceId: string, status: ConnectionStatus, error?: string) => void;
+
+    /** Clear all blocks and wires on the active shell */
+    clearCanvas: () => void;
+
+    /** Get a block by ID */
+    getBlock: (instanceId: string) => BlockInstance | undefined;
+
+    /** Get blocks for a specific shell */
+    getBlocksByShell: (shellId: string) => BlockInstance[];
+
+    /** Set the active shell */
+    setActiveShell: (shellId: string) => void;
+
+    /** Clear all blocks and wires in a specific shell */
+    clearShell: (shellId: string) => void;
+}
+
+export const useBlockStore = create<BlockState>()(
+    persist(
+        (set, get) => ({
+            blocks: [],
+            activeShellId: 'root',
+
+            addBlock: (schema, position, shellId) => {
+                const instanceId = `${schema.block_id}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+                // Persona blocks need more height for chat interface
+                const isPersonaBlock = schema.block_id.startsWith('persona_');
+                const defaultHeight = isPersonaBlock ? 400 : 240;
+
+                const newBlock: BlockInstance = {
+                    instance_id: instanceId,
+                    schema,
+                    status: 'disconnected',
+                    last_updated: null,
+                    data: null,
+                    position,
+                    dimensions: { width: 320, height: defaultHeight },
+                    shellId: shellId || get().activeShellId  // Use active shell when not specified
+                };
+
+                set(state => ({
+                    blocks: [...state.blocks, newBlock]
+                }));
+
+                return instanceId;
+            },
+
+            removeBlock: (instanceId) => {
+                set(state => ({
+                    blocks: state.blocks.filter(b => b.instance_id !== instanceId)
+                }));
+                // Single wire system: clean up any wires touching this block
+                // (previously orphaned wires lingered forever).
+                useWireStore.getState().removeWiresForBlock(instanceId);
+            },
+
+            updatePosition: (instanceId, position) => {
+                set(state => ({
+                    blocks: state.blocks.map(b =>
+                        b.instance_id === instanceId ? { ...b, position } : b
+                    )
+                }));
+            },
+
+            updateDimensions: (instanceId, dimensions) => {
+                set(state => ({
+                    blocks: state.blocks.map(b =>
+                        b.instance_id === instanceId ? { ...b, dimensions } : b
+                    )
+                }));
+            },
+
+            updateData: (instanceId, data) => {
+                const block = get().blocks.find(b => b.instance_id === instanceId);
+
+                set(state => ({
+                    blocks: state.blocks.map(b =>
+                        b.instance_id === instanceId
+                            ? { ...b, data, last_updated: Date.now() }
+                            : b
+                    )
+                }));
+
+            },
+
+            updateStatus: (instanceId, status, error) => {
+                set(state => ({
+                    blocks: state.blocks.map(b =>
+                        b.instance_id === instanceId ? { ...b, status, error } : b
+                    )
+                }));
+            },
+
+            clearCanvas: () => {
+                // Clear only the active shell
+                const activeShellId = get().activeShellId;
+                get().clearShell(activeShellId);
+            },
+
+            getBlock: (instanceId) => {
+                return get().blocks.find(b => b.instance_id === instanceId);
+            },
+
+            getBlocksByShell: (shellId) => {
+                return get().blocks.filter(b => b.shellId === shellId);
+            },
+
+            setActiveShell: (shellId) => {
+                set({ activeShellId: shellId });
+            },
+
+            clearShell: (shellId) => {
+                set(state => ({
+                    blocks: state.blocks.filter(b => b.shellId !== shellId)
+                }));
+                // Single wire system: a shell's wires die with its blocks.
+                useWireStore.getState().removeWiresByShell(shellId);
+            }
+        }),
+        {
+            name: 'omni-blocks',
+            version: 1,
+            // OmniVault (IndexedDB): core canvas state outgrew localStorage (A2).
+            storage: createJSONStorage(() => vaultStorage),
+            partialize: (state) => ({
+                blocks: state.blocks,
+                activeShellId: state.activeShellId
+            }),
+            // v0 → v1: drop the legacy dual-wire `connections` field. Wires
+            // live solely in wireStore (`omni-wires`) as of A1.
+            migrate: (persistedState: unknown) => {
+                const persisted = (persistedState || {}) as Record<string, unknown>;
+                delete persisted.connections;
+                return persisted;
+            }
+        }
+    )
+);
