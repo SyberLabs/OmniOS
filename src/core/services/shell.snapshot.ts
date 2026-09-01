@@ -191,14 +191,6 @@ function summarizeBlockData(block: BlockInstance): string {
             return 'No symbol configured';
         }
 
-        case 'gdelt': {
-            const events = (data as any).events;
-            if (!events || !events.length) return 'No events loaded';
-
-            const categories = [...new Set(events.slice(0, 10).map((e: any) => e.category))];
-            return `${events.length} global events | Categories: ${categories.slice(0, 3).join(', ')}${categories.length > 3 ? '...' : ''}`;
-        }
-
         case 'persona_analyst':
         case 'persona_strategist':
         case 'persona_oracle':

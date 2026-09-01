@@ -39,5 +39,3 @@ export {
     createTextInputPort
 } from './port.service';
 export type { WireValidation } from './port.service';
-
-export { evaluateMasterRule, RuleEngineService } from './ruleEngine.service';

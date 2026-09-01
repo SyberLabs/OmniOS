@@ -4,13 +4,6 @@
 
 import { OmniBlockSchema, BlockCategory } from '../schemas/block.schema';
 import { createJsonOutputPort, createAnyInputPort, createTextOutputPort } from '../services/port.service';
-import { HEALTH_BLOCKS } from '../blocks/health.blocks';
-import { CAREER_BLOCKS } from '../blocks/career.blocks';
-import { FINANCE_BLOCKS } from '../blocks/finance.blocks';
-import { MIND_BLOCKS } from '../blocks/mind.blocks';
-import { RELATIONSHIPS_BLOCKS } from '../blocks/relationships.blocks';
-import { ENVIRONMENT_BLOCKS } from '../blocks/environment.blocks';
-import { TIME_BLOCKS } from '../blocks/time.blocks';
 
 /**
  * Registry of all available block types
@@ -161,32 +154,6 @@ blockRegistry.register({
     isUserCreatable: true
 });
 
-// GDELT Block (placeholder for Phase 3)
-blockRegistry.register({
-    block_id: 'gdelt_events',
-    display_name: 'GDELT Events',
-    category: 'pulse',
-    data_type: 'news_feed',
-    refresh_rate: '15m',
-    semantic_tags: ['geopolitical', 'events', 'global', 'conflicts', 'sentiment'],
-    wiring_logic: 'map_to_analyst_agent',
-    icon: 'Globe',
-    description: 'Global event monitoring and analysis'
-});
-
-// FlightAware Block (placeholder for Phase 3)
-blockRegistry.register({
-    block_id: 'flightaware_tracker',
-    display_name: 'Flight Tracker',
-    category: 'physicality',
-    data_type: 'telemetry',
-    refresh_rate: '30s',
-    semantic_tags: ['aviation', 'tracking', 'logistics', 'movement'],
-    wiring_logic: 'map_to_logistics_agent',
-    icon: 'Plane',
-    description: 'Real-time flight tracking and aviation data'
-});
-
 // Metaculus Block
 blockRegistry.register({
     block_id: 'metaculus_forecast',
@@ -269,19 +236,6 @@ blockRegistry.register({
     icon: 'Globe',
     description: 'World Bank global development indicators',
     isUserCreatable: true
-});
-
-// MarineTraffic Block (placeholder for Phase 3)
-blockRegistry.register({
-    block_id: 'marinetraffic_ais',
-    display_name: 'Marine Traffic',
-    category: 'physicality',
-    data_type: 'telemetry',
-    refresh_rate: '1m',
-    semantic_tags: ['maritime', 'shipping', 'logistics', 'vessels'],
-    wiring_logic: 'map_to_logistics_agent',
-    icon: 'Ship',
-    description: 'AIS vessel tracking and maritime intelligence'
 });
 
 // ============================================
@@ -467,199 +421,6 @@ blockRegistry.register({
     description: '🛡️ Risk assessment and protective analysis',
     expandMode: 'portal',
     isUserCreatable: true
-});
-
-// ============================================
-// SYSTEM BLOCKS
-// ============================================
-
-// System Proxy Block (template - instances are created per system)
-blockRegistry.register({
-    block_id: 'system_proxy_health',
-    display_name: 'Health System',
-    category: 'system',
-    data_type: 'custom',
-    refresh_rate: '1m',
-    semantic_tags: ['system', 'health', 'life', 'stability', 'proxy'],
-    wiring_logic: 'map_to_core_calculator',
-    ports: [
-        createJsonOutputPort('stability', 'Stability Score'),
-        createJsonOutputPort('outputs', 'Exposed Outputs')
-    ],
-    icon: 'Heart',
-    description: '🏥 Health System proxy - stability and outputs',
-    expandMode: 'resize',
-    isUserCreatable: true,
-    systemId: 'health'
-});
-
-blockRegistry.register({
-    block_id: 'system_proxy_career',
-    display_name: 'Career System',
-    category: 'system',
-    data_type: 'custom',
-    refresh_rate: '1m',
-    semantic_tags: ['system', 'career', 'life', 'stability', 'proxy'],
-    wiring_logic: 'map_to_core_calculator',
-    ports: [
-        createJsonOutputPort('stability', 'Stability Score'),
-        createJsonOutputPort('outputs', 'Exposed Outputs')
-    ],
-    icon: 'Briefcase',
-    description: '💼 Career System proxy - stability and outputs',
-    expandMode: 'resize',
-    isUserCreatable: true,
-    systemId: 'career'
-});
-
-blockRegistry.register({
-    block_id: 'system_proxy_finance',
-    display_name: 'Finance System',
-    category: 'system',
-    data_type: 'custom',
-    refresh_rate: '1m',
-    semantic_tags: ['system', 'finance', 'life', 'stability', 'proxy'],
-    wiring_logic: 'map_to_core_calculator',
-    ports: [
-        createJsonOutputPort('stability', 'Stability Score'),
-        createJsonOutputPort('outputs', 'Exposed Outputs')
-    ],
-    icon: 'Wallet',
-    description: '💰 Finance System proxy - stability and outputs',
-    expandMode: 'resize',
-    isUserCreatable: true,
-    systemId: 'finance'
-});
-
-blockRegistry.register({
-    block_id: 'system_proxy_mind',
-    display_name: 'Mind System',
-    category: 'system',
-    data_type: 'custom',
-    refresh_rate: '1m',
-    semantic_tags: ['system', 'mind', 'life', 'stability', 'proxy'],
-    wiring_logic: 'map_to_core_calculator',
-    ports: [
-        createJsonOutputPort('stability', 'Stability Score'),
-        createJsonOutputPort('outputs', 'Exposed Outputs')
-    ],
-    icon: 'Brain',
-    description: '🧠 Mind System proxy - stability and outputs',
-    expandMode: 'resize',
-    isUserCreatable: true,
-    systemId: 'mind'
-});
-
-blockRegistry.register({
-    block_id: 'system_proxy_relationships',
-    display_name: 'Relationships System',
-    category: 'system',
-    data_type: 'custom',
-    refresh_rate: '1m',
-    semantic_tags: ['system', 'relationships', 'life', 'stability', 'proxy'],
-    wiring_logic: 'map_to_core_calculator',
-    ports: [
-        createJsonOutputPort('stability', 'Stability Score'),
-        createJsonOutputPort('outputs', 'Exposed Outputs')
-    ],
-    icon: 'Users',
-    description: '💞 Relationships System proxy - stability and outputs',
-    expandMode: 'resize',
-    isUserCreatable: true,
-    systemId: 'relationships'
-});
-
-blockRegistry.register({
-    block_id: 'system_proxy_environment',
-    display_name: 'Environment System',
-    category: 'system',
-    data_type: 'custom',
-    refresh_rate: '1m',
-    semantic_tags: ['system', 'environment', 'life', 'stability', 'proxy'],
-    wiring_logic: 'map_to_core_calculator',
-    ports: [
-        createJsonOutputPort('stability', 'Stability Score'),
-        createJsonOutputPort('outputs', 'Exposed Outputs')
-    ],
-    icon: 'Home',
-    description: '🏠 Environment System proxy - stability and outputs',
-    expandMode: 'resize',
-    isUserCreatable: true,
-    systemId: 'environment'
-});
-
-blockRegistry.register({
-    block_id: 'system_proxy_time',
-    display_name: 'Time System',
-    category: 'system',
-    data_type: 'custom',
-    refresh_rate: '1m',
-    semantic_tags: ['system', 'time', 'life', 'stability', 'proxy'],
-    wiring_logic: 'map_to_core_calculator',
-    ports: [
-        createJsonOutputPort('stability', 'Stability Score'),
-        createJsonOutputPort('outputs', 'Exposed Outputs')
-    ],
-    icon: 'Clock',
-    description: '⏳ Time System proxy - stability and outputs',
-    expandMode: 'resize',
-    isUserCreatable: true,
-    systemId: 'time'
-});
-
-// Core Calculator Block
-blockRegistry.register({
-    block_id: 'core_calculator',
-    display_name: 'Core Calculator',
-    category: 'system',
-    data_type: 'custom',
-    refresh_rate: '30s',
-    semantic_tags: ['system', 'calculator', 'aggregate', 'overall', 'stability'],
-    wiring_logic: 'aggregate_systems',
-    ports: [
-        createAnyInputPort('systems', 'System Inputs'),
-        createJsonOutputPort('overall', 'Overall Stability'),
-        createJsonOutputPort('recommendations', 'Recommendations')
-    ],
-    icon: 'Calculator',
-    description: '📊 Aggregates all System outputs into overall metrics',
-    expandMode: 'resize',
-    isUserCreatable: true
-});
-
-// Garden Portal Block
-blockRegistry.register({
-    block_id: 'garden_portal',
-    display_name: 'Garden Portal',
-    category: 'system',
-    data_type: 'embed',
-    refresh_rate: 'manual',
-    semantic_tags: ['system', 'garden', 'portal', 'navigation', 'map'],
-    wiring_logic: 'none',
-    ports: [],
-    icon: 'Hexagon',
-    description: '🌌 Mini-map portal to the System Garden',
-    expandMode: 'fullscreen',
-    isUserCreatable: true
-});
-
-// ============================================
-// LIFE SYSTEM DOMAIN BLOCKS
-// ============================================
-
-// Register all domain-specific blocks for each Life System
-const ALL_SYSTEM_BLOCKS = [
-    ...HEALTH_BLOCKS,
-    ...CAREER_BLOCKS,
-    ...FINANCE_BLOCKS,
-    ...MIND_BLOCKS,
-    ...RELATIONSHIPS_BLOCKS,
-    ...ENVIRONMENT_BLOCKS,
-    ...TIME_BLOCKS
-];
-
-ALL_SYSTEM_BLOCKS.forEach(block => {
-    blockRegistry.register(block);
 });
 
 export default blockRegistry;

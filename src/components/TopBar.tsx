@@ -23,7 +23,6 @@ import {
 import { usePathname, useRouter } from 'next/navigation';
 import { useShellStore, useSettingsStore, useUIStore, useToolStore } from '@/core/stores';
 import { useApiStore } from '@/core/stores/apiStore';
-import { useEquilibriumStore } from '@/core/stores/equilibrium.store';
 import { cn } from '@/lib/utils';
 
 export function TopBar({
@@ -31,7 +30,6 @@ export function TopBar({
     onOpenApi,
     onOpenSettings,
     onOpenShells,
-    onOpenEquilibrium,
     children,
     customRight
 }: {
@@ -39,7 +37,6 @@ export function TopBar({
     onOpenApi?: () => void;
     onOpenSettings?: () => void;
     onOpenShells?: () => void;
-    onOpenEquilibrium?: () => void;
     children?: React.ReactNode;
     customRight?: React.ReactNode;
 }) {
@@ -93,13 +90,10 @@ export function TopBar({
                     const path = `/${parts.slice(0, index + 1).join('/')}`;
                     const label = part.charAt(0).toUpperCase() + part.slice(1);
 
-                    // Paths that are just structural containers and don't have pages
-                    const isNonClickable = path === '/garden/system';
-
                     return (
                         <div key={path} className="flex items-center gap-1">
                             <ChevronRight className="w-3 h-3 text-[var(--text-muted)]" />
-                            {isLast || isNonClickable ? (
+                            {isLast ? (
                                 <span className={cn(
                                     "text-sm",
                                     isLast ? "font-semibold text-[var(--text-primary)]" : "text-[var(--text-muted)]"
@@ -215,11 +209,6 @@ export function TopBar({
 
                 {/* Status Bar Group (Only on Home or when relevant) */}
                 <div className="flex items-center gap-1 px-2 py-1 bg-[var(--citadel-elevated)] rounded-lg border border-[var(--citadel-border)]">
-                    {/* Equilibrium / Entropy Pulse */}
-                    <EntropyIndicator onClick={onOpenEquilibrium} />
-
-                    <div className="w-px h-4 bg-[var(--citadel-border)]" />
-
                     {/* Data Mode (Live/Mock) */}
                     <button
                         onClick={toggleMockData}
@@ -278,32 +267,5 @@ export function TopBar({
         </header>
     );
 }
-
-function EntropyIndicator({ onClick }: { onClick?: () => void }) {
-    const { entropy } = useEquilibriumStore();
-    
-    const getLevelColor = (e: number) => {
-        if (e < 20) return 'text-emerald-400';
-        if (e < 50) return 'text-indigo-400';
-        if (e < 80) return 'text-orange-400';
-        return 'text-red-500';
-    };
-
-    return (
-        <button
-            onClick={onClick}
-            className={cn(
-                "flex items-center gap-2 px-2 py-1.5 rounded text-xs transition-all hover:bg-slate-800/50",
-                getLevelColor(entropy)
-            )}
-            title="System Equilibrium Dashboard"
-        >
-            <Activity className="w-3.5 h-3.5" />
-            <span className="font-mono font-bold">{entropy}%</span>
-        </button>
-    );
-}
-
-import { Activity } from 'lucide-react';
 
 export default TopBar;
