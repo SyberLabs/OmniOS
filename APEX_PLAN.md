@@ -20,10 +20,14 @@ secrets server-side (`/api/llm` proxy, validated + fail-closed) · eval injectio
 (safeExpression) · Shell Store spawns the Investor shell · **the Think loop is LIVE** —
 Gemini 2.5 reasoned over real wired Polymarket probabilities/volumes in-app (2026-06-20).
 
-**Known debt (tracked):** 37 `any` + 11 `react-hooks` warnings · ~30 gateway providers
-still fetch client-side with localStorage keys · dormant `llmNormalizer` second LLM path ·
-three-and-a-half cognitive engines · remote `main` is an unrelated old snapshot ·
-localStorage-only persistence.
+**Known debt (tracked, updated 2026-09-01):** gateway providers still fetch
+client-side with localStorage keys (now 11 real ones, not ~30) · remote `main` is an
+unrelated old snapshot (cutover pending) · `any` and `react-hooks` warnings remain
+(180 → 108 after the cut).
+
+**Settled by the 2026-09-01 deletion:** the dormant `llmNormalizer` second LLM path ·
+the three-and-a-half cognitive engines (three of the Kernel's six callers went with the
+Garden) · localStorage-only persistence (A2 shipped OmniVault).
 
 **Newly discovered (2026-06-20, evidence-verified):** the codebase has **two parallel
 wire systems** — and they don't talk:
@@ -45,24 +49,20 @@ plan's sequencing: architecture faults surface as UX betrayals.
 
 ## 2 · Definition of Fruition
 
-Fruition is not a feature list — it is five scenarios passing, live, without excuses:
+Fruition is not a feature list — it is four scenarios passing, live, without excuses:
 
 1. **Morning Briefing (Citadel).** Open the app → pick/resume the Investor shell → every
    wire visibly carries data (pulses, freshness) → hit Think on the Analyst → a streamed,
    source-attributed insight grounded in *today's* numbers → one click crystallizes it →
    the crystal wires into the Strategist → "what should I do this week?" produces a plan
    that cites both the crystal and live data.
-2. **Weekly Reflection (Garden).** Open a life system → this week's attribute history and
-   stability trend are visible (sparklines) → tune a factor via the structured editor or
-   answer a survey question → the breakdown shows *why* the score moved → the System Mind
-   comments on the trend with the model as context.
-3. **Trust (both).** For any persona, one gesture answers "what does this mind know right
+2. **Trust.** For any persona, one gesture answers "what does this mind know right
    now?" — exact sources, sizes, freshness. Every AI response carries provenance chips
    that link back to (and highlight) the contributing blocks.
-4. **Resilience.** No keys → app runs on public data + clear, actionable setup states.
+3. **Resilience.** No keys → app runs on public data + clear, actionable setup states.
    No network → cached data + local model still function. Browser storage cleared →
    data survives (IndexedDB durability + one-click export/import had your back).
-5. **Craft.** Canvas stays fluid while streaming (no re-render storms) · a11y baseline met
+4. **Craft.** Canvas stays fluid while streaming (no re-render storms) · a11y baseline met
    (keyboard + palette parity for canvas ops, focus management, reduced-motion) · the
    golden path runs headless in CI · zero lint errors maintained.
 
@@ -156,14 +156,20 @@ Sizing: **S** ≤ 1 session · **M** 1–3 sessions · **L** 3+. Every horizon e
 | B6 | **Arrival experience** | UX | S–M | First-run = Shell Store as the front door ("choose your first environment / start empty"). Keyed blocks show calm setup cards (which env var, copy-snippet, docs link) instead of quiet failure. Investor shell ships pre-wired *for real* (A1). |
 | B7 | **Researcher shell + gateway batch 1** | BOTH | M | arXiv block (lane-1 normalizer) → Researcher template. Server-proxy exactly the providers live shells use (fred/bls/alpha_vantage/newsapi already server-side or keyed; move remaining used-keyed ones); delete the dormant `llmNormalizer` + unused catalog LLM entries. |
 
-### Horizon C — GARDEN APEX *(unpark deliberately; switch active front at a clean commit)*
+### Horizon C — *(removed 2026-09-01)*
 
-| # | Item | Lens | Size | Detail |
-|---|------|------|------|--------|
-| C1 | **Longitudinal spine** | ARCH→UX | M | OmniVault history table `{systemId, ts, attributes, stabilityResult}`; write on change/daily; sparklines + trend deltas in SystemEditor and Garden overview. *Requires A2. Unlocks U6 — reflection gains time.* |
-| C2 | **Structured authoring UI** | UX | M | The mapped gap: add/remove effects via pickers (attribute · effect-type · direction · coefficient), rule condition-builder (`[attr] [op] [value] + and/or`) over safeExpression's grammar — no free-text code. Live breakdown preview as you author. |
-| C3 | **Survey-first reflection loop** | UX | S–M | Surface `SYSTEM_SURVEY` (already wired end-to-end!) as each system's onboarding; answers visibly reshape the model ("you said stress compounds → here's the curve"); re-take per question anytime. |
-| C4 | **System Minds on the Kernel** | ARCH | S | `systemMind`/`coreMind` become Kernel callers with the `systemModel` assembler (model + history + breakdown as context). Deletes the last duplicated engine code. |
+C1–C4 planned the Garden's apex: a longitudinal history spine, a structured
+effect/rule authoring UI, a survey-first reflection loop, and moving the System
+Minds onto the Kernel. **The Garden was deleted instead.** It was a second
+product wearing the same repo — 15k lines whose value was gated on history that
+was never built. Deleting it is the honest version of "unpark deliberately":
+we resolved the question by answering no. `DIVISION_CHARTER.md`, which made
+carrying two products a discipline problem rather than a scope problem, is
+retired with it.
+
+The one item worth keeping was C4's *direction*, and it came for free: deleting
+the Garden removed three of the Kernel's six callers, so the duplicated engine
+code C4 targeted is gone without writing the assembler.
 
 ### Horizon D — COHERENCE & SHIP *(the "OS" feeling)*
 
@@ -235,9 +241,9 @@ feature; A3 immediately after so every subsequent feature lands with an interact
 | A | A3 Golden-path CI | ✅ | 2026-06-20. Playwright e2e drives the built app (`next start` + `OMNI_E2E=1` server double in `/api/llm` — deterministic ping/stream/complete, no keys): spawn Investor → blocks render → **11+ live wires** → Think → mock LLM **streams** into the persona → reload → blocks+wires+conversation persist. This one spec would have caught all four of the cycle's shipped bugs. Plus 6 happy-dom component tests (PersonaBlock think/chat/error wiring, ShellPanel use-template through real stores — happy-dom sidesteps the old jsdom ESM blocker). CI: e2e step after build (chromium install + `npm run test:e2e`). Bonus find: the e2e caught a real mid-stream-interruption behavior (reload aborts fetch → draft replaced by error msg) — noted for B3 stop/regenerate. 79 unit/component tests + e2e green. |
 | A | A4 Cognition Kernel | ✅ | 2026-06-20. `src/core/cognition/kernel.ts`: the ONE turn lifecycle — `runTurn` / `runTurnStream` (availability gate → registry token floor → stream/complete → accumulate → fail-closed with the shared actionable message). **All six LLM callers are now thin**: persona.engine, mind.engine (think/thinkStream/summarizeContext), systemMind, coreMind (copy-paste twins — exactly the drift the kernel kills), relationModeler, skin.service. Engines keep only domain knowledge (context assembly, prompts, pools, instances); no engine touches `getLLMService`/`isAvailable` directly anymore. Registry token-floor now applies to EVERY caller (was persona-only). Resolves the parked "two Mind engines" question: **one engine, many context sources** — and provides the seam B5's cascade hooks into. +7 kernel tests (success/floor/fail-closed per provider/stream-accumulate/mid-stream-error/no-call-when-unavailable). **HORIZON A COMPLETE (5/5).** 103 tests + e2e-through-kernel + tsc + lint 0 + build green. |
 | A | A5 Registry + boundaries | ✅ | 2026-06-20. `src/core/models.registry.ts`: known-good models per provider, `DEFAULT_MODEL`, `DEPRECATED_MODELS` (both shipped-404 ids + retired gemini-1.5 line), `resolveModel` (empty→default, dead→replacement, unlisted→passthrough), `minOutputTokensFor` (thinking-model headroom). Wired 4 places: `LLM_DEFAULTS` (single source), mindStore migration (replaces ad-hoc DEAD_MODELS), **`/api/llm` server-side heal** (stale clients can't 404), persona-engine token floor. `BlockErrorBoundary` wraps every block view inside BlockCard — a crashing view shows an in-card fallback with Retry while chrome (drag/delete/wires) stays functional; sibling isolation tested. `LlmStatusPill` in TopBar: startup ping via `/api/llm mode:'ping'`, green/red/amber dot + provider, actionable tooltip, click to re-check, hydration-safe. +11 tests (registry integrity/healing, boundary isolation/retry). 90 tests + e2e + tsc + lint 0 + build green. |
-| B | B1–B7 | ⬜ | Gated per §6 |
-| C | C1–C4 | ⬜ | Garden parked until front switch |
-| D | D1–D4 | ⬜ | |
+| B | B1–B7 | ⬜ | Gated per §6. B7 partially done by the cut: dormant `llmNormalizer` and the unused catalog LLM entries are deleted. |
+| C | C1–C4 | ❌ | **Removed 2026-09-01** — the Garden was deleted rather than built out. See §5 Horizon C. |
+| D | D1–D4 | 🟡 | D4 in progress: `archive/pre-rebuild` tags the old snapshot; `main` cutover pending. D3 advanced by the cut (lint warnings 180 → 108). |
 
 ### Changelog
 - **2026-06-20** — Plan created. Dual-wire-system finding verified with evidence (§1);

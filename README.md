@@ -178,8 +178,13 @@ This surface does not call Ollama, Anthropic, Gemini, or NewsAPI.
 
 ## Also in this repo
 
-Citadel (`/`) and Garden (`/garden`) are an older canvas / persona workspace.
-They are **not** this product. `/` is unchanged and is not redirected.
+The Citadel canvas (`/`) — blocks, wires, and personas over live data. It is a
+separate product from the agent surface and shares no module with it. `/` is
+unchanged and is not redirected.
+
+The Garden (`/garden`) and the rest of the bolted-on life OS were deleted on
+2026-09-01: a second product in the same repo, ~15k lines gated on history that
+was never built.
 
 Those pages may use optional server-side keys (unused by `/api/agent`):
 
@@ -194,5 +199,5 @@ cp .env.example .env
 | `GOOGLE_API_KEY` | Gemini for Citadel Mind / personas. |
 | `NEWSAPI_KEY` | NewsAPI data blocks. |
 
-Without keys, Citadel still runs against built-in mock data. Do not host that
+Without keys, the canvas still runs against built-in mock data. Do not host that
 canvas publicly with shared keys. See `IMPLEMENTATION_PLAN.md`.
