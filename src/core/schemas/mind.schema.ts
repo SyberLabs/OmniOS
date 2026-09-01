@@ -298,6 +298,27 @@ export interface ContextEntry {
     ttl?: number;  // Time-to-live in ms (optional expiry)
 }
 
+// ============================================
+// MEMORY BLOCK
+// A Mind pool as an object on the canvas. Before this existed, pools reached
+// personas through hidden per-persona toggles: real context with no spatial
+// representation, which the product's own thesis forbids. Now a pool is wired
+// in like any other source — visible, inspectable, and cuttable.
+// ============================================
+
+export interface MemoryBlockData {
+    /** Which Mind pool this block surfaces. */
+    poolId: string;
+    /** Snapshot of the pool, synced by the view so wires carry it. */
+    entries: ContextEntry[];
+    /** Cap on how many of the most recent entries are wired downstream. */
+    limit: number;
+}
+
+export function createMemoryBlockData(poolId: string = 'memory'): MemoryBlockData {
+    return { poolId, entries: [], limit: 10 };
+}
+
 /**
  * Pruning strategies for context pools
  */

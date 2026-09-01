@@ -5,8 +5,8 @@
 
 import { useBlockStore } from '../stores';
 import { useWireStore } from '../stores/wireStore';
-import { useMindStore } from '../stores/mindStore';
-import { WireFilters, PersonaBlockData, ContextSource } from '../schemas/wire.schema';
+
+import { WireFilters, ContextSource } from '../schemas/wire.schema';
 import { PolymarketMarket, NewsArticle, NewsFeed } from '../schemas/block.schema';
 
 /**
@@ -48,6 +48,12 @@ export function extractBlockData(
             } else {
                 extracted = formatNewsDetailed(filtered);
             }
+        } else if (data && typeof data === 'object' && 'poolId' in data && Array.isArray(data.entries)) {
+            // Memory block — a Mind pool wired in like any other source.
+            const entries = data.entries as Array<{ content: string }>;
+            extracted = entries.length === 0
+                ? '(No entries)'
+                : entries.map(e => `- ${e.content}`).join('\n');
         } else if (data && typeof data === 'object' && 'content' in data && typeof data.content === 'string') {
             // Text block
             extracted = filters.summaryOnly
@@ -264,62 +270,12 @@ export function aggregateWireContext(targetBlockId: string): {
     const wires = useWireStore.getState().getWiresToBlock(targetBlockId);
     const activeWires = wires.filter(w => w.status === 'active');
 
-    // Get persona block data to check context settings
-    const targetBlock = useBlockStore.getState().getBlock(targetBlockId);
-    const personaData = targetBlock?.data as PersonaBlockData | undefined;
-    const contextSettings = personaData?.contextSettings;
-
     const contextParts: string[] = [];
     const sourceIds: string[] = [];
     const sources: ContextSource[] = [];
 
-    // Add Shell Mind context if enabled
-    if (contextSettings) {
-        const mindStore = useMindStore.getState();
-
-        // Import global observations
-        if (contextSettings.useGlobalObservations) {
-            const observations = mindStore.getPoolEntries('observations');
-            const recentObs = observations
-                .slice(-contextSettings.maxObservations)
-                .map(obs => `- ${obs.content}`)
-                .join('\n');
-
-            if (recentObs) {
-                contextParts.push(`## 🌐 Shell Mind Observations\n\n${recentObs}`);
-                sources.push({ id: 'pool:observations', kind: 'ambient', label: 'Observations' });
-            }
-        }
-
-        // Import focused blocks data
-        if (contextSettings.importFocusedBlocks) {
-            const focusedBlocks = mindStore.getPinnedBlocks();
-            if (focusedBlocks.length > 0) {
-                const focusContent = focusedBlocks
-                    .map(entry => entry.content)
-                    .join('\n\n---\n\n');
-                contextParts.push(`## 🎯 Focused Context\n\n${focusContent}`);
-                sources.push({ id: 'pool:focus', kind: 'ambient', label: 'Focused blocks' });
-            }
-        }
-
-        // Import long-term memory
-        if (contextSettings.useGlobalMemory) {
-            const memories = mindStore.getPoolEntries('memory');
-            const recentMemories = memories
-                .slice(-5)
-                .map(mem => `- ${mem.content}`)
-                .join('\n');
-
-            if (recentMemories) {
-                contextParts.push(`## 🧠 Long-Term Memory\n\n${recentMemories}`);
-                sources.push({ id: 'pool:memory', kind: 'ambient', label: 'Long-term memory' });
-            }
-        }
-    }
-
     // Add wired block data
-    if (activeWires.length === 0 && contextParts.length === 0) {
+    if (activeWires.length === 0) {
         return {
             context: 'No active data sources connected. Wire some blocks to provide context!',
             sourceIds: [],
@@ -338,7 +294,9 @@ export function aggregateWireContext(targetBlockId: string): {
             sourceIds.push(wire.sourceBlockId);
             sources.push({
                 id: wire.sourceBlockId,
-                kind: 'wire',
+                // Recollection and live data are both wired now, but they are
+                // different kinds of evidence and the answer should say which.
+                kind: sourceBlock.schema.block_id === 'memory_pool' ? 'memory' : 'wire',
                 label: sourceBlock.schema.display_name
             });
         }

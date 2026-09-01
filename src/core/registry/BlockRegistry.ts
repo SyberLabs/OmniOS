@@ -423,5 +423,29 @@ blockRegistry.register({
     isUserCreatable: true
 });
 
+
+// ============================================
+// MEMORY BLOCKS
+// A Mind pool made spatial. Wire one into a persona to give it recollection
+// the same way you give it data — visibly, and cuttably.
+// ============================================
+
+blockRegistry.register({
+    block_id: 'memory_pool',
+    display_name: 'Memory',
+    category: 'model',
+    data_type: 'custom',
+    refresh_rate: 'manual',
+    semantic_tags: ['memory', 'context', 'recall', 'mind', 'pool', 'notes'],
+    wiring_logic: 'none',
+    ports: [
+        createJsonOutputPort('out', 'Entries')
+    ],
+    icon: 'Brain',
+    description: 'Recollection from a Mind pool, wired in like any other source',
+    expandMode: 'resize',
+    isUserCreatable: true
+});
+
 export default blockRegistry;
 

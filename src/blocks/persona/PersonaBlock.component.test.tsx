@@ -151,20 +151,20 @@ describe('PersonaBlockView — provenance', () => {
         expect(useUIStore.getState().highlightedBlockIds).toEqual([]);
     });
 
-    it('shows ambient Mind context as a source, distinctly from wires', async () => {
-        // The invisible-input case: nothing is wired, yet the answer is
-        // grounded in memory the canvas never shows.
+    it('shows recalled memory as a source, distinctly from live data', async () => {
+        // Memory is a wired block now, so it names a thing on the canvas —
+        // but it is styled apart because recollection is not live data.
         mockStream(['from memory'], {
             success: true,
             content: 'from memory',
             sourceIds: [],
-            sources: [{ id: 'pool:memory', kind: 'ambient', label: 'Long-term memory' }]
+            sources: [{ id: 'mem-block-1', kind: 'memory', label: 'Long-term memory' }]
         });
         render(<PersonaBlockView instanceId={PERSONA_ID} />);
         fireEvent.click(screen.getByTitle('Think'));
 
         expect(await screen.findByText('Long-term memory')).toBeTruthy();
-        expect(screen.getByText(/ambient memory, not wired blocks/i)).toBeTruthy();
+        expect(screen.getByText(/recollection, not live data/i)).toBeTruthy();
     });
 
     it('an ungrounded answer claims no sources', async () => {

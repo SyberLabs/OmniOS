@@ -4,15 +4,14 @@
 // The product's central claim is that a persona's context is inspectable.
 // These lock the two ways that claim can quietly become false:
 //   1. citing wires that carried no data (overstating the grounding), and
-//   2. omitting ambient Mind pools (hiding a real input entirely).
+//   2. letting anything reach a prompt without arriving through a wire.
 // ============================================
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import { aggregateWireContext } from './wire.service';
 import { useBlockStore } from '@/core/stores';
 import { useWireStore } from '@/core/stores/wireStore';
-import { useMindStore } from '@/core/stores/mindStore';
-import { DEFAULT_WIRE_FILTERS, DEFAULT_CONTEXT_SETTINGS } from '@/core/schemas/wire.schema';
+import { DEFAULT_WIRE_FILTERS } from '@/core/schemas/wire.schema';
 import type { BlockInstance } from '@/core/schemas/block.schema';
 import type { DataWire } from '@/core/schemas/wire.schema';
 
@@ -42,16 +41,39 @@ function wire(id: string, from: string, to: string, status: DataWire['status'] =
     } as unknown as DataWire;
 }
 
+
+function memoryBlock(id: string, name: string, contents: string[]): BlockInstance {
+    return {
+        instance_id: id,
+        schema: { block_id: 'memory_pool', display_name: name, category: 'model' },
+        status: 'connected',
+        last_updated: Date.now(),
+        data: {
+            poolId: 'memory',
+            limit: 10,
+            entries: contents.map((content, i) => ({
+                id: `${id}-e${i}`,
+                type: 'memory',
+                content,
+                importance: 0.5,
+                timestamp: Date.now()
+            }))
+        },
+        position: { x: 0, y: 0 },
+        dimensions: { width: 1, height: 1 },
+        shellId: 'root'
+    } as unknown as BlockInstance;
+}
+
 const PERSONA = 'persona-1';
 
-function seedPersona(contextSettings?: unknown) {
+function seedPersona() {
     return block(PERSONA, 'Analyst', {
         personaType: 'analyst',
         messages: [],
         memory: [],
         isCollapsed: false,
-        isThinking: false,
-        ...(contextSettings ? { contextSettings } : {})
+        isThinking: false
     });
 }
 
@@ -116,58 +138,62 @@ describe('aggregateWireContext — wired sources', () => {
     });
 });
 
-describe('aggregateWireContext — ambient sources', () => {
-    it('reports Mind observations as an ambient source, not a wire', () => {
-        useMindStore.getState().addToPool('observations', {
-            type: 'observation',
-            content: 'Rates held steady.',
-            importance: 0.8
-        });
-
+describe('aggregateWireContext — memory is wired, not injected', () => {
+    it('a Memory block is cited by kind, distinct from live data', () => {
         useBlockStore.setState({
-            blocks: [seedPersona({ ...DEFAULT_CONTEXT_SETTINGS, useGlobalObservations: true })],
+            blocks: [
+                seedPersona(),
+                block('src-fred', 'FRED Series', { value: 42 }),
+                memoryBlock('mem-1', 'Long-term memory', ['Rates held steady.'])
+            ],
             activeShellId: 'root'
         });
+        useWireStore.setState({
+            wires: [wire('w1', 'src-fred', PERSONA), wire('w2', 'mem-1', PERSONA)]
+        });
 
-        const { sources } = aggregateWireContext(PERSONA);
-        const ambient = sources.filter(s => s.kind === 'ambient');
+        const { sources, context } = aggregateWireContext(PERSONA);
 
-        expect(ambient.map(s => s.id)).toContain('pool:observations');
-        // The whole point: ambient context must never masquerade as a block.
-        expect(ambient.every(s => s.kind === 'ambient')).toBe(true);
+        expect(sources.find(s => s.id === 'src-fred')?.kind).toBe('wire');
+        expect(sources.find(s => s.id === 'mem-1')?.kind).toBe('memory');
+        expect(context).toContain('Rates held steady.');
     });
 
-    it('stays silent when the persona has not opted in', () => {
-        useMindStore.getState().addToPool('observations', {
-            type: 'observation',
-            content: 'Should not leak into an opted-out persona.',
-            importance: 0.8
-        });
-
+    it('cutting the wire removes the memory — the point of making it a block', () => {
         useBlockStore.setState({
-            blocks: [seedPersona({ ...DEFAULT_CONTEXT_SETTINGS, useGlobalObservations: false })],
+            blocks: [seedPersona(), memoryBlock('mem-1', 'Long-term memory', ['Secret.'])],
             activeShellId: 'root'
         });
+        useWireStore.setState({ wires: [wire('w1', 'mem-1', PERSONA)] });
+        expect(aggregateWireContext(PERSONA).context).toContain('Secret.');
 
-        expect(aggregateWireContext(PERSONA).sources.filter(s => s.kind === 'ambient')).toHaveLength(0);
+        useWireStore.setState({ wires: [] });
+        const after = aggregateWireContext(PERSONA);
+        expect(after.context).not.toContain('Secret.');
+        expect(after.sources).toHaveLength(0);
     });
 
-    it('an ambient-only persona still reports provenance (the invisible-input case)', () => {
-        useMindStore.getState().addToPool('observations', {
-            type: 'observation',
-            content: 'Ambient only.',
-            importance: 0.9
-        });
-
+    it('an empty Memory block reports itself as empty, rather than vanishing', () => {
         useBlockStore.setState({
-            blocks: [seedPersona({ ...DEFAULT_CONTEXT_SETTINGS, useGlobalObservations: true })],
+            blocks: [seedPersona(), memoryBlock('mem-1', 'Long-term memory', [])],
             activeShellId: 'root'
         });
+        useWireStore.setState({ wires: [wire('w1', 'mem-1', PERSONA)] });
+
+        // It formats to '(No entries)', which is real output — so it IS cited.
+        // What matters is that the persona can see there is nothing in it.
+        const { context } = aggregateWireContext(PERSONA);
+        expect(context).toContain('(No entries)');
+    });
+
+    it('a persona with no wires at all is grounded in nothing', () => {
+        useBlockStore.setState({ blocks: [seedPersona()], activeShellId: 'root' });
+        useWireStore.setState({ wires: [] });
 
         const { sources, sourceIds } = aggregateWireContext(PERSONA);
-        // No wires at all, yet the answer is grounded in something — which is
-        // exactly the case the UI used to render as "no sources".
+        // Previously a hidden toggle could make this untrue without any
+        // on-screen sign. There is no such path now.
+        expect(sources).toHaveLength(0);
         expect(sourceIds).toHaveLength(0);
-        expect(sources.length).toBeGreaterThan(0);
     });
 });

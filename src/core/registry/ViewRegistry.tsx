@@ -27,6 +27,7 @@ import {
     EmbedBlockView
 } from '@/blocks/workspace';
 import { PersonaBlockView } from '@/blocks/persona';
+import { MemoryBlockView } from '@/components/blocks/MemoryBlock';
 import { useBlockStore } from '@/core/stores';
 
 // ============================================
@@ -373,7 +374,10 @@ export const BlockViews: Record<string, React.ComponentType<{ instanceId: string
     'persona_strategist': PersonaBlockView,
     'persona_researcher': PersonaBlockView,
     'persona_creative': PersonaBlockView,
-    'persona_guardian': PersonaBlockView
+    'persona_guardian': PersonaBlockView,
+
+    // Memory Blocks
+    'memory_pool': MemoryBlockView
 };
 
 export function getBlockView(blockId: string): React.ComponentType<{ instanceId: string }> | null {

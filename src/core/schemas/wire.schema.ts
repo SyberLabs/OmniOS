@@ -75,12 +75,11 @@ export interface DataWire {
 /**
  * Where one section of a persona's context came from.
  *
- * `wire` sources are visible on the canvas — the user can point at the block.
- * `ambient` sources are Mind pools, which enter the prompt with equal weight
- * but have no on-canvas representation. Labelling them separately is the
- * whole point: a context source the user cannot see must at least be named.
+ * Both kinds are wired blocks the user can point at and cut. They are
+ * distinguished because they are different kinds of evidence: `wire` is live
+ * external data, `memory` is recollection the user authored or accepted.
  */
-export type ContextSourceKind = 'wire' | 'ambient';
+export type ContextSourceKind = 'wire' | 'memory';
 
 export interface ContextSource {
     /** Block instance id for `wire`; pool id for `ambient`. */
@@ -121,23 +120,6 @@ export interface PersonaMemoryEntry {
 }
 
 /**
- * Context settings for optional Shell Mind integration
- */
-export interface PersonaContextSettings {
-    /** Import observations from Shell Mind global pool */
-    useGlobalObservations: boolean;
-
-    /** Auto-wire blocks marked as "focused" by Shell Mind */
-    importFocusedBlocks: boolean;
-
-    /** Access long-term memory pool for context */
-    useGlobalMemory: boolean;
-
-    /** Max observations to import (if enabled) */
-    maxObservations: number;
-}
-
-/**
  * Data stored in a persona block
  */
 export interface PersonaBlockData {
@@ -165,8 +147,6 @@ export interface PersonaBlockData {
     /** Processing state */
     isThinking: boolean;
 
-    /** Optional Shell Mind integration settings */
-    contextSettings?: PersonaContextSettings;
 }
 
 /**
@@ -180,16 +160,6 @@ export const DEFAULT_WIRE_FILTERS: WireFilters = {
 };
 
 /**
- * Default context settings for persona blocks
- */
-export const DEFAULT_CONTEXT_SETTINGS: PersonaContextSettings = {
-    useGlobalObservations: false,
-    importFocusedBlocks: false,
-    useGlobalMemory: false,
-    maxObservations: 10
-};
-
-/**
  * Default persona block data
  */
 export function createPersonaBlockData(personaType: PersonaType): PersonaBlockData {
@@ -198,8 +168,7 @@ export function createPersonaBlockData(personaType: PersonaType): PersonaBlockDa
         messages: [],
         memory: [],
         isCollapsed: false,
-        isThinking: false,
-        contextSettings: { ...DEFAULT_CONTEXT_SETTINGS }
+        isThinking: false
     };
 }
 

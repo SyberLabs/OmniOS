@@ -29,7 +29,6 @@ import {
     PersonaBlockData,
     PERSONA_CONFIGS,
     createPersonaBlockData,
-    DEFAULT_CONTEXT_SETTINGS,
     ContextSource,
     PersonaChatMessage
 } from '@/core/schemas/wire.schema';
@@ -46,7 +45,6 @@ export function PersonaBlockView({ instanceId }: PersonaBlockViewProps) {
     const getBlock = useBlockStore(state => state.getBlock);
 
     const [input, setInput] = useState('');
-    const [showSettings, setShowSettings] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     // Initialize data if needed - do this FIRST
@@ -224,13 +222,6 @@ export function PersonaBlockView({ instanceId }: PersonaBlockViewProps) {
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
-                    <button
-                        onClick={(e) => { e.stopPropagation(); setShowSettings(!showSettings); }}
-                        className="p-1.5 rounded-md hover:bg-[var(--citadel-surface)] transition-colors border border-transparent hover:border-[var(--citadel-border)]"
-                        title="Shell Mind Integration Settings"
-                    >
-                        <Settings className="w-4 h-4 text-[var(--text-secondary)]" />
-                    </button>
                     <div
                         className="flex items-center gap-1 px-2 py-1 rounded-full text-xs"
                         style={{ backgroundColor: `${config.color}20`, color: config.color }}
@@ -247,138 +238,6 @@ export function PersonaBlockView({ instanceId }: PersonaBlockViewProps) {
                     </button>
                 </div>
             </div>
-
-            {/* Settings Modal */}
-            <AnimatePresence>
-                {showSettings && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="absolute inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center"
-                        onClick={() => setShowSettings(false)}
-                    >
-                        <motion.div
-                            initial={{ scale: 0.9, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            exit={{ scale: 0.9, opacity: 0 }}
-                            className="relative bg-[var(--citadel-bg)]/95 backdrop-blur-xl border border-[var(--citadel-border)] rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl"
-                            style={{
-                                boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5), 0 0 1px rgba(255, 255, 255, 0.1) inset'
-                            }}
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            <div className="flex items-center justify-between mb-6">
-                                <div>
-                                    <h3 className="text-base font-semibold text-[var(--text-primary)] flex items-center gap-2">
-                                        <span className="text-lg">🧠</span>
-                                        Shell Mind Integration
-                                    </h3>
-                                    <p className="text-xs text-[var(--text-muted)] mt-1">
-                                        Combine wired data with global awareness
-                                    </p>
-                                </div>
-                                <button
-                                    onClick={() => setShowSettings(false)}
-                                    className="p-1.5 hover:bg-[var(--citadel-surface)]/50 rounded-lg transition-colors"
-                                >
-                                    <X className="w-4 h-4 text-[var(--text-muted)]" />
-                                </button>
-                            </div>
-
-                            <div className="space-y-4">
-                                <label className="flex items-center justify-between">
-                                    <div>
-                                        <p className="text-sm text-[var(--text-primary)]">Global Observations</p>
-                                        <p className="text-xs text-[var(--text-muted)]">Import Shell Mind&apos;s observations</p>
-                                    </div>
-                                    <input
-                                        type="checkbox"
-                                        checked={personaData.contextSettings?.useGlobalObservations ?? false}
-                                        onChange={(e) => {
-                                            updatePersonaData({
-                                                contextSettings: {
-                                                    ...(personaData.contextSettings || DEFAULT_CONTEXT_SETTINGS),
-                                                    useGlobalObservations: e.target.checked
-                                                }
-                                            });
-                                        }}
-                                        className="w-4 h-4"
-                                    />
-                                </label>
-
-                                <label className="flex items-center justify-between">
-                                    <div>
-                                        <p className="text-sm text-[var(--text-primary)]">Focused Blocks</p>
-                                        <p className="text-xs text-[var(--text-muted)]">Auto-import pinned blocks</p>
-                                    </div>
-                                    <input
-                                        type="checkbox"
-                                        checked={personaData.contextSettings?.importFocusedBlocks ?? false}
-                                        onChange={(e) => {
-                                            updatePersonaData({
-                                                contextSettings: {
-                                                    ...(personaData.contextSettings || DEFAULT_CONTEXT_SETTINGS),
-                                                    importFocusedBlocks: e.target.checked
-                                                }
-                                            });
-                                        }}
-                                        className="w-4 h-4"
-                                    />
-                                </label>
-
-                                <label className="flex items-center justify-between">
-                                    <div>
-                                        <p className="text-sm text-[var(--text-primary)]">Long-Term Memory</p>
-                                        <p className="text-xs text-[var(--text-muted)]">Access global memory pool</p>
-                                    </div>
-                                    <input
-                                        type="checkbox"
-                                        checked={personaData.contextSettings?.useGlobalMemory ?? false}
-                                        onChange={(e) => {
-                                            updatePersonaData({
-                                                contextSettings: {
-                                                    ...(personaData.contextSettings || DEFAULT_CONTEXT_SETTINGS),
-                                                    useGlobalMemory: e.target.checked
-                                                }
-                                            });
-                                        }}
-                                        className="w-4 h-4"
-                                    />
-                                </label>
-
-                                <label className="flex items-center justify-between">
-                                    <div>
-                                        <p className="text-sm text-[var(--text-primary)]">Max Observations</p>
-                                        <p className="text-xs text-[var(--text-muted)]">Number of observations to import</p>
-                                    </div>
-                                    <input
-                                        type="number"
-                                        min="1"
-                                        max="50"
-                                        value={personaData.contextSettings?.maxObservations ?? 10}
-                                        onChange={(e) => {
-                                            updatePersonaData({
-                                                contextSettings: {
-                                                    ...(personaData.contextSettings || DEFAULT_CONTEXT_SETTINGS),
-                                                    maxObservations: parseInt(e.target.value) || 10
-                                                }
-                                            });
-                                        }}
-                                        className="w-16 px-2 py-1 bg-[var(--citadel-surface)] border border-[var(--citadel-border)] rounded text-sm"
-                                    />
-                                </label>
-                            </div>
-
-                            <div className="mt-4 pt-3 border-t border-[var(--citadel-border)]">
-                                <p className="text-xs text-[var(--text-muted)]">
-                                    💡 Enable these to combine explicit wire connections with Shell Mind&apos;s global awareness
-                                </p>
-                            </div>
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
 
             {/* Compact Context Status */}
             <div className="flex items-center justify-between px-2 py-1 border-b border-[var(--citadel-border)]/50 bg-[var(--citadel-surface)]/30">
@@ -489,10 +348,11 @@ export function PersonaBlockView({ instanceId }: PersonaBlockViewProps) {
 // ============================================
 // PROVENANCE CHIPS
 // The answer to "what does this persona actually know?". Every source that
-// fed a turn is named here — wired blocks AND ambient Mind pools, which enter
-// the prompt with equal weight but have no representation on the canvas.
-// Hovering a wire chip lights its block; ambient chips say plainly that there
-// is nothing on the canvas to point at.
+// fed a turn is named here. Every source is a block on the canvas, so every
+// chip is hoverable and lights the thing it names — recollection included,
+// since Memory became a wired block rather than a hidden per-persona toggle.
+// Memory is styled apart because it is a different kind of evidence from
+// live data, not because it is less pointable.
 // ============================================
 
 function ProvenanceChips({ message, show }: { message: PersonaChatMessage; show: boolean }) {
@@ -506,8 +366,8 @@ function ProvenanceChips({ message, show }: { message: PersonaChatMessage; show:
 
     if (!show || sources.length === 0) return null;
 
-    const wired = sources.filter(s => s.kind === 'wire');
-    const ambient = sources.filter(s => s.kind === 'ambient');
+    const wired = sources.filter(s => s.kind !== 'memory');
+    const recalled = sources.filter(s => s.kind === 'memory');
 
     return (
         <div className="mt-2 pt-2 border-t border-[var(--citadel-border)]/60">
@@ -531,20 +391,25 @@ function ProvenanceChips({ message, show }: { message: PersonaChatMessage; show:
                     </button>
                 ))}
 
-                {ambient.map(src => (
-                    <span
+                {recalled.map(src => (
+                    <button
                         key={src.id}
-                        className="px-1.5 py-0.5 rounded text-[10px] border border-dashed border-[var(--truth-amber)]/50 text-[var(--truth-amber)] bg-[var(--truth-amber)]/10"
-                        title="Ambient context from the Shell Mind — not a block on this canvas"
+                        type="button"
+                        onMouseEnter={() => setHighlightedBlocks([src.id])}
+                        onMouseLeave={() => setHighlightedBlocks([])}
+                        onFocus={() => setHighlightedBlocks([src.id])}
+                        onBlur={() => setHighlightedBlocks([])}
+                        className="px-1.5 py-0.5 rounded text-[10px] border border-dashed border-[var(--truth-amber)]/60 text-[var(--truth-amber)] bg-[var(--truth-amber)]/10 hover:bg-[var(--truth-amber)]/20 transition-colors"
+                        title="Recollection from a Memory block — highlight it on the canvas"
                     >
                         {src.label}
-                    </span>
+                    </button>
                 ))}
             </div>
 
-            {ambient.length > 0 && (
+            {recalled.length > 0 && (
                 <p className="mt-1 text-[10px] text-[var(--text-muted)]">
-                    Dashed sources are ambient memory, not wired blocks.
+                    Dashed sources are recollection, not live data.
                 </p>
             )}
         </div>
