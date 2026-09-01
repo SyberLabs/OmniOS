@@ -12,7 +12,7 @@ interface UseOmniDataOptions {
     immediate?: boolean;
 
     /** Parameters for the API call */
-    params?: Record<string, unknown>;
+    params?: object;
 
     /** Auto-refresh interval in milliseconds */
     refreshInterval?: number;
@@ -73,7 +73,7 @@ export function useOmniData(
 
         try {
             console.log('[useOmniData] 📡 Calling apiGateway.fetch...');
-            const result = await apiGateway.fetch(apiId, params);
+            const result = await apiGateway.fetch(apiId, params as Record<string, unknown> | undefined);
             console.log('[useOmniData] ✅ Gateway returned:', {
                 hasItems: !!result.items,
                 itemsCount: result.items?.length || 0,

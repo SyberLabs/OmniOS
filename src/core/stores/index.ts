@@ -17,22 +17,9 @@ import {
     AestheticTheme
 } from '../schemas/shell.schema';
 
-// Re-export Mind store
 export { useMindStore } from './mindStore';
-import { useGraphPoolStore } from './graphPool.store';
-
-// Re-export Cognitive Core store
-export { useCognitiveStore } from './coreStore';
-
-// Re-export Stability store
-export { useStabilityStore } from './stabilityStore';
-
-// Re-export Tool store
 export { useToolStore } from './toolStore';
 export type { ToolType, SelectionData } from './toolStore';
-
-// Re-export Graph Pool store
-export { useGraphPoolStore } from './graphPool.store';
 
 // Import Wire store for shell save/load
 import { useWireStore } from './wireStore';
@@ -155,8 +142,6 @@ export const useBlockStore = create<BlockState>()(
             },
 
             updateData: (instanceId, data) => {
-                const block = get().blocks.find(b => b.instance_id === instanceId);
-
                 set(state => ({
                     blocks: state.blocks.map(b =>
                         b.instance_id === instanceId
@@ -164,29 +149,6 @@ export const useBlockStore = create<BlockState>()(
                             : b
                     )
                 }));
-
-                // --- INTEGRATION: Sync to Graph Pool ---
-                if (block?.schema.subscribedGraphId && block?.schema.systemId && data && typeof data === 'object') {
-                    const graphPoolStore = useGraphPoolStore.getState();
-                    const mapping = block.schema.graphNodeMapping;
-                    
-                    if (mapping) {
-                        // Use explicit mapping
-                        Object.entries(mapping).forEach(([dataKey, nodeId]) => {
-                            const val = (data as any)[dataKey];
-                            if (typeof val === 'number') {
-                                graphPoolStore.updateNodeValue(block.schema.systemId as any, block.schema.subscribedGraphId!, nodeId, val);
-                            }
-                        });
-                    } else {
-                        // Fallback to 'value' or block_id-based guessing (deprecated but keeps compat)
-                        const val = (data as any).value;
-                        if (typeof val === 'number') {
-                            const nodeId = block.schema.block_id.split('.').pop() || '';
-                            graphPoolStore.updateNodeValue(block.schema.systemId as any, block.schema.subscribedGraphId, nodeId, val);
-                        }
-                    }
-                }
             },
 
             updateStatus: (instanceId, status, error) => {
@@ -573,11 +535,7 @@ export const useSettingsStore = create<SettingsState>()(
             useMockData: true, // Default to mock mode
             apiKeys: {
                 polymarket: 'POLYMARKET_API_KEY_PLACEHOLDER',
-                newsapi: 'NEWSAPI_KEY_PLACEHOLDER',
-                tradingview: undefined,
-                flightaware: undefined,
-                marinetraffic: undefined,
-                gdelt: undefined
+                newsapi: 'NEWSAPI_KEY_PLACEHOLDER'
             },
             activeShellId: null,
             gridSnapping: true,

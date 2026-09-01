@@ -24,19 +24,10 @@ export type BlockDataType =
  * Block categories aligned with the "Senses"
  */
 export type BlockCategory =
-  | 'truth'         // Prediction markets, financials
-  | 'physicality'   // Real-world telemetry
-  | 'pulse'         // Narrative and sentiment
-  | 'model'         // AI models and biomarkers
-  | 'workspace'     // User-created content blocks
-  | 'system'        // Life System blocks
-  | 'health'        // Health domain blocks
-  | 'career'        // Career domain blocks
-  | 'finance'       // Finance domain blocks
-  | 'mind_system'   // Mind/Cognition domain blocks
-  | 'relationships' // Relationships domain blocks
-  | 'environment'   // Environment domain blocks
-  | 'time';         // Time domain blocks
+  | 'truth'
+  | 'pulse'
+  | 'model'
+  | 'workspace';
 
 /**
  * Connection status for live data streams
@@ -138,15 +129,6 @@ export interface OmniBlockSchema {
 
   /** Whether this block can be created by the user (vs API-sourced) */
   isUserCreatable?: boolean;
-
-  /** For System Proxy blocks: the linked system ID */
-  systemId?: string;
-
-  /** For System Blocks: link to a specific graph in the pool */
-  subscribedGraphId?: string;
-
-  /** For System Blocks: map block data keys to graph node IDs */
-  graphNodeMapping?: Record<string, string>;
 }
 
 /**

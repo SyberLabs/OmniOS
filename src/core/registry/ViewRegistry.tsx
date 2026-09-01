@@ -9,9 +9,6 @@ import { OpenAlexView } from '@/components/blocks/OpenAlexView';
 import { FredView } from '@/components/blocks/FredView';
 import { BlsView } from '@/components/blocks/BlsView';
 import { WorldBankView } from '@/components/blocks/WorldBankView';
-import { SystemProxyBlock } from '@/components/blocks/SystemProxyBlock';
-import { CoreCalculatorBlock } from '@/components/blocks/CoreCalculatorBlock';
-import { GardenPortalBlock } from '@/components/blocks/GardenPortalBlock';
 import { usePolymarketBlock } from '@/blocks/truth/PolymarketBlock';
 import { useNewsBlock } from '@/blocks/truth/NewsApiBlock';
 import { useCoinGeckoBlock } from '@/blocks/truth/CoinGeckoBlock';
@@ -30,8 +27,6 @@ import {
     EmbedBlockView
 } from '@/blocks/workspace';
 import { PersonaBlockView } from '@/blocks/persona';
-import { useBlockStore } from '@/core/stores';
-import { SystemType } from '@/core/schemas/core.schema';
 
 // ============================================
 // BLOCK WRAPPERS
@@ -349,30 +344,6 @@ function WorldBankBlockContent({ instanceId }: { instanceId: string }) {
 }
 
 // ============================================
-// SYSTEM BLOCK WRAPPERS
-// ============================================
-
-function SystemProxyBlockWrapper({ instanceId }: { instanceId: string }) {
-    const { blocks } = useBlockStore();
-    const block = blocks.find(b => b.instance_id === instanceId);
-    const systemId = block?.schema.systemId as SystemType;
-
-    if (!systemId) {
-        return <div className="p-4 text-[var(--text-muted)]">Invalid system block</div>;
-    }
-
-    return <SystemProxyBlock blockId={instanceId} systemId={systemId} />;
-}
-
-function CoreCalculatorBlockWrapper({ instanceId }: { instanceId: string }) {
-    return <CoreCalculatorBlock blockId={instanceId} />;
-}
-
-function GardenPortalBlockWrapper({ instanceId }: { instanceId: string }) {
-    return <GardenPortalBlock blockId={instanceId} />;
-}
-
-// ============================================
 // VIEW REGISTRY
 // ============================================
 
@@ -401,18 +372,7 @@ export const BlockViews: Record<string, React.ComponentType<{ instanceId: string
     'persona_strategist': PersonaBlockView,
     'persona_researcher': PersonaBlockView,
     'persona_creative': PersonaBlockView,
-    'persona_guardian': PersonaBlockView,
-
-    // System Blocks
-    'system_proxy_health': SystemProxyBlockWrapper,
-    'system_proxy_career': SystemProxyBlockWrapper,
-    'system_proxy_finance': SystemProxyBlockWrapper,
-    'system_proxy_mind': SystemProxyBlockWrapper,
-    'system_proxy_relationships': SystemProxyBlockWrapper,
-    'system_proxy_environment': SystemProxyBlockWrapper,
-    'system_proxy_time': SystemProxyBlockWrapper,
-    'core_calculator': CoreCalculatorBlockWrapper,
-    'garden_portal': GardenPortalBlockWrapper
+    'persona_guardian': PersonaBlockView
 };
 
 export function getBlockView(blockId: string): React.ComponentType<{ instanceId: string }> | null {

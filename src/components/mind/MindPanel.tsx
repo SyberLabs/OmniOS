@@ -1,40 +1,13 @@
 'use client';
 
-// ============================================
-// PROJECT OMNI: MIND PANEL
-// Unified Mind Interface - Shell | Systems | Projects
-// ============================================
-
-import { useState, useCallback, useEffect } from 'react';
-import { useMindStore, useCognitiveStore, useBlockStore } from '@/core/stores';
-import { blockRegistry } from '@/core/registry/BlockRegistry';
+import { useState, useCallback } from 'react';
+import { useMindStore } from '@/core/stores';
 import { getMindEngine } from '@/core/services';
 import { LLMProvider, LLM_DEFAULTS, PersonaConfig, ContextPool, ContextEntry } from '@/core/schemas/mind.schema';
-import { SystemType, Project } from '@/core/schemas/core.schema';
-import { SystemMindChat } from '@/components/SystemMindChat';
-import { CoreMindChat } from '@/components/CoreMindChat';
 import { MemoryConfirmModal } from './MemoryConfirmModal';
 import { ThinkResultModal } from './ThinkResultModal';
 import { ContextCaptureModal } from './ContextCaptureModal';
-import { DomainNavigator } from '@/components/domains/DomainNavigator';
-import { GraphPoolEditor } from '@/components/graph/GraphPoolEditor';
-import { useGraphPoolStore } from '@/core/stores/graphPool.store';
 import './MindPanel.css';
-import '@/components/domains/Domain.css';
-
-// ============================================
-// SYSTEM ICONS HELPER
-// ============================================
-
-const SYSTEM_ICONS: Record<SystemType, string> = {
-    health: '🏥',
-    career: '💼',
-    finance: '💰',
-    mind: '🧠',
-    relationships: '💞',
-    environment: '🏠',
-    time: '⏳'
-};
 
 interface MindPanelProps {
     isOpen: boolean;
@@ -42,28 +15,13 @@ interface MindPanelProps {
 }
 
 export function MindPanel({ isOpen, onClose }: MindPanelProps) {
-    // Mind Type state (Shell, Systems, Projects)
-    const [mindType, setMindType] = useState<'shell' | 'systems' | 'projects'>('shell');
-
-    // Shell-specific state
     const [activeTab, setActiveTab] = useState<'personas' | 'context' | 'graph' | 'settings'>('personas');
     const [thinkResult, setThinkResult] = useState<string | null>(null);
     const [isThinking, setIsThinking] = useState(false);
 
-    // Tool state
     const [activeTool, setActiveTool] = useState<'cursor' | 'highlighter'>('cursor');
     const [selectionModalOpen, setSelectionModalOpen] = useState(false);
     const [selectedText, setSelectedText] = useState('');
-
-    // System/Project chat state
-    const [selectedSystemId, setSelectedSystemId] = useState<SystemType | null>(null);
-    const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-
-    // Domain view state
-    const [showDomainView, setShowDomainView] = useState(false);
-
-    // Graph Pool Editor state
-    const [showGraphPoolEditor, setShowGraphPoolEditor] = useState(false);
 
     const {
         status,
@@ -78,32 +36,7 @@ export function MindPanel({ isOpen, onClose }: MindPanelProps) {
         clearEphemeralContext
     } = useMindStore();
 
-    const { systems, projects, initializeSystems } = useCognitiveStore();
-    const { addBlock } = useBlockStore();
-    const { initializePools } = useGraphPoolStore();
-
-    // Ensure systems and graph pools are initialized
-    useEffect(() => {
-        if (systems.length === 0) {
-            initializeSystems();
-        }
-        initializePools();
-    }, [systems.length, initializeSystems, initializePools]);
-
     const activePersona = personas.find(p => p.id === activePersonaId);
-
-    // Handle adding a block from domain navigation
-    const handleBlockAdd = useCallback((blockType: string) => {
-        const schema = blockRegistry.get(blockType);
-        if (schema) {
-            // Add block to canvas with random offset for visual stacking
-            const offset = Math.random() * 50;
-            addBlock(schema, { x: 350 + offset, y: 120 + offset });
-            console.log(`Added block: ${schema.display_name}`);
-        } else {
-            console.warn(`Block schema not found for: ${blockType}`);
-        }
-    }, [addBlock]);
 
     // Trigger Shell Mind to think
     const handleThink = useCallback(async () => {
@@ -194,28 +127,7 @@ export function MindPanel({ isOpen, onClose }: MindPanelProps) {
                     <button className="mind-close" onClick={onClose}>✕</button>
                 </header>
 
-                {/* Mind Type Selector */}
-                <div className="mind-type-selector">
-                    {[
-                        { id: 'shell', icon: '🐚', label: 'Shell Mind' },
-                        { id: 'systems', icon: '⚙️', label: 'System Minds' },
-                        { id: 'projects', icon: '📁', label: 'Core Minds' }
-                    ].map(type => (
-                        <button
-                            key={type.id}
-                            className={`mind-type-btn ${mindType === type.id ? 'active' : ''}`}
-                            onClick={() => setMindType(type.id as typeof mindType)}
-                        >
-                            <span className="type-icon">{type.icon}</span>
-                            <span className="type-label">{type.label}</span>
-                        </button>
-                    ))}
-                </div>
-
-                {/* Shell Mind Content */}
-                {mindType === 'shell' && (
-                    <>
-                        {/* Navigation Tabs */}
+                {/* Navigation Tabs */}
                         <nav className="mind-tabs">
                             {[
                                 { id: 'personas', icon: '👤', label: 'Personas' },
@@ -298,180 +210,6 @@ export function MindPanel({ isOpen, onClose }: MindPanelProps) {
                                 )}
                             </button>
                         </footer>
-                    </>
-                )}
-
-                {/* System Minds Content */}
-                {mindType === 'systems' && (
-                    <main className="mind-content">
-                        {/* System selector + Domain toggle */}
-                        <div className="systems-header">
-                            <div className="systems-mind-grid">
-                                {systems.map(system => (
-                                    <button
-                                        key={system.id}
-                                        className={`system-mind-card ${selectedSystemId === system.id ? 'active' : ''}`}
-                                        onClick={() => {
-                                            setSelectedSystemId(system.id);
-                                            // Show domains view for Health system
-                                            if (system.id === 'health') {
-                                                setShowDomainView(true);
-                                            }
-                                        }}
-                                    >
-                                        <span className="system-mind-icon">{system.icon}</span>
-                                        <div className="system-mind-info">
-                                            <span className="system-mind-name">{system.name}</span>
-                                            <span className="system-mind-stability">
-                                                {system.stabilityScore}% {system.stability}
-                                            </span>
-                                            <div className="system-mind-bar">
-                                                <div
-                                                    className="system-mind-fill"
-                                                    style={{ width: `${system.stabilityScore}%` }}
-                                                />
-                                            </div>
-                                        </div>
-                                        {/* Show domains indicator for Health */}
-                                        {system.domainIds && system.domainIds.length > 0 && (
-                                            <div className="system-domains-badge">
-                                                {system.domainIds.filter(id => !id.includes('.')).length ||
-                                                    Math.floor(system.domainIds.length / 4)} domains
-                                            </div>
-                                        )}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Domain Navigator for selected system */}
-                        {selectedSystemId && showDomainView && selectedSystemId === 'health' && (
-                            <div className="system-domain-view" onClick={e => e.stopPropagation()}>
-                                <div className="domain-view-header">
-                                    <button
-                                        className="domain-view-back"
-                                        onClick={(e) => { e.stopPropagation(); setShowDomainView(false); }}
-                                    >
-                                        ← Back to Systems
-                                    </button>
-                                    <button
-                                        className="domain-view-chat"
-                                        onClick={(e) => { e.stopPropagation(); setShowDomainView(false); }}
-                                    >
-                                        💬 Open Chat
-                                    </button>
-                                    <button
-                                        className="domain-view-graph-pool"
-                                        onClick={(e) => { e.stopPropagation(); setShowGraphPoolEditor(true); }}
-                                        title="Edit Graph Pool"
-                                        style={{
-                                            padding: '0.5rem 0.75rem',
-                                            background: 'rgba(139, 92, 246, 0.2)',
-                                            border: '1px solid rgba(139, 92, 246, 0.3)',
-                                            borderRadius: '0.5rem',
-                                            color: 'rgba(139, 92, 246, 1)',
-                                            fontSize: '0.875rem',
-                                            cursor: 'pointer'
-                                        }}
-                                    >
-                                        ⚙️ Graph Pool
-                                    </button>
-                                </div>
-                                <DomainNavigator
-                                    systemId={selectedSystemId}
-                                    systemName={systems.find(s => s.id === selectedSystemId)?.name || ''}
-                                    systemIcon={systems.find(s => s.id === selectedSystemId)?.icon || ''}
-                                    onBlockAdd={handleBlockAdd}
-                                />
-
-                                {/* Graph Pool Editor Modal */}
-                                {showGraphPoolEditor && selectedSystemId && (
-                                    <GraphPoolEditor
-                                        systemId={selectedSystemId}
-                                        onClose={() => setShowGraphPoolEditor(false)}
-                                    />
-                                )}
-                            </div>
-                        )}
-
-                        {/* Hint when system selected but not in domain view */}
-                        {selectedSystemId && !showDomainView && (
-                            <div className="system-mind-hint">
-                                <p>💡 Chat opens in floating panel</p>
-                                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
-                                    {selectedSystemId === 'health' && (
-                                        <button
-                                            className="domain-explore-btn"
-                                            onClick={() => setShowDomainView(true)}
-                                        >
-                                            🔍 Explore Domains
-                                        </button>
-                                    )}
-                                    <button
-                                        onClick={() => setShowGraphPoolEditor(true)}
-                                        style={{
-                                            padding: '0.5rem 0.75rem',
-                                            background: 'rgba(139, 92, 246, 0.2)',
-                                            border: '1px solid rgba(139, 92, 246, 0.3)',
-                                            borderRadius: '0.5rem',
-                                            color: 'rgba(139, 92, 246, 1)',
-                                            fontSize: '0.875rem',
-                                            cursor: 'pointer'
-                                        }}
-                                    >
-                                        ⚙️ Edit Graph Pool
-                                    </button>
-                                </div>
-
-                                {/* Graph Pool Editor Modal - accessible from any system */}
-                                {showGraphPoolEditor && (
-                                    <GraphPoolEditor
-                                        systemId={selectedSystemId}
-                                        onClose={() => setShowGraphPoolEditor(false)}
-                                    />
-                                )}
-                            </div>
-                        )}
-                    </main>
-                )}
-
-                {/* Core Minds (Projects) Content */}
-                {mindType === 'projects' && (
-                    <main className="mind-content">
-                        {projects.length === 0 ? (
-                            <div className="no-projects">
-                                <span className="no-projects-icon">📁</span>
-                                <p>No projects yet</p>
-                                <p className="no-projects-hint">Create a project in the Garden to get started</p>
-                            </div>
-                        ) : (
-                            <div className="projects-mind-list">
-                                {projects.map(project => (
-                                    <button
-                                        key={project.id}
-                                        className={`project-mind-card ${selectedProject?.id === project.id ? 'active' : ''}`}
-                                        onClick={() => setSelectedProject(project)}
-                                    >
-                                        <span className="project-mind-icon">{project.icon}</span>
-                                        <div className="project-mind-info">
-                                            <span className="project-mind-name">{project.name}</span>
-                                            <span className="project-mind-state">{project.state}</span>
-                                        </div>
-                                        {project.linkedSystems.length > 0 && (
-                                            <div className="project-linked-systems">
-                                                {project.linkedSystems.slice(0, 3).map(sysId => (
-                                                    <span key={sysId} className="linked-system-icon">
-                                                        {SYSTEM_ICONS[sysId]}
-                                                    </span>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </button>
-                                ))}
-                            </div>
-                        )}
-                    </main>
-                )}
 
                 {/* Context Capture Modal */}
                 <ContextCaptureModal
@@ -480,26 +218,6 @@ export function MindPanel({ isOpen, onClose }: MindPanelProps) {
                     selectedText={selectedText}
                 />
             </div>
-
-            {/* System Mind Chat (floating) */}
-            {selectedSystemId && (
-                <SystemMindChat
-                    systemId={selectedSystemId}
-                    systemName={systems.find(s => s.id === selectedSystemId)?.name || ''}
-                    systemIcon={systems.find(s => s.id === selectedSystemId)?.icon || ''}
-                    isOpen={true}
-                    onClose={() => setSelectedSystemId(null)}
-                />
-            )}
-
-            {/* Core Mind Chat (floating) */}
-            {selectedProject && (
-                <CoreMindChat
-                    project={selectedProject}
-                    isOpen={true}
-                    onClose={() => setSelectedProject(null)}
-                />
-            )}
         </div>
     );
 }
