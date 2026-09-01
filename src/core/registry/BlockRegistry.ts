@@ -154,32 +154,6 @@ blockRegistry.register({
     isUserCreatable: true
 });
 
-// GDELT Block (placeholder for Phase 3)
-blockRegistry.register({
-    block_id: 'gdelt_events',
-    display_name: 'GDELT Events',
-    category: 'pulse',
-    data_type: 'news_feed',
-    refresh_rate: '15m',
-    semantic_tags: ['geopolitical', 'events', 'global', 'conflicts', 'sentiment'],
-    wiring_logic: 'map_to_analyst_agent',
-    icon: 'Globe',
-    description: 'Global event monitoring and analysis'
-});
-
-// FlightAware Block (placeholder for Phase 3)
-blockRegistry.register({
-    block_id: 'flightaware_tracker',
-    display_name: 'Flight Tracker',
-    category: 'physicality',
-    data_type: 'telemetry',
-    refresh_rate: '30s',
-    semantic_tags: ['aviation', 'tracking', 'logistics', 'movement'],
-    wiring_logic: 'map_to_logistics_agent',
-    icon: 'Plane',
-    description: 'Real-time flight tracking and aviation data'
-});
-
 // Metaculus Block
 blockRegistry.register({
     block_id: 'metaculus_forecast',
@@ -262,19 +236,6 @@ blockRegistry.register({
     icon: 'Globe',
     description: 'World Bank global development indicators',
     isUserCreatable: true
-});
-
-// MarineTraffic Block (placeholder for Phase 3)
-blockRegistry.register({
-    block_id: 'marinetraffic_ais',
-    display_name: 'Marine Traffic',
-    category: 'physicality',
-    data_type: 'telemetry',
-    refresh_rate: '1m',
-    semantic_tags: ['maritime', 'shipping', 'logistics', 'vessels'],
-    wiring_logic: 'map_to_logistics_agent',
-    icon: 'Ship',
-    description: 'AIS vessel tracking and maritime intelligence'
 });
 
 // ============================================

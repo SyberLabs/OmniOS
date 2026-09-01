@@ -366,29 +366,6 @@ export const API_CATALOG: ApiProvider[] = [
         tags: ['tech', 'startups', 'programming']
     },
     {
-        id: 'openweathermap',
-        name: 'OpenWeatherMap',
-        category: 'environment',
-        description: 'Weather and forecasts',
-        icon: 'CloudSun',
-        baseUrl: 'https://api.openweathermap.org/data/2.5',
-        docsUrl: 'https://openweathermap.org/api',
-        pricing: 'freemium',
-        freeTierLimits: '1,000 calls/day',
-        requiresAuth: true,
-        authType: 'api_key',
-        integration: {
-            support: 'supported',
-            gateway: {
-                type: 'normalizer',
-                normalizerId: 'weather',
-                defaultParams: { city: 'San Francisco', units: 'metric' }
-            },
-            testParams: { city: 'San Francisco', units: 'metric' }
-        },
-        tags: ['weather', 'forecast', 'climate']
-    },
-    {
         id: 'openalex',
         name: 'OpenAlex',
         category: 'developer',
