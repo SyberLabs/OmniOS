@@ -116,8 +116,6 @@ export const useBlockStore = create<BlockState>()(
             },
 
             updateData: (instanceId, data) => {
-                const block = get().blocks.find(b => b.instance_id === instanceId);
-
                 set(state => ({
                     blocks: state.blocks.map(b =>
                         b.instance_id === instanceId

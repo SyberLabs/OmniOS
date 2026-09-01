@@ -5,7 +5,7 @@
 // Syntax-highlighted code display
 // ============================================
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useBlockStore } from '@/core/stores';
 import { Copy, Check, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -20,41 +20,7 @@ const LANGUAGES = [
     'javascript', 'typescript', 'python', 'json', 'html', 'css',
     'bash', 'sql', 'markdown', 'yaml', 'rust', 'go'
 ];
-
-// Simple syntax highlighting (basic tokens)
-function highlightCode(code: string, language: string): string {
-    // Keywords for common languages
-    const keywords = {
-        javascript: /\b(const|let|var|function|return|if|else|for|while|class|import|export|from|async|await|try|catch|throw|new|this|typeof|instanceof)\b/g,
-        typescript: /\b(const|let|var|function|return|if|else|for|while|class|import|export|from|async|await|try|catch|throw|new|this|typeof|instanceof|interface|type|extends|implements)\b/g,
-        python: /\b(def|class|import|from|return|if|elif|else|for|while|try|except|raise|with|as|lambda|yield|async|await|None|True|False)\b/g,
-        json: /(".*?")\s*:/g,
-    };
-
-    let highlighted = code
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
-
-    // Strings
-    highlighted = highlighted.replace(/(["'`])(?:(?!\1)[^\\]|\\.)*\1/g, '<span class="text-[var(--truth-green)]">$&</span>');
-
-    // Numbers
-    highlighted = highlighted.replace(/\b(\d+\.?\d*)\b/g, '<span class="text-[var(--truth-amber)]">$&</span>');
-
-    // Comments
-    highlighted = highlighted.replace(/(\/\/.*$|#.*$)/gm, '<span class="text-[var(--text-muted)]">$&</span>');
-
-    // Keywords
-    const langKeywords = keywords[language as keyof typeof keywords];
-    if (langKeywords) {
-        highlighted = highlighted.replace(langKeywords, '<span class="text-[var(--citadel-primary)]">$&</span>');
-    }
-
-    return highlighted;
-}
-
-interface CodeBlockViewProps {
+interface CodeBlockViewProps {
     instanceId: string;
 }
 

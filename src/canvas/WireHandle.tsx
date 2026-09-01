@@ -8,7 +8,6 @@
 import { useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plug } from 'lucide-react';
-import { useWireStore } from '@/core/stores/wireStore';
 import { useBlockStore } from '@/core/stores';
 import { wireService } from '@/core/services/wire.service';
 import { PortSchema, PortDataType } from '@/core/schemas/block.schema';
@@ -144,9 +143,6 @@ export function WireHandle({ blockId, side, ports = [], connectionCount = 0 }: W
         window.addEventListener('mouseup', handleMouseUp);
     }, [blockId, canDrag]);
 
-    // Check if this block is a persona block (left side = incoming)
-    const block = getBlock(blockId);
-    const isPersonaBlock = block?.schema.block_id.startsWith('persona_');
 
     // ALL blocks now have BOTH handles for full modular data pipelines
     // - Left handle = Input (receives data from other blocks) - DROP TARGET ONLY

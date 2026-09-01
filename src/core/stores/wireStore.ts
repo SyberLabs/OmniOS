@@ -5,7 +5,7 @@
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { DataWire, WireFilters, WireStatus, WireType, DEFAULT_WIRE_FILTERS } from '../schemas/wire.schema';
+import { DataWire, WireFilters, WireStatus, DEFAULT_WIRE_FILTERS } from '../schemas/wire.schema';
 // Direct, not via the barrel. blockStore and wireStore are genuinely mutual —
 // deleting a block clears its wires, and a new wire defaults to the active
 // shell — but every use is a lazy .getState() inside a function body, so the
@@ -179,7 +179,7 @@ export const useWireStore = create<WireStoreState>()(
             partialize: (state) => ({
                 wires: state.wires
             }),
-            migrate: (persistedState: any, version: number) => {
+            migrate: (persistedState: any, _version: number) => {
                 const wires = persistedState?.wires || [];
 
                 // Migration from version 0/1 to version 2

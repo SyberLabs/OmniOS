@@ -6,7 +6,6 @@
 // ============================================
 
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
 import {
     Command,
     Palette,
@@ -18,7 +17,6 @@ import {
     MousePointer2,
     Highlighter,
     ChevronRight,
-    ArrowLeft,
     Layers
 } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';

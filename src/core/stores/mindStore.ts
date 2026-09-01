@@ -14,11 +14,9 @@ import {
     KnowledgeNode,
     KnowledgeEdge,
     KnowledgeNodeType,
-    RelationType,
     PersonaConfig,
     ContextPool,
     ContextEntry,
-    ContextEntryType,
     createInitialMindState
 } from '../schemas/mind.schema';
 import { resolveModel } from '../models.registry';
@@ -311,7 +309,7 @@ export const useMindStore = create<MindStore>()(
                 return result;
             },
 
-            clearGraph: () => set(state => ({
+            clearGraph: () => set(() => ({
                 graph: {
                     nodes: [],
                     edges: [],

@@ -18,8 +18,7 @@ export function useMetaculusBlock(instanceId: string) {
         items,
         isLoading,
         error,
-        refresh,
-        fromCache
+        refresh
     } = useOmniData('metaculus', instanceId, {
         immediate: true,
         refreshInterval: useMockData ? 5000 : 60000

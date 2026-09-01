@@ -2,7 +2,7 @@
 // PROJECT OMNI: SHELL CONFIGURATION SCHEMA
 // ============================================
 
-import { BlockInstance, BlockConnection } from './block.schema';
+import { BlockConnection } from './block.schema';
 import { DataWire } from './wire.schema';
 
 /**

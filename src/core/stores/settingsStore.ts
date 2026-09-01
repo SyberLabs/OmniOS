@@ -6,7 +6,7 @@
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { OmniSettings, AestheticTheme } from '../schemas/shell.schema';
+import { OmniSettings } from '../schemas/shell.schema';
 
 // ============================================
 // SETTINGS STORE

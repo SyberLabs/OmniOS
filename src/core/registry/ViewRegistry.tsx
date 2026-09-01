@@ -28,7 +28,6 @@ import {
 } from '@/blocks/workspace';
 import { PersonaBlockView } from '@/blocks/persona';
 import { MemoryBlockView } from '@/components/blocks/MemoryBlock';
-import { useBlockStore } from '@/core/stores';
 
 // ============================================
 // BLOCK WRAPPERS

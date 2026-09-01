@@ -392,7 +392,7 @@ export class WireService {
         const block = useBlockStore.getState().getBlock(targetBlockId);
         if (!block) return;
 
-        const { context, sourceIds, lastUpdate } = aggregateWireContext(targetBlockId);
+        const { context, lastUpdate } = aggregateWireContext(targetBlockId);
 
         const currentData = block.data as any;
         useBlockStore.getState().updateData(targetBlockId, {

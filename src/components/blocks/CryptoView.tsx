@@ -35,7 +35,7 @@ interface CryptoViewProps {
     onRefresh?: () => void;
 }
 
-export function CryptoView({ assets, status, lastUpdated, onRefresh }: CryptoViewProps) {
+export function CryptoView({ assets, status, onRefresh }: CryptoViewProps) {
     return (
         <div className="h-full flex flex-col">
             {/* Header Controls */}

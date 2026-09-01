@@ -7,7 +7,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useBlockStore, useMindStore } from '@/core/stores';
-import { Send, Loader2, Bot, User } from 'lucide-react';
+import { Send, Loader2, Bot } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface ChatMessage {

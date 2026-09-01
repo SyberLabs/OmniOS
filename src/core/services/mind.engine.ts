@@ -7,7 +7,6 @@ import { LLMMessage } from './llm.service';
 import { runTurn, runTurnStream } from '@/core/cognition';
 import {
     getPersonaSystemPrompt,
-    buildAnalysisPrompt,
     parseInsightsFromResponse,
     BlockDataSummary,
     ExtractedInsight

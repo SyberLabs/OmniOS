@@ -8,7 +8,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useShellStore, useBlockStore } from '@/core/stores';
-import { ShellConfig, ShellType } from '@/core/schemas/shell.schema';
+import { ShellConfig } from '@/core/schemas/shell.schema';
 import { SHELL_TEMPLATES, type ShellTemplate } from '@/core/shells/templates';
 
 interface ShellPanelProps {
@@ -19,7 +19,6 @@ interface ShellPanelProps {
 export function ShellPanel({ isOpen, onClose }: ShellPanelProps) {
     const {
         shells,
-        activeShellId,
         hotkeySlots,
         saveShell,
         loadShell,
@@ -41,7 +40,7 @@ export function ShellPanel({ isOpen, onClose }: ShellPanelProps) {
 
     // Get hotkey number for a shell
     const getHotkeyForShell = (shellId: string): number | undefined => {
-        return Object.entries(hotkeySlots).find(([_, id]) => id === shellId)?.[0] as unknown as number;
+        return Object.entries(hotkeySlots).find(([, id]) => id === shellId)?.[0] as unknown as number;
     };
 
     // Handle creating a new shell

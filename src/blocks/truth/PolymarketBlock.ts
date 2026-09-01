@@ -145,4 +145,5 @@ export async function fetchPolymarketMarkets(): Promise<{
     return { markets: omniItemsToMarkets(data.items || []) };
 }
 
-export default { fetchPolymarketMarkets, usePolymarketBlock };
+const polymarketBlock = { fetchPolymarketMarkets, usePolymarketBlock };
+export default polymarketBlock;

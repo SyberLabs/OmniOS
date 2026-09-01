@@ -34,7 +34,7 @@ export default function CitadelApp() {
     const [isShellsOpen, setIsShellsOpen] = useState(false);
 
     // Initialize Mind-Shell synchronization
-    const { mindStatus } = useMindShellSync();
+    useMindShellSync();
 
     // Initialize shell keyboard navigation (Cmd+0-9)
     useShellNavigation();

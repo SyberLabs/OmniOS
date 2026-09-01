@@ -5,7 +5,7 @@
 // ============================================
 
 import { motion } from 'framer-motion';
-import { Zap, MessageCircle, ArrowUp, ExternalLink, RefreshCw, User } from 'lucide-react';
+import { Zap, MessageCircle, ArrowUp, RefreshCw, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 /**
@@ -33,7 +33,7 @@ interface HNViewProps {
     onRefresh?: () => void;
 }
 
-export function HNView({ stories, status, lastUpdated, onRefresh }: HNViewProps) {
+export function HNView({ stories, status, onRefresh }: HNViewProps) {
     return (
         <div className="h-full flex flex-col">
             {/* Header Controls */}

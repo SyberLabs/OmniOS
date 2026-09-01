@@ -4,14 +4,12 @@
 // ============================================
 
 import React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
     Target,
-    ExternalLink,
     RefreshCw,
     Clock,
     Users,
-    TrendingUp,
     AlertCircle
 } from 'lucide-react';
 import type { OmniItem } from '@/core/gateway';
@@ -139,20 +137,16 @@ function ForecastCard({ question }: { question: OmniItem }) {
     // Mid -> Yellow
 
     let colorClass = "text-[var(--text-muted)]";
-    let bgClass = "bg-[var(--text-muted)]/20";
     let barColor = "bg-[var(--text-muted)]";
 
     if (probability > 0.66) {
         colorClass = "text-[var(--truth-green)]";
-        bgClass = "bg-[var(--truth-green)]/10";
         barColor = "bg-[var(--truth-green)]";
     } else if (probability < 0.33) {
         colorClass = "text-[var(--truth-red)]";
-        bgClass = "bg-[var(--truth-red)]/10";
         barColor = "bg-[var(--truth-red)]";
     } else {
         colorClass = "text-[var(--truth-amber)]";
-        bgClass = "bg-[var(--truth-amber)]/10";
         barColor = "bg-[var(--truth-amber)]";
     }
 

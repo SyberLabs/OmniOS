@@ -5,7 +5,6 @@
 
 import {
     ApiTypeDefinition,
-    OmniData,
     OmniItem,
     createOmniData,
     createOmniError

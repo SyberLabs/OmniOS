@@ -2,13 +2,14 @@
 // PROJECT OMNI: POLYMARKET API ROUTE
 // ============================================
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
+
 
 /**
  * Polymarket API endpoint
  * GET /api/polymarket
  */
-export async function GET(request: NextRequest) {
+export async function GET() {
     try {
         // Try Polymarket's Gamma API - sorted by volume for most active markets
         const response = await fetch('https://gamma-api.polymarket.com/markets?limit=50&closed=false&order=volumeNum&ascending=false', {

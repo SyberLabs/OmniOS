@@ -5,11 +5,10 @@
 // Unified Mind Interface - Shell | Systems | Projects
 // ============================================
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { useMindStore, useBlockStore } from '@/core/stores';
-import { blockRegistry } from '@/core/registry/BlockRegistry';
 import { getMindEngine } from '@/core/services';
-import { LLMProvider, LLM_DEFAULTS, PersonaConfig, ContextPool, ContextEntry } from '@/core/schemas/mind.schema';
+import { LLMProvider, PersonaConfig, ContextPool, ContextEntry } from '@/core/schemas/mind.schema';
 import { MemoryConfirmModal } from './MemoryConfirmModal';
 import { ThinkResultModal } from './ThinkResultModal';
 import { ContextCaptureModal } from './ContextCaptureModal';
@@ -43,22 +42,9 @@ export function MindPanel({ isOpen, onClose }: MindPanelProps) {
         clearEphemeralContext
     } = useMindStore();
 
-    const { addBlock } = useBlockStore();
     const activePersona = personas.find(p => p.id === activePersonaId);
 
-    // Handle adding a block from domain navigation
-    const handleBlockAdd = useCallback((blockType: string) => {
-        const schema = blockRegistry.get(blockType);
-        if (schema) {
-            // Add block to canvas with random offset for visual stacking
-            const offset = Math.random() * 50;
-            addBlock(schema, { x: 350 + offset, y: 120 + offset });
-        } else {
-            console.warn(`Block schema not found for: ${blockType}`);
-        }
-    }, [addBlock]);
-
-    // Trigger Shell Mind to think
+        // Trigger Shell Mind to think
     const handleThink = useCallback(async () => {
         if (isThinking) return;
 

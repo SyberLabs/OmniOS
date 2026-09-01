@@ -6,19 +6,14 @@
 // ============================================
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import {
     Send,
     ChevronDown,
     ChevronUp,
     Zap,
-    RefreshCw,
     Loader2,
     Plug,
-    Settings,
-    Trash2,
     MessageSquare,
-    X
 } from 'lucide-react';
 import { useBlockStore, useUIStore } from '@/core/stores';
 import { useWireStore } from '@/core/stores/wireStore';
@@ -161,7 +156,7 @@ export function PersonaBlockView({ instanceId }: PersonaBlockViewProps) {
 
     const handleUpdateContext = useCallback(() => {
         // Use wireService to aggregate context from all connected blocks
-        const { context, sourceIds, lastUpdate } = aggregateWireContext(instanceId);
+        const { context, lastUpdate } = aggregateWireContext(instanceId);
 
         updatePersonaData({
             currentContext: context,

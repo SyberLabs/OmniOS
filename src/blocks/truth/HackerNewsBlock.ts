@@ -132,4 +132,5 @@ export async function fetchHNStories(): Promise<{
     return { stories: omniItemsToHNStories(data.items || []) };
 }
 
-export default { fetchHNStories, useHackerNewsBlock };
+const hackerNewsBlock = { fetchHNStories, useHackerNewsBlock };
+export default hackerNewsBlock;

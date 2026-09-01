@@ -141,4 +141,5 @@ export function usePersonaContext() {
     };
 }
 
-export default { useMindShellSync, usePersonaContext };
+const mindShellSync = { useMindShellSync, usePersonaContext };
+export default mindShellSync;

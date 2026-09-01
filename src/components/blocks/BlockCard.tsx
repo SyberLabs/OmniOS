@@ -8,8 +8,6 @@ import { ReactNode, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
     X,
-    Maximize2,
-    Minimize2,
     GripVertical,
     TrendingUp,
     Newspaper,
@@ -24,7 +22,7 @@ import {
     Brain
 } from 'lucide-react';
 import { BlockInstance, ConnectionStatus } from '@/core/schemas/block.schema';
-import { useMindStore, useBlockStore, useUIStore } from '@/core/stores';
+import { useMindStore, useUIStore } from '@/core/stores';
 import { useWireStore } from '@/core/stores/wireStore';
 import { WireHandle } from '@/canvas/WireHandle';
 import { BlockErrorBoundary } from './BlockErrorBoundary';
@@ -59,8 +57,6 @@ export function BlockCard({
     block,
     children,
     onClose,
-    onExpand,
-    isExpanded = false,
     isDragging = false,
     dragListeners
 }: BlockCardProps) {

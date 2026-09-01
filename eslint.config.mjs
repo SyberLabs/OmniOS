@@ -20,7 +20,15 @@ const eslintConfig = defineConfig([
       // error. See IMPLEMENTATION_PLAN.md Phase 5. Type these out incrementally.
       "@typescript-eslint/no-explicit-any": "warn",
       // Unused vars stay advisory (warning) so they don't block CI.
-      "@typescript-eslint/no-unused-vars": "warn",
+      // `_name` is a deliberate "I know, and I mean it" marker: an unused
+      // route handler arg, or a destructure-to-drop when omitting a key.
+      // Without this the idiom is unusable and the warning list stops
+      // meaning "there is dead code here".
+      "@typescript-eslint/no-unused-vars": ["warn", {
+        argsIgnorePattern: "^_",
+        varsIgnorePattern: "^_",
+        caughtErrorsIgnorePattern: "^_"
+      }],
       // React Compiler correctness lints. The app runs correctly today
       // (verified by smoke test); these flag effect/render patterns to refactor
       // incrementally rather than blocking CI. Tracked in IMPLEMENTATION_PLAN.md.

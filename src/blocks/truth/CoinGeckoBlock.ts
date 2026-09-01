@@ -146,4 +146,5 @@ export async function fetchCryptoAssets(): Promise<{
     return { assets: omniItemsToCryptoAssets(data.items || []) };
 }
 
-export default { fetchCryptoAssets, useCoinGeckoBlock };
+const coinGeckoBlock = { fetchCryptoAssets, useCoinGeckoBlock };
+export default coinGeckoBlock;

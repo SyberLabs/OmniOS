@@ -5,7 +5,7 @@
 // ============================================
 
 import { motion } from 'framer-motion';
-import { Newspaper, ExternalLink, RefreshCw, Clock } from 'lucide-react';
+import { ExternalLink, RefreshCw, Clock } from 'lucide-react';
 import { NewsArticle } from '@/core/schemas/block.schema';
 import { formatRelativeTime, cn } from '@/lib/utils';
 
@@ -16,7 +16,7 @@ interface NewsViewProps {
     onRefresh?: () => void;
 }
 
-export function NewsView({ articles, status, lastUpdated, onRefresh }: NewsViewProps) {
+export function NewsView({ articles, status, onRefresh }: NewsViewProps) {
     return (
         <div className="h-full flex flex-col">
             {/* Header Controls */}

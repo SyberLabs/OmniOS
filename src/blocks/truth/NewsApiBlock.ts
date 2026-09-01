@@ -5,7 +5,7 @@
 
 import { useEffect, useMemo } from 'react';
 import { NewsArticle, NewsFeed } from '@/core/schemas/block.schema';
-import { useBlockStore, useSettingsStore } from '@/core/stores';
+import { useBlockStore } from '@/core/stores';
 import { useOmniData } from '@/core/hooks';
 
 /**
@@ -123,4 +123,5 @@ export async function fetchNewsArticles(
     return { articles: omniItemsToArticles(data.items || []) };
 }
 
-export default { fetchNewsArticles, useNewsBlock };
+const newsApiBlock = { fetchNewsArticles, useNewsBlock };
+export default newsApiBlock;

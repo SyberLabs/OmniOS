@@ -12,10 +12,7 @@ import {
     Layers,
     Plus,
     Save,
-    Download,
-    Settings,
     Palette,
-    User,
     Zap,
     Moon,
     Sun,
@@ -26,11 +23,10 @@ import {
 } from 'lucide-react';
 import { useUIStore, useShellStore, useBlockStore, useSettingsStore } from '@/core/stores';
 import { blockRegistry } from '@/core/registry/BlockRegistry';
-import { cn } from '@/lib/utils';
 
 export function CommandPalette() {
     const { commandPaletteOpen, closeCommandPalette, toggleCommandPalette } = useUIStore();
-    const { shells, createShell, loadShell, currentPersona, setPersona } = useShellStore();
+    const { shells, createShell, loadShell, setPersona } = useShellStore();
     const { addBlock, clearCanvas } = useBlockStore();
     const { useMockData, toggleMockData, gridSnapping, updateSetting } = useSettingsStore();
 
