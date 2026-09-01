@@ -12,14 +12,11 @@ import { MindPanel } from '@/components/mind';
 import { MindDock } from '@/components/mind/MindDock';
 import { SettingsPanel } from '@/components/settings/SettingsPanel';
 import { ContextCaptureModal } from '@/components/mind/ContextCaptureModal';
-import { useBlockStore, useUIStore, useToolStore } from '@/core/stores';
+import { useToolStore } from '@/core/stores';
 import { useApiStore } from '@/core/stores/apiStore';
-import { blockRegistry } from '@/core/registry/BlockRegistry';
 import { useMindShellSync, useShellNavigation } from '@/core/hooks';
 
 export default function CitadelApp() {
-    const { addBlock } = useBlockStore();
-    const { setDraggingBlock } = useUIStore();
     const { activeTool, selection, captureSelection, clearSelection } = useToolStore();
     const { initializeDefaults } = useApiStore();
 
@@ -46,48 +43,6 @@ export default function CitadelApp() {
             captureSelection({ text });
         }
     }, [activeTool, captureSelection]);
-
-    useEffect(() => {
-        const handleDrop = (e: DragEvent) => {
-            e.preventDefault();
-            const blockId = e.dataTransfer?.getData('text/plain');
-
-            if (blockId) {
-                const schema = blockRegistry.get(blockId);
-                if (schema) {
-                    const canvas = document.querySelector('.canvas-workspace');
-                    if (canvas) {
-                        const rect = canvas.getBoundingClientRect();
-                        const x = e.clientX - rect.left;
-                        const y = e.clientY - rect.top;
-                        addBlock(schema, { x: Math.max(0, x - 160), y: Math.max(0, y - 20) });
-                    }
-                }
-            }
-
-            setDraggingBlock(null);
-        };
-
-        const handleDragOver = (e: DragEvent) => {
-            e.preventDefault();
-            if (e.dataTransfer) {
-                e.dataTransfer.dropEffect = 'copy';
-            }
-        };
-
-        const canvas = document.querySelector('.canvas-workspace');
-        if (canvas) {
-            canvas.addEventListener('drop', handleDrop as EventListener);
-            canvas.addEventListener('dragover', handleDragOver as EventListener);
-        }
-
-        return () => {
-            if (canvas) {
-                canvas.removeEventListener('drop', handleDrop as EventListener);
-                canvas.removeEventListener('dragover', handleDragOver as EventListener);
-            }
-        };
-    }, [addBlock, setDraggingBlock]);
 
     return (
         <div
