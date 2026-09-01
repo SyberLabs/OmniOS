@@ -75,11 +75,16 @@ export interface DataWire {
 /**
  * Where one section of a persona's context came from.
  *
- * Both kinds are wired blocks the user can point at and cut. They are
- * distinguished because they are different kinds of evidence: `wire` is live
- * external data, `memory` is recollection the user authored or accepted.
+ * Every kind is a wired block the user can point at and cut. They are
+ * distinguished because they are different kinds of evidence:
+ *   `wire`      live external data
+ *   `memory`    recollection the user authored or accepted
+ *   `inference` another persona's conclusion — a model's opinion, not a
+ *               measurement. Worth flagging on its own: chaining minds
+ *               compounds their errors, and the reader should see when an
+ *               answer rests on another answer.
  */
-export type ContextSourceKind = 'wire' | 'memory';
+export type ContextSourceKind = 'wire' | 'memory' | 'inference';
 
 export interface ContextSource {
     /** Block instance id for `wire`; pool id for `ambient`. */

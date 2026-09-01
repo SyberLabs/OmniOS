@@ -65,6 +65,26 @@ function memoryBlock(id: string, name: string, contents: string[]): BlockInstanc
     } as unknown as BlockInstance;
 }
 
+
+function personaBlock(id: string, name: string, messages: Array<{role: string; content: string}>): BlockInstance {
+    return {
+        instance_id: id,
+        schema: { block_id: 'persona_analyst', display_name: name, category: 'model' },
+        status: 'connected',
+        last_updated: Date.now(),
+        data: {
+            personaType: 'analyst',
+            messages: messages.map((m, i) => ({ id: `${id}-m${i}`, timestamp: Date.now(), ...m })),
+            memory: [],
+            isCollapsed: false,
+            isThinking: false
+        },
+        position: { x: 0, y: 0 },
+        dimensions: { width: 1, height: 1 },
+        shellId: 'root'
+    } as unknown as BlockInstance;
+}
+
 const PERSONA = 'persona-1';
 
 function seedPersona() {
@@ -195,5 +215,103 @@ describe('aggregateWireContext — memory is wired, not injected', () => {
         // on-screen sign. There is no such path now.
         expect(sources).toHaveLength(0);
         expect(sourceIds).toHaveLength(0);
+    });
+});
+
+describe('persona as a source — the cascade', () => {
+    it("passes on the conclusion, not the persona's internals", () => {
+        useBlockStore.setState({
+            blocks: [
+                seedPersona(),
+                personaBlock('up-1', 'Analyst', [
+                    { role: 'user', content: 'What do you see?' },
+                    { role: 'assistant', content: 'Rates are steady near 4.2%.' }
+                ])
+            ],
+            activeShellId: 'root'
+        });
+        useWireStore.setState({ wires: [wire('w1', 'up-1', PERSONA)] });
+
+        const { context, sources } = aggregateWireContext(PERSONA);
+
+        expect(context).toContain('Rates are steady near 4.2%.');
+        // The regression: this used to be a JSON dump of the whole block.
+        expect(context).not.toContain('isCollapsed');
+        expect(context).not.toContain('personaType');
+        expect(context).not.toContain('timestamp');
+        expect(sources.find(s => s.id === 'up-1')?.kind).toBe('inference');
+    });
+
+    it('uses the latest answer when the conversation continued', () => {
+        useBlockStore.setState({
+            blocks: [
+                seedPersona(),
+                personaBlock('up-1', 'Analyst', [
+                    { role: 'assistant', content: 'First take.' },
+                    { role: 'user', content: 'And now?' },
+                    { role: 'assistant', content: 'Revised take.' }
+                ])
+            ],
+            activeShellId: 'root'
+        });
+        useWireStore.setState({ wires: [wire('w1', 'up-1', PERSONA)] });
+
+        const { context } = aggregateWireContext(PERSONA);
+        expect(context).toContain('Revised take.');
+        expect(context).not.toContain('First take.');
+    });
+
+    it('does not propagate an upstream failure as if it were analysis', () => {
+        useBlockStore.setState({
+            blocks: [
+                seedPersona(),
+                personaBlock('up-1', 'Analyst', [
+                    { role: 'assistant', content: '⚠️ No LLM available — set the key in .env.' }
+                ])
+            ],
+            activeShellId: 'root'
+        });
+        useWireStore.setState({ wires: [wire('w1', 'up-1', PERSONA)] });
+
+        // One broken persona should not become two.
+        expect(aggregateWireContext(PERSONA).sources).toHaveLength(0);
+    });
+
+    it('a persona that has not answered yet is not a source', () => {
+        useBlockStore.setState({
+            blocks: [seedPersona(), personaBlock('up-1', 'Analyst', [])],
+            activeShellId: 'root'
+        });
+        useWireStore.setState({ wires: [wire('w1', 'up-1', PERSONA)] });
+
+        expect(aggregateWireContext(PERSONA).sources).toHaveLength(0);
+    });
+
+    it('distinguishes all three kinds of evidence in one turn', () => {
+        useBlockStore.setState({
+            blocks: [
+                seedPersona(),
+                block('data-1', 'FRED Series', { value: 42 }),
+                memoryBlock('mem-1', 'Long-term memory', ['We decided to wait.']),
+                personaBlock('up-1', 'Analyst', [{ role: 'assistant', content: 'Steady.' }])
+            ],
+            activeShellId: 'root'
+        });
+        useWireStore.setState({
+            wires: [
+                wire('w1', 'data-1', PERSONA),
+                wire('w2', 'mem-1', PERSONA),
+                wire('w3', 'up-1', PERSONA)
+            ]
+        });
+
+        const kinds = Object.fromEntries(
+            aggregateWireContext(PERSONA).sources.map(s => [s.id, s.kind])
+        );
+        expect(kinds).toEqual({
+            'data-1': 'wire',
+            'mem-1': 'memory',
+            'up-1': 'inference'
+        });
     });
 });

@@ -164,7 +164,7 @@ describe('PersonaBlockView — provenance', () => {
         fireEvent.click(screen.getByTitle('Think'));
 
         expect(await screen.findByText('Long-term memory')).toBeTruthy();
-        expect(screen.getByText(/recollection, not live data/i)).toBeTruthy();
+        expect(screen.getByText(/recollection or another persona/i)).toBeTruthy();
     });
 
     it('an ungrounded answer claims no sources', async () => {
@@ -182,3 +182,49 @@ describe('PersonaBlockView — provenance', () => {
     });
 });
 
+describe('PersonaBlockView — answer rendering', () => {
+    beforeEach(() => {
+        seedPersonaBlock();
+        useWireStore.setState({ wires: [] });
+        vi.mocked(streamPersonaTurn).mockReset();
+    });
+
+    it('renders markdown instead of showing its syntax', async () => {
+        const md = '## Outlook' + String.fromCharCode(10) + String.fromCharCode(10) +
+            'Rates are **steady**.' + String.fromCharCode(10) + String.fromCharCode(10) +
+            '- 10y near 4.2%' + String.fromCharCode(10) + '- CPI cooling';
+        mockStream([md], { success: true, content: md, sourceIds: [], sources: [] });
+        render(<PersonaBlockView instanceId={PERSONA_ID} />);
+        fireEvent.click(screen.getByTitle('Think'));
+
+        // The heading and emphasis become elements, not literal characters.
+        expect(await screen.findByText('Outlook')).toBeTruthy();
+        expect(screen.getByText('steady')).toBeTruthy();
+        expect(screen.getByText('10y near 4.2%')).toBeTruthy();
+        expect(screen.queryByText(/## Outlook/)).toBeNull();
+        expect(screen.queryByText(/\*\*steady\*\*/)).toBeNull();
+    });
+
+    it('does not execute HTML embedded in an answer', async () => {
+        // Answers can quote text that arrived from an external feed.
+        const hostile = 'Look: <img src=x onerror="alert(1)">';
+        mockStream([hostile], { success: true, content: hostile, sourceIds: [], sources: [] });
+        const { container } = render(<PersonaBlockView instanceId={PERSONA_ID} />);
+        fireEvent.click(screen.getByTitle('Think'));
+
+        await screen.findByText(/Look:/);
+        expect(container.querySelector('img')).toBeNull();
+    });
+
+    it("leaves the user's own message as literal text", async () => {
+        mockStream(['ok'], { success: true, content: 'ok', sourceIds: [], sources: [] });
+        render(<PersonaBlockView instanceId={PERSONA_ID} />);
+
+        const input = screen.getByPlaceholderText(/Ask Analyst/);
+        fireEvent.change(input, { target: { value: 'what about **this**?' } });
+        fireEvent.keyDown(input, { key: 'Enter' });
+
+        // A user typing asterisks meant asterisks.
+        expect(await screen.findByText('what about **this**?')).toBeTruthy();
+    });
+});

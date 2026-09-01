@@ -27,11 +27,19 @@ import {
     ContextSource,
     PersonaChatMessage
 } from '@/core/schemas/wire.schema';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { cn } from '@/lib/utils';
 
 interface PersonaBlockViewProps {
     instanceId: string;
 }
+
+/**
+ * How often a streaming answer is published to the store. Fast enough to read
+ * as live typing, slow enough that the canvas is not re-rendered per token.
+ */
+const STREAM_COMMIT_MS = 80;
 
 export function PersonaBlockView({ instanceId }: PersonaBlockViewProps) {
     const block = useBlockStore(state => state.blocks.find(b => b.instance_id === instanceId));
@@ -112,7 +120,7 @@ export function PersonaBlockView({ instanceId }: PersonaBlockViewProps) {
                         role: 'assistant' as const,
                         content,
                         timestamp: Date.now(),
-                        sourcedFrom: turnSources.filter(x => x.kind === 'wire').map(x => x.id),
+                        sourcedFrom: turnSources.map(x => x.id),
                         sources: turnSources
                     }
                 ]
@@ -128,10 +136,20 @@ export function PersonaBlockView({ instanceId }: PersonaBlockViewProps) {
                 userMessage
             });
 
+            // Accumulate every token, but publish on a clock. commit() writes
+            // to the global block store, so a per-token commit re-rendered the
+            // whole canvas once per token — hundreds of full renders per answer,
+            // felt exactly when the user is watching most closely. The text is
+            // never lost: acc holds it and the final commit below always runs.
+            let lastCommit = 0;
             let result = await gen.next();
             while (!result.done) {
                 acc += result.value;
-                commit(acc, true);
+                const now = Date.now();
+                if (now - lastCommit >= STREAM_COMMIT_MS) {
+                    lastCommit = now;
+                    commit(acc, true);
+                }
                 result = await gen.next();
             }
 
@@ -145,7 +163,7 @@ export function PersonaBlockView({ instanceId }: PersonaBlockViewProps) {
         } catch (err) {
             commit(`⚠️ ${err instanceof Error ? err.message : 'Something went wrong.'}`, false);
         }
-    }, [instanceId, getBlock, updateData, personaData, connectedWires]);
+    }, [instanceId, getBlock, updateData, personaData]);
 
     const handleSendMessage = () => {
         if (!input.trim() || personaData.isThinking) return;
@@ -283,7 +301,11 @@ export function PersonaBlockView({ instanceId }: PersonaBlockViewProps) {
                                 )}
                                 style={msg.role === 'user' ? { backgroundColor: config.color } : undefined}
                             >
-                                <p className="whitespace-pre-wrap">{msg.content}</p>
+                                {msg.role === 'assistant' ? (
+                                    <AnswerBody content={msg.content} />
+                                ) : (
+                                    <p className="whitespace-pre-wrap">{msg.content}</p>
+                                )}
                                 <ProvenanceChips
                                     message={msg}
                                     show={msg.role === 'assistant'}
@@ -361,8 +383,10 @@ function ProvenanceChips({ message, show }: { message: PersonaChatMessage; show:
 
     if (!show || sources.length === 0) return null;
 
-    const wired = sources.filter(s => s.kind !== 'memory');
-    const recalled = sources.filter(s => s.kind === 'memory');
+    // One chip per source, ordered so the reader meets evidence before opinion.
+    const order: Array<ContextSource['kind']> = ['wire', 'memory', 'inference'];
+    const ordered = order.flatMap(k => sources.filter(s => s.kind === k));
+    const hasDerived = sources.some(s => s.kind !== 'wire');
 
     return (
         <div className="mt-2 pt-2 border-t border-[var(--citadel-border)]/60">
@@ -371,42 +395,151 @@ function ProvenanceChips({ message, show }: { message: PersonaChatMessage; show:
                     Grounded in
                 </span>
 
-                {wired.map(src => (
-                    <button
-                        key={src.id}
-                        type="button"
-                        onMouseEnter={() => setHighlightedBlocks([src.id])}
-                        onMouseLeave={() => setHighlightedBlocks([])}
-                        onFocus={() => setHighlightedBlocks([src.id])}
-                        onBlur={() => setHighlightedBlocks([])}
-                        className="px-1.5 py-0.5 rounded text-[10px] border border-[var(--citadel-secondary)]/40 text-[var(--citadel-secondary)] bg-[var(--citadel-secondary)]/10 hover:bg-[var(--citadel-secondary)]/20 transition-colors"
-                        title="Highlight this block on the canvas"
-                    >
-                        {src.label}
-                    </button>
-                ))}
-
-                {recalled.map(src => (
-                    <button
-                        key={src.id}
-                        type="button"
-                        onMouseEnter={() => setHighlightedBlocks([src.id])}
-                        onMouseLeave={() => setHighlightedBlocks([])}
-                        onFocus={() => setHighlightedBlocks([src.id])}
-                        onBlur={() => setHighlightedBlocks([])}
-                        className="px-1.5 py-0.5 rounded text-[10px] border border-dashed border-[var(--truth-amber)]/60 text-[var(--truth-amber)] bg-[var(--truth-amber)]/10 hover:bg-[var(--truth-amber)]/20 transition-colors"
-                        title="Recollection from a Memory block — highlight it on the canvas"
-                    >
-                        {src.label}
-                    </button>
+                {ordered.map(src => (
+                    <SourceChip key={src.id} source={src} onHighlight={setHighlightedBlocks} />
                 ))}
             </div>
 
-            {recalled.length > 0 && (
+            {hasDerived && (
                 <p className="mt-1 text-[10px] text-[var(--text-muted)]">
-                    Dashed sources are recollection, not live data.
+                    Dashed sources are recollection or another persona&apos;s answer, not live data.
                 </p>
             )}
+        </div>
+    );
+}
+
+const CHIP_STYLE: Record<ContextSource['kind'], { className: string; title: string }> = {
+    wire: {
+        className:
+            'border-[var(--citadel-secondary)]/40 text-[var(--citadel-secondary)] bg-[var(--citadel-secondary)]/10 hover:bg-[var(--citadel-secondary)]/20',
+        title: 'Live data — highlight this block on the canvas'
+    },
+    memory: {
+        className:
+            'border-dashed border-[var(--truth-amber)]/60 text-[var(--truth-amber)] bg-[var(--truth-amber)]/10 hover:bg-[var(--truth-amber)]/20',
+        title: 'Recollection from a Memory block — highlight it on the canvas'
+    },
+    inference: {
+        // Deliberately distinct: an answer resting on another answer is the
+        // one case where errors compound, and the reader should see it.
+        className:
+            'border-dashed border-[var(--citadel-primary)]/60 text-[var(--citadel-primary-glow)] bg-[var(--citadel-primary)]/10 hover:bg-[var(--citadel-primary)]/20',
+        title: "Another persona's conclusion — highlight it on the canvas"
+    }
+};
+
+function SourceChip({
+    source,
+    onHighlight
+}: {
+    source: ContextSource;
+    onHighlight: (ids: string[]) => void;
+}) {
+    const style = CHIP_STYLE[source.kind] ?? CHIP_STYLE.wire;
+    return (
+        <button
+            type="button"
+            onMouseEnter={() => onHighlight([source.id])}
+            onMouseLeave={() => onHighlight([])}
+            onFocus={() => onHighlight([source.id])}
+            onBlur={() => onHighlight([])}
+            className={cn(
+                'px-1.5 py-0.5 rounded text-[10px] border transition-colors',
+                style.className
+            )}
+            title={style.title}
+        >
+            {source.label}
+        </button>
+    );
+}
+
+
+// ============================================
+// ANSWER BODY
+// Models answer in markdown because the system prompt asks for grounded,
+// structured replies. Rendering that as preformatted text showed every reader
+// literal ## and ** — the product's primary output, looking broken.
+//
+// react-markdown escapes HTML rather than injecting it, which matters here:
+// an answer can quote text that came from an external feed.
+//
+// The element map keeps a 320px-wide block readable — tight spacing, wrapped
+// code, and tables that scroll instead of forcing the card wider.
+// ============================================
+
+const MD_COMPONENTS = {
+    p: (props: React.ComponentProps<'p'>) => <p className="mb-1.5 last:mb-0" {...props} />,
+    ul: (props: React.ComponentProps<'ul'>) => (
+        <ul className="list-disc pl-4 mb-1.5 last:mb-0 space-y-0.5" {...props} />
+    ),
+    ol: (props: React.ComponentProps<'ol'>) => (
+        <ol className="list-decimal pl-4 mb-1.5 last:mb-0 space-y-0.5" {...props} />
+    ),
+    li: (props: React.ComponentProps<'li'>) => <li className="leading-snug" {...props} />,
+    strong: (props: React.ComponentProps<'strong'>) => (
+        <strong className="font-semibold text-[var(--text-primary)]" {...props} />
+    ),
+    // Headings in a card this small are emphasis, not hierarchy.
+    h1: (props: React.ComponentProps<'h1'>) => (
+        <p className="font-semibold text-[var(--text-primary)] mt-2 first:mt-0 mb-1" {...props} />
+    ),
+    h2: (props: React.ComponentProps<'h2'>) => (
+        <p className="font-semibold text-[var(--text-primary)] mt-2 first:mt-0 mb-1" {...props} />
+    ),
+    h3: (props: React.ComponentProps<'h3'>) => (
+        <p className="font-semibold text-[var(--text-primary)] mt-2 first:mt-0 mb-1" {...props} />
+    ),
+    code: ({ className, ...props }: React.ComponentProps<'code'>) =>
+        className?.includes('language-') ? (
+            <code className="block" {...props} />
+        ) : (
+            <code
+                className="px-1 py-0.5 rounded bg-[var(--citadel-void)] text-[var(--citadel-secondary)] text-[11px]"
+                {...props}
+            />
+        ),
+    pre: (props: React.ComponentProps<'pre'>) => (
+        <pre
+            className="my-1.5 p-2 rounded bg-[var(--citadel-void)] border border-[var(--citadel-border)] overflow-x-auto text-[11px] leading-snug"
+            {...props}
+        />
+    ),
+    a: (props: React.ComponentProps<'a'>) => (
+        <a
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[var(--citadel-secondary)] underline underline-offset-2"
+            {...props}
+        />
+    ),
+    blockquote: (props: React.ComponentProps<'blockquote'>) => (
+        <blockquote
+            className="border-l-2 border-[var(--citadel-border)] pl-2 my-1.5 text-[var(--text-secondary)]"
+            {...props}
+        />
+    ),
+    table: (props: React.ComponentProps<'table'>) => (
+        <div className="my-1.5 overflow-x-auto">
+            <table className="text-[11px] border-collapse" {...props} />
+        </div>
+    ),
+    th: (props: React.ComponentProps<'th'>) => (
+        <th className="border border-[var(--citadel-border)] px-1.5 py-0.5 text-left font-semibold" {...props} />
+    ),
+    td: (props: React.ComponentProps<'td'>) => (
+        <td className="border border-[var(--citadel-border)] px-1.5 py-0.5" {...props} />
+    ),
+    hr: () => <hr className="my-2 border-[var(--citadel-border)]" />
+};
+
+function AnswerBody({ content }: { content: string }) {
+    return (
+        <div className="text-sm break-words">
+            <ReactMarkdown remarkPlugins={[remarkGfm]} components={MD_COMPONENTS}>
+                {content}
+            </ReactMarkdown>
         </div>
     );
 }

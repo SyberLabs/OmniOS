@@ -48,6 +48,21 @@ export function extractBlockData(
             } else {
                 extracted = formatNewsDetailed(filtered);
             }
+        } else if (data && typeof data === 'object' && 'personaType' in data && Array.isArray(data.messages)) {
+            // A persona used as a SOURCE: another mind's conclusion, not its
+            // internals. This used to fall through to the generic JSON dump,
+            // which fed the downstream persona ids, timestamps and isCollapsed
+            // flags — a wire that looked connected and delivered noise.
+            const messages = data.messages as Array<{ role: string; content: string }>;
+            const lastAnswer = [...messages].reverse().find(m => m.role === 'assistant');
+
+            // An error is not analysis. Propagating '⚠️ No LLM available' into a
+            // second persona's context would compound one failure into two.
+            if (!lastAnswer || lastAnswer.content.startsWith('⚠️')) return null;
+
+            extracted = filters.summaryOnly
+                ? lastAnswer.content.slice(0, 500) + (lastAnswer.content.length > 500 ? '…' : '')
+                : lastAnswer.content;
         } else if (data && typeof data === 'object' && 'poolId' in data && Array.isArray(data.entries)) {
             // Memory block — a Mind pool wired in like any other source.
             const entries = data.entries as Array<{ content: string }>;
@@ -256,6 +271,13 @@ function formatNewsDetailed(articles: NewsArticle[]): string {
     return lines.join('\n\n---\n\n');
 }
 
+/** What kind of evidence a source block contributes. */
+function sourceKindFor(blockId: string): ContextSource['kind'] {
+    if (blockId === 'memory_pool') return 'memory';
+    if (blockId.startsWith('persona_')) return 'inference';
+    return 'wire';
+}
+
 /**
  * Aggregate context from all wires connected to a target block
  * Optionally includes Shell Mind context based on persona settings
@@ -296,7 +318,7 @@ export function aggregateWireContext(targetBlockId: string): {
                 id: wire.sourceBlockId,
                 // Recollection and live data are both wired now, but they are
                 // different kinds of evidence and the answer should say which.
-                kind: sourceBlock.schema.block_id === 'memory_pool' ? 'memory' : 'wire',
+                kind: sourceKindFor(sourceBlock.schema.block_id),
                 label: sourceBlock.schema.display_name
             });
         }
