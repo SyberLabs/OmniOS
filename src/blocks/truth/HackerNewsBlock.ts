@@ -59,8 +59,6 @@ export function useHackerNewsBlock(instanceId: string) {
     const { useMockData } = useSettingsStore();
     const block = getBlock(instanceId);
 
-    console.log('[HackerNewsBlock] 🚀 Hook initialized', { instanceId, useMockData });
-
     const {
         items,
         isLoading,
@@ -72,17 +70,8 @@ export function useHackerNewsBlock(instanceId: string) {
         refreshInterval: useMockData ? 30000 : 300000  // 5 min refresh for live data
     });
 
-    console.log('[HackerNewsBlock] 📥 useOmniData returned:', {
-        itemsCount: items.length,
-        isLoading,
-        error,
-        fromCache
-    });
-
     const stories = useMemo(() => {
-        const converted = omniItemsToHNStories(items);
-        console.log('[HackerNewsBlock] 🔄 Converted to stories:', converted.length);
-        return converted;
+        return omniItemsToHNStories(items);
     }, [items]);
 
     useEffect(() => {

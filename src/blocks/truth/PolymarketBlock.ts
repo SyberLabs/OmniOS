@@ -53,9 +53,6 @@ export function usePolymarketBlock(instanceId: string) {
     const { useMockData } = useSettingsStore();
     const block = getBlock(instanceId);
 
-    console.log('[PolymarketBlock] 🚀 Hook initialized', { instanceId, useMockData });
-
-    // Use the new API Gateway hook
     const {
         items,
         isLoading,
@@ -67,18 +64,8 @@ export function usePolymarketBlock(instanceId: string) {
         refreshInterval: useMockData ? 5000 : 60000  // Faster in mock mode
     });
 
-    console.log('[PolymarketBlock] 📥 useOmniData returned:', {
-        itemsCount: items.length,
-        isLoading,
-        error,
-        fromCache
-    });
-
-    // Convert OmniData items to markets and update block store
     const markets = useMemo(() => {
-        const converted = omniItemsToMarkets(items);
-        console.log('[PolymarketBlock] 🔄 Converted to markets:', converted.length);
-        return converted;
+        return omniItemsToMarkets(items);
     }, [items]);
 
     // Sync data to block store for other components

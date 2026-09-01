@@ -33,7 +33,6 @@ export function Canvas({ hideEmptyState = false, shellId }: CanvasProps) {
         updatePosition,
         removeBlock,
         getBlocksByShell,
-        getConnectionsByShell,
         activeShellId,
         setActiveShell
     } = useBlockStore();
@@ -56,11 +55,6 @@ export function Canvas({ hideEmptyState = false, shellId }: CanvasProps) {
     const shellBlocks = useMemo(
         () => hasMounted ? getBlocksByShell(currentShell) : [],
         [blocks, currentShell, getBlocksByShell, hasMounted]
-    );
-
-    const shellConnections = useMemo(
-        () => hasMounted ? getConnectionsByShell(currentShell) : [],
-        [blocks, currentShell, getConnectionsByShell, hasMounted]
     );
 
     // Set active shell when shellId prop changes

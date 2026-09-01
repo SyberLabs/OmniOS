@@ -65,9 +65,6 @@ export function useCoinGeckoBlock(instanceId: string) {
     const { useMockData } = useSettingsStore();
     const block = getBlock(instanceId);
 
-    console.log('[CoinGeckoBlock] 🚀 Hook initialized', { instanceId, useMockData });
-
-    // Use the new API Gateway hook
     const {
         items,
         isLoading,
@@ -79,18 +76,8 @@ export function useCoinGeckoBlock(instanceId: string) {
         refreshInterval: useMockData ? 10000 : 60000  // 1 min refresh for live data
     });
 
-    console.log('[CoinGeckoBlock] 📥 useOmniData returned:', {
-        itemsCount: items.length,
-        isLoading,
-        error,
-        fromCache
-    });
-
-    // Convert OmniData items to crypto assets
     const assets = useMemo(() => {
-        const converted = omniItemsToCryptoAssets(items);
-        console.log('[CoinGeckoBlock] 🔄 Converted to assets:', converted.length);
-        return converted;
+        return omniItemsToCryptoAssets(items);
     }, [items]);
 
     // Sync data to block store
