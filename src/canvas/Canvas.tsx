@@ -4,13 +4,12 @@
 // PROJECT OMNI: DRAG-AND-DROP CANVAS
 // ============================================
 
-import { useCallback, useRef, useState, useEffect, useMemo } from 'react';
+import { useCallback, useState, useEffect, useMemo } from 'react';
 import {
     DndContext,
     DragEndEvent,
     DragStartEvent,
     useDraggable,
-    useDroppable,
     PointerSensor,
     useSensor,
     useSensors
@@ -18,6 +17,7 @@ import {
 import { motion } from 'framer-motion';
 import { useBlockStore, useSettingsStore, useUIStore } from '@/core/stores';
 import { BlockCard } from '@/components/blocks/BlockCard';
+import { blockRegistry } from '@/core/registry/BlockRegistry';
 import { WireRenderer } from './WireRenderer';
 import { snapToGrid, cn } from '@/lib/utils';
 import { getBlockView } from '@/core/registry/ViewRegistry';
@@ -30,6 +30,7 @@ interface CanvasProps {
 export function Canvas({ hideEmptyState = false, shellId }: CanvasProps) {
     const {
         blocks,
+        addBlock,
         updatePosition,
         removeBlock,
         getBlocksByShell,
@@ -37,10 +38,9 @@ export function Canvas({ hideEmptyState = false, shellId }: CanvasProps) {
         setActiveShell
     } = useBlockStore();
     const { gridSnapping, gridSize } = useSettingsStore();
-    const { draggingBlockId, setSelectedBlock, selectedBlockId } = useUIStore();
+    const { draggingBlockId, setDraggingBlock, setSelectedBlock, selectedBlockId } = useUIStore();
     const [activeDragId, setActiveDragId] = useState<string | null>(null);
     const [dragDelta, setDragDelta] = useState<{ x: number; y: number } | null>(null);
-    const canvasRef = useRef<HTMLDivElement>(null);
 
     // Hydration fix: only render dynamic content after mount
     const [hasMounted, setHasMounted] = useState(false);
@@ -73,10 +73,34 @@ export function Canvas({ hideEmptyState = false, shellId }: CanvasProps) {
         })
     );
 
-    // Droppable canvas area
-    const { setNodeRef: setDropRef, isOver } = useDroppable({
-        id: 'canvas-drop-zone'
-    });
+    // Sidebar drop. Native HTML5 DnD (the sidebar sets dataTransfer), handled
+    // here rather than by CitadelApp querySelecting this element.
+    const [isSidebarOver, setIsSidebarOver] = useState(false);
+
+    const handleSidebarDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'copy';
+        setIsSidebarOver(true);
+    };
+
+    const handleSidebarDragLeave = (e: React.DragEvent) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsSidebarOver(false);
+    };
+
+    const handleSidebarDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        setIsSidebarOver(false);
+        const blockId = e.dataTransfer.getData('text/plain');
+        const schema = blockId ? blockRegistry.get(blockId) : undefined;
+        if (schema) {
+            const rect = e.currentTarget.getBoundingClientRect();
+            addBlock(schema, {
+                x: Math.max(0, e.clientX - rect.left - 160),
+                y: Math.max(0, e.clientY - rect.top - 20)
+            }, currentShell);
+        }
+        setDraggingBlock(null);
+    };
 
     const handleDragStart = (event: DragStartEvent) => {
         setActiveDragId(event.active.id as string);
@@ -124,14 +148,13 @@ export function Canvas({ hideEmptyState = false, shellId }: CanvasProps) {
             onDragEnd={handleDragEnd}
         >
             <div
-                ref={(node) => {
-                    canvasRef.current = node;
-                    setDropRef(node);
-                }}
                 className={cn(
                     "canvas-workspace relative",
-                    isOver && draggingBlockId && "ring-2 ring-inset ring-[var(--citadel-primary)]/30"
+                    isSidebarOver && draggingBlockId && "ring-2 ring-inset ring-[var(--citadel-primary)]/30"
                 )}
+                onDragOver={handleSidebarDragOver}
+                onDragLeave={handleSidebarDragLeave}
+                onDrop={handleSidebarDrop}
             >
                 {/* Grid overlay */}
                 <div className="canvas-grid" />
