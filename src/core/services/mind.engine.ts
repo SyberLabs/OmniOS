@@ -317,12 +317,6 @@ ${taskDescription}
                 }
                 return 'News feed - no articles loaded';
 
-            case 'gdelt':
-                if (d?.events?.length) {
-                    return `${d.events.length} global events detected. Categories: ${[...new Set(d.events.slice(0, 5).map((e: any) => e.category))].join(', ')}`;
-                }
-                return 'GDELT events - no data loaded';
-
             default:
                 return `${blockType} block with ${Object.keys(d || {}).length} data fields`;
         }

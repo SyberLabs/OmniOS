@@ -11,9 +11,6 @@ import {
     Newspaper,
     LineChart,
     Globe,
-    Plane,
-    Ship,
-    Activity,
     BookOpen,
     ChevronDown,
     ChevronRight,
@@ -21,16 +18,7 @@ import {
     Code,
     MessageSquare,
     Image,
-    Cpu,
-    Heart,
-    Briefcase,
-    Wallet,
-    Home,
-    Clock,
-    User,
-    Calculator,
-    Hexagon,
-    Maximize
+    Activity
 } from 'lucide-react';
 import { useState } from 'react';
 import { blockRegistry } from '@/core/registry/BlockRegistry';
@@ -42,17 +30,8 @@ import { cn } from '@/lib/utils';
 const CATEGORY_ICONS: Record<BlockCategory, React.ReactNode> = {
     truth: <TrendingUp className="w-4 h-4" />,
     pulse: <Newspaper className="w-4 h-4" />,
-    physicality: <Globe className="w-4 h-4" />,
     model: <Activity className="w-4 h-4" />,
-    workspace: <FileText className="w-4 h-4" />,
-    system: <Cpu className="w-4 h-4" />,
-    health: <Heart className="w-4 h-4" />,
-    career: <Briefcase className="w-4 h-4" />,
-    finance: <Wallet className="w-4 h-4" />,
-    mind_system: <Activity className="w-4 h-4" />,
-    relationships: <User className="w-4 h-4" />,
-    environment: <Home className="w-4 h-4" />,
-    time: <Clock className="w-4 h-4" />
+    workspace: <FileText className="w-4 h-4" />
 };
 
 const BLOCK_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -60,63 +39,31 @@ const BLOCK_ICONS: Record<string, React.ComponentType<{ className?: string }>> =
     Newspaper,
     LineChart,
     Globe,
-    Plane,
-    Ship,
     Activity,
     BookOpen,
     FileText,
     Code,
     MessageSquare,
-    Image,
-    Cpu,
-    Heart,
-    Briefcase,
-    Wallet,
-    Home,
-    Clock,
-    User: User,
-    Users: User,
-    Brain: Activity,
-    Calculator,
-    Hexagon,
-    Maximize: Maximize
+    Image
 };
 
 const CATEGORY_LABELS: Record<BlockCategory, string> = {
     truth: 'Truth Blocks',
     pulse: 'Pulse Blocks',
-    physicality: 'Physicality Blocks',
     model: 'Model Blocks',
-    workspace: 'Workspace Blocks',
-    system: 'System Blocks',
-    health: 'Health Blocks',
-    career: 'Career Blocks',
-    finance: 'Finance Blocks',
-    mind_system: 'Mind Blocks',
-    relationships: 'Relationships Blocks',
-    environment: 'Environment Blocks',
-    time: 'Time Blocks'
+    workspace: 'Workspace Blocks'
 };
 
 const CATEGORY_DESCRIPTIONS: Record<BlockCategory, string> = {
     truth: 'Prediction markets & financials',
     pulse: 'Narrative & sentiment',
-    physicality: 'Real-world telemetry',
-    model: 'AI models & biomarkers',
-    workspace: 'Notes, code, chat & media',
-    system: 'Life Systems & Core Calculator',
-    health: 'Body, mind & spirit wellness',
-    career: 'Work, growth & networking',
-    finance: 'Income, expenses & wealth',
-    mind_system: 'Cognition, emotions & consciousness',
-    relationships: 'Family, friends & community',
-    environment: 'Living, digital & natural spaces',
-    time: 'Present, future & legacy'
+    model: 'AI personas',
+    workspace: 'Notes, code, chat & media'
 };
 
 export function Sidebar() {
     const [searchQuery, setSearchQuery] = useState('');
-    const [expandedCategories, setExpandedCategories] = useState<BlockCategory[]>(['workspace', 'health']);
+    const [expandedCategories, setExpandedCategories] = useState<BlockCategory[]>(['workspace']);
 
     const allBlocks = blockRegistry.getAll();
     const filteredBlocks = searchQuery
@@ -162,7 +109,7 @@ export function Sidebar() {
 
             {/* Block Categories */}
             <div className="sidebar-content space-y-2">
-                {(['workspace', 'health', 'career', 'finance', 'mind_system', 'relationships', 'environment', 'time', 'system', 'model', 'truth', 'pulse', 'physicality'] as BlockCategory[]).map(category => {
+                {(['workspace', 'model', 'truth', 'pulse'] as BlockCategory[]).map(category => {
                     const blocks = blocksByCategory[category] || [];
                     const isExpanded = expandedCategories.includes(category);
 

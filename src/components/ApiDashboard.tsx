@@ -23,14 +23,8 @@ import {
     Trash2,
     ExternalLink,
     Download,
-    Settings,
     TrendingUp,
     Newspaper,
-    Globe,
-    Activity,
-    Sparkles,
-    CloudSun,
-    MessageSquare,
     Code,
     DollarSign,
     RefreshCw
@@ -54,14 +48,8 @@ import { cn } from '@/lib/utils';
 const CATEGORY_CONFIG: Record<ApiCategory, { icon: React.ReactNode; label: string; color: string }> = {
     truth: { icon: <TrendingUp className="w-4 h-4" />, label: 'Truth', color: 'var(--truth-green)' },
     pulse: { icon: <Newspaper className="w-4 h-4" />, label: 'Pulse', color: 'var(--truth-amber)' },
-    physicality: { icon: <Globe className="w-4 h-4" />, label: 'Physicality', color: 'var(--citadel-primary)' },
-    bio: { icon: <Activity className="w-4 h-4" />, label: 'Bio', color: 'var(--truth-red)' },
-    ai: { icon: <Sparkles className="w-4 h-4" />, label: 'AI & LLM', color: 'var(--mind-aqua-surface)' },
-    environment: { icon: <CloudSun className="w-4 h-4" />, label: 'Environment', color: '#22c55e' },
-    social: { icon: <MessageSquare className="w-4 h-4" />, label: 'Social', color: '#8b5cf6' },
     developer: { icon: <Code className="w-4 h-4" />, label: 'Developer', color: '#f97316' },
-    economy: { icon: <DollarSign className="w-4 h-4" />, label: 'Economy', color: '#eab308' },
-    custom: { icon: <Settings className="w-4 h-4" />, label: 'Custom', color: 'var(--text-muted)' }
+    economy: { icon: <DollarSign className="w-4 h-4" />, label: 'Economy', color: '#eab308' }
 };
 
 // ============================================
@@ -465,7 +453,7 @@ function MarketplaceView({ searchQuery, setSearchQuery, selectedCategory, setSel
                     >
                         All ({API_CATALOG.length})
                     </button>
-                    {categories.filter(c => c !== 'custom').map(category => (
+                    {categories.map(category => (
                         <button
                             key={category}
                             onClick={() => setSelectedCategory(category)}

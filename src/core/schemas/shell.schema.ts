@@ -147,10 +147,6 @@ export interface OmniSettings {
     apiKeys: {
         polymarket?: string;
         newsapi?: string;
-        tradingview?: string;
-        flightaware?: string;
-        marinetraffic?: string;
-        gdelt?: string;
     };
 
     /** Currently active shell ID */

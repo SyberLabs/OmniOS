@@ -16,8 +16,6 @@ import { API_CATALOG } from '../schemas/api.schema';
 // Import normalizers
 import { polymarketNormalizer } from './normalizers/polymarket';
 import { newsapiNormalizer } from './normalizers/newsapi';
-import { weatherNormalizer } from './normalizers/weather';
-import { llmNormalizer } from './normalizers/llm';
 import { coingeckoNormalizer } from './normalizers/coingecko';
 import { hackernewsNormalizer } from './normalizers/hackernews';
 import { metaculusNormalizer } from './normalizers/metaculus';
@@ -39,8 +37,6 @@ const defaultParamsRegistry = new Map<string, Record<string, unknown>>();
 const normalizerRegistry = new Map<string, ApiTypeDefinition<any>>([
     ['polymarket', polymarketNormalizer],
     ['newsapi', newsapiNormalizer],
-    ['weather', weatherNormalizer],
-    ['llm', llmNormalizer],
     ['coingecko', coingeckoNormalizer],
     ['hackernews', hackernewsNormalizer],
     ['metaculus', metaculusNormalizer],
