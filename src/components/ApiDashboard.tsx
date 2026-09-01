@@ -329,8 +329,21 @@ function ApiConfigCard({ config, isExpanded, onToggle }: ApiConfigCardProps) {
                         className="border-t border-[var(--citadel-border)]"
                     >
                         <div className="p-4 space-y-4">
+                            {/* Server-keyed providers: nothing to enter here.
+                                The key lives in .env and is applied by /api/data. */}
+                            {config.provider.serverKeyed && (
+                                <div className="px-3 py-2 bg-[var(--truth-green)]/10 border border-[var(--truth-green)]/20 rounded-lg">
+                                    <p className="text-xs text-[var(--truth-green)] font-medium">
+                                        Key configured server-side
+                                    </p>
+                                    <p className="text-xs text-[var(--text-muted)] mt-1">
+                                        Set it in <code>.env</code> and restart. It is never sent to the browser.
+                                    </p>
+                                </div>
+                            )}
+
                             {/* API Key Input */}
-                            {config.provider.requiresAuth && (
+                            {config.provider.requiresAuth && !config.provider.serverKeyed && (
                                 <div className="space-y-2">
                                     <label className="text-xs font-medium text-[var(--text-secondary)]">API Key</label>
                                     <div className="flex gap-2">

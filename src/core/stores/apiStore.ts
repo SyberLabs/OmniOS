@@ -1,6 +1,11 @@
 // ============================================
 // PROJECT OMNI: API STORE
-// Encrypted API key storage and management
+// Per-provider install state, status and (for custom providers only) keys.
+//
+// Every keyed provider OmniOS ships is now proxied through /api/data with the
+// key read from process.env, so nothing here holds a shipped secret. What is
+// stored is stored in the clear: the previous XOR-with-a-constant was
+// obfuscation that read as encryption, which is worse than neither.
 // ============================================
 
 import { create } from 'zustand';
@@ -15,39 +20,6 @@ import {
     isApiSupported
 } from '../schemas/api.schema';
 import { apiGateway } from '../gateway';
-
-// ============================================
-// SIMPLE ENCRYPTION (for localStorage)
-// Note: This is basic obfuscation, not secure encryption
-// For production, use Web Crypto API or a proper solution
-// ============================================
-
-const ENCRYPTION_KEY = 'omni-api-vault-2024';
-
-function simpleEncrypt(text: string): string {
-    if (!text) return '';
-    let result = '';
-    for (let i = 0; i < text.length; i++) {
-        const charCode = text.charCodeAt(i) ^ ENCRYPTION_KEY.charCodeAt(i % ENCRYPTION_KEY.length);
-        result += String.fromCharCode(charCode);
-    }
-    return btoa(result);
-}
-
-function simpleDecrypt(encoded: string): string {
-    if (!encoded) return '';
-    try {
-        const text = atob(encoded);
-        let result = '';
-        for (let i = 0; i < text.length; i++) {
-            const charCode = text.charCodeAt(i) ^ ENCRYPTION_KEY.charCodeAt(i % ENCRYPTION_KEY.length);
-            result += String.fromCharCode(charCode);
-        }
-        return result;
-    } catch {
-        return '';
-    }
-}
 
 // ============================================
 // STORE INTERFACE
@@ -131,14 +103,13 @@ export const useApiStore = create<ApiStoreState>()(
             },
 
             setApiKey: (providerId, key) => {
-                const encryptedKey = simpleEncrypt(key);
                 set(state => ({
                     configs: {
                         ...state.configs,
                         [providerId]: {
                             ...state.configs[providerId],
                             providerId,
-                            encryptedKey,
+                            apiKey: key,
                             status: key ? 'idle' : 'not_configured',
                             requestCount: state.configs[providerId]?.requestCount || 0
                         }
@@ -148,7 +119,7 @@ export const useApiStore = create<ApiStoreState>()(
 
             getApiKey: (providerId) => {
                 const config = get().configs[providerId];
-                return config?.encryptedKey ? simpleDecrypt(config.encryptedKey) : '';
+                return config?.apiKey || '';
             },
 
             installApi: (providerId) => {
@@ -281,7 +252,7 @@ export const useApiStore = create<ApiStoreState>()(
                     configs: Object.fromEntries(
                         Object.entries(state.configs).map(([id, config]) => [
                             id,
-                            { ...config, encryptedKey: undefined, status: 'not_configured' as ApiStatus }
+                            { ...config, apiKey: undefined, status: 'not_configured' as ApiStatus }
                         ])
                     )
                 }));
@@ -289,6 +260,22 @@ export const useApiStore = create<ApiStoreState>()(
         }),
         {
             name: 'omni-api-vault',
+            version: 1,
+            // v0 stored `encryptedKey`: XOR-obfuscated, not encrypted. Those
+            // bytes are not a usable plaintext key, so they are dropped rather
+            // than mis-carried. Shipped providers need no client key at all now;
+            // a custom provider's key is simply re-entered.
+            migrate: (persisted: unknown) => {
+                const state = persisted as { configs?: Record<string, Record<string, unknown>> };
+                if (!state?.configs) return state;
+                for (const cfg of Object.values(state.configs)) {
+                    if ('encryptedKey' in cfg) {
+                        delete cfg.encryptedKey;
+                        cfg.status = 'not_configured';
+                    }
+                }
+                return state;
+            },
             storage: createJSONStorage(() => localStorage),
             partialize: (state) => ({
                 configs: state.configs,

@@ -154,6 +154,13 @@ export interface ApiProvider {
     /** Auth type */
     authType?: 'api_key' | 'oauth' | 'bearer' | 'basic';
 
+    /**
+     * The key is configured server-side (process.env) and proxied via
+     * /api/data. The browser neither holds nor sends it, so the dashboard
+     * must not prompt for one.
+     */
+    serverKeyed?: boolean;
+
     /** Corresponding block IDs that use this API */
     blockIds?: string[];
 
@@ -168,11 +175,17 @@ export interface ApiProvider {
 }
 
 /**
- * Stored API configuration (with encrypted key)
+ * Stored per-provider configuration.
  */
 export interface ApiConfig {
     providerId: string;
-    encryptedKey?: string;
+
+    /**
+     * Key for a user-added custom provider, stored in the clear.
+     * Shipped keyed providers never populate this — their keys live in
+     * process.env and are applied by /api/data.
+     */
+    apiKey?: string;
     status: ApiStatus;
     lastTested?: number;
     requestCount: number;
@@ -253,6 +266,7 @@ export const API_CATALOG: ApiProvider[] = [
         pricing: 'freemium',
         freeTierLimits: '25 requests/day',
         requiresAuth: true,
+        serverKeyed: true,
         authType: 'api_key',
         blockIds: ['alpha_vantage_quote'],
         integration: {
@@ -298,6 +312,7 @@ export const API_CATALOG: ApiProvider[] = [
         docsUrl: 'https://fred.stlouisfed.org/docs/api/',
         pricing: 'free',
         requiresAuth: true,
+        serverKeyed: true,
         authType: 'api_key',
         blockIds: ['fred_series'],
         integration: {
@@ -330,6 +345,7 @@ export const API_CATALOG: ApiProvider[] = [
         pricing: 'freemium',
         freeTierLimits: '100 requests/day',
         requiresAuth: true,
+        serverKeyed: true,
         authType: 'api_key',
         blockIds: ['newsapi_feed'],
         integration: {
@@ -455,6 +471,7 @@ export const API_CATALOG: ApiProvider[] = [
         docsUrl: 'https://www.bls.gov/developers/',
         pricing: 'free',
         requiresAuth: true,
+        serverKeyed: true,
         authType: 'api_key',
         blockIds: ['bls_series'],
         integration: {

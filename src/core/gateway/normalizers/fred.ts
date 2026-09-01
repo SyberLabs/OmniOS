@@ -77,35 +77,22 @@ export const fredNormalizer: ApiTypeDefinition<FredResponse> = {
     cacheTtlMs: 10 * 60 * 1000,
     rateLimitMs: 1000,
 
-    fetchFn: async (apiKey, params) => {
-        if (!apiKey) {
-            return {
-                error_message: 'FRED requires an API key. Add one in the API Dashboard.'
-            };
-        }
-
+    // The key lives in process.env; /api/data adds it server-side.
+    fetchFn: async (_apiKey, params) => {
         const seriesId = String(params?.seriesId ?? params?.series_id ?? 'GDP').trim();
-        const limit = params?.limit ?? 24;
-        const sortOrder = (params?.sortOrder ?? params?.sort_order ?? 'desc') as string;
-        const observationStart = params?.observationStart ?? params?.observation_start;
-        const observationEnd = params?.observationEnd ?? params?.observation_end;
+        const query = new URLSearchParams({
+            provider: 'fred',
+            seriesId,
+            limit: String(params?.limit ?? 24),
+            sortOrder: String(params?.sortOrder ?? params?.sort_order ?? 'desc')
+        });
+        const start = params?.observationStart ?? params?.observation_start;
+        const end = params?.observationEnd ?? params?.observation_end;
+        if (start) query.set('observationStart', String(start));
+        if (end) query.set('observationEnd', String(end));
 
         try {
-            const url = new URL('https://api.stlouisfed.org/fred/series/observations');
-            url.searchParams.set('series_id', seriesId);
-            url.searchParams.set('file_type', 'json');
-            url.searchParams.set('limit', String(limit));
-            url.searchParams.set('sort_order', String(sortOrder));
-            url.searchParams.set('api_key', apiKey);
-
-            if (observationStart) {
-                url.searchParams.set('observation_start', String(observationStart));
-            }
-            if (observationEnd) {
-                url.searchParams.set('observation_end', String(observationEnd));
-            }
-
-            const response = await fetch(url.toString());
+            const response = await fetch(`/api/data?${query.toString()}`);
             const data = await response.json();
             return { ...data, _seriesId: seriesId };
         } catch (error) {

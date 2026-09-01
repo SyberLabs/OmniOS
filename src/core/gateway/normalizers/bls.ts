@@ -101,34 +101,18 @@ export const blsNormalizer: ApiTypeDefinition<BLSResponse> = {
     cacheTtlMs: 15 * 60 * 1000,
     rateLimitMs: 1000,
 
-    fetchFn: async (apiKey, params) => {
-        if (!apiKey) {
-            return {
-                status: 'REQUEST_FAILED',
-                message: ['BLS requires an API key. Add one in the API Dashboard.']
-            };
-        }
-
-        const seriesId = String(params?.seriesId ?? params?.series_id ?? 'LNS14000000').trim();
+    // The key lives in process.env; /api/data adds it server-side.
+    fetchFn: async (_apiKey, params) => {
         const currentYear = new Date().getFullYear();
-        const startYear = String(params?.startYear ?? params?.start_year ?? currentYear - 5);
-        const endYear = String(params?.endYear ?? params?.end_year ?? currentYear);
-
-        const payload: Record<string, unknown> = {
-            seriesid: [seriesId],
-            startyear: startYear,
-            endyear: endYear,
-            registrationkey: apiKey
-        };
+        const query = new URLSearchParams({
+            provider: 'bls',
+            seriesId: String(params?.seriesId ?? params?.series_id ?? 'LNS14000000').trim(),
+            startYear: String(params?.startYear ?? params?.start_year ?? currentYear - 5),
+            endYear: String(params?.endYear ?? params?.end_year ?? currentYear)
+        });
 
         try {
-            const response = await fetch('https://api.bls.gov/publicAPI/v2/timeseries/data/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(payload)
-            });
+            const response = await fetch(`/api/data?${query.toString()}`);
             return await response.json();
         } catch (error) {
             return {

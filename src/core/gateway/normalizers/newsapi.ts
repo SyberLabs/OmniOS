@@ -42,33 +42,18 @@ export const newsapiNormalizer: ApiTypeDefinition<NewsApiRawResponse> = {
     cacheTtlMs: 5 * 60 * 1000,  // 5 minutes cache
     rateLimitMs: 2 * 1000,     // 2 seconds between calls (free tier is limited)
 
-    fetchFn: async (apiKey, params) => {
-        if (!apiKey) {
-            return {
-                status: 'error',
-                code: 'NO_API_KEY',
-                message: 'NewsAPI requires an API key. Add one in the API Dashboard.'
-            };
-        }
-
-        const query = (params?.query as string) || 'technology';
-        const pageSize = (params?.pageSize as number) || 20;
-        const country = (params?.country as string) || 'us';
-        const endpoint = (params?.endpoint as string) || 'top-headlines';
+    // The key lives in process.env; /api/data adds it server-side.
+    fetchFn: async (_apiKey, params) => {
+        const query = new URLSearchParams({
+            provider: 'newsapi',
+            query: (params?.query as string) || 'technology',
+            pageSize: String((params?.pageSize as number) || 20),
+            country: (params?.country as string) || 'us',
+            endpoint: (params?.endpoint as string) || 'top-headlines'
+        });
 
         try {
-            let url: string;
-
-            if (endpoint === 'everything') {
-                url = `https://newsapi.org/v2/everything?q=${encodeURIComponent(query)}&pageSize=${pageSize}&apiKey=${apiKey}`;
-            } else {
-                url = `https://newsapi.org/v2/top-headlines?country=${country}&pageSize=${pageSize}&apiKey=${apiKey}`;
-                if (query && query !== 'technology') {
-                    url += `&q=${encodeURIComponent(query)}`;
-                }
-            }
-
-            const response = await fetch(url);
+            const response = await fetch(`/api/data?${query.toString()}`);
             const data = await response.json();
 
             return data;

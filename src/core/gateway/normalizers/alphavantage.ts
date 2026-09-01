@@ -33,19 +33,16 @@ export const alphavantageNormalizer: ApiTypeDefinition<AlphaVantageGlobalQuoteRe
     cacheTtlMs: 60 * 1000,
     rateLimitMs: 12 * 1000,
 
-    fetchFn: async (apiKey, params) => {
-        if (!apiKey) {
-            return {
-                'Error Message': 'Alpha Vantage requires an API key. Add one in the API Dashboard.'
-            };
-        }
-
-        const symbol = (params?.symbol as string) || 'IBM';
-        const fn = (params?.function as string) || 'GLOBAL_QUOTE';
+    // The key lives in process.env; /api/data adds it server-side.
+    fetchFn: async (_apiKey, params) => {
+        const query = new URLSearchParams({
+            provider: 'alpha_vantage',
+            symbol: (params?.symbol as string) || 'IBM',
+            function: (params?.function as string) || 'GLOBAL_QUOTE'
+        });
 
         try {
-            const url = `https://www.alphavantage.co/query?function=${encodeURIComponent(fn)}&symbol=${encodeURIComponent(symbol)}&apikey=${encodeURIComponent(apiKey)}`;
-            const response = await fetch(url);
+            const response = await fetch(`/api/data?${query.toString()}`);
             const data = await response.json();
             return data;
         } catch (error) {
