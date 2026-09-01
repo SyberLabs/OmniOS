@@ -137,7 +137,7 @@ describe.skipIf(!runLiveEnsure)('runtime.ensure launches or reuses a real Chrome
     it('ensure with empty input attaches, then the tab loop works without runtime.attach', async () => {
         const ensured = await json(
             await discoverPost(
-                new Request('http://local/api/agent', {
+                new Request('http://localhost/api/agent', {
                     method: 'POST',
                     headers: { 'content-type': 'application/json' },
                     body: JSON.stringify({ affordance: 'runtime.ensure', input: {} })
@@ -154,7 +154,7 @@ describe.skipIf(!runLiveEnsure)('runtime.ensure launches or reuses a real Chrome
 
         const again = await json(
             await discoverPost(
-                new Request('http://local/api/agent', {
+                new Request('http://localhost/api/agent', {
                     method: 'POST',
                     headers: { 'content-type': 'application/json' },
                     body: JSON.stringify({ affordance: 'runtime.ensure', input: {} })
@@ -168,7 +168,7 @@ describe.skipIf(!runLiveEnsure)('runtime.ensure launches or reuses a real Chrome
 
         const targets = await json(
             await discoverPost(
-                new Request('http://local/api/agent', {
+                new Request('http://localhost/api/agent', {
                     method: 'POST',
                     headers: { 'content-type': 'application/json' },
                     body: JSON.stringify({ affordance: 'runtime.targets', input: {} })
@@ -181,7 +181,7 @@ describe.skipIf(!runLiveEnsure)('runtime.ensure launches or reuses a real Chrome
 
         const created = await json(
             await tabsPost(
-                new Request('http://local/api/agent/tabs', {
+                new Request('http://localhost/api/agent/tabs', {
                     method: 'POST',
                     headers: { 'content-type': 'application/json' },
                     body: JSON.stringify({ url: `${fixtureOrigin}/agent-fixture.html` })
@@ -194,7 +194,7 @@ describe.skipIf(!runLiveEnsure)('runtime.ensure launches or reuses a real Chrome
         const tabId = created.body.tab.id as string;
 
         const read = await json(
-            await tabGet(new Request(`http://local/api/agent/tabs/${tabId}`), {
+            await tabGet(new Request(`http://localhost/api/agent/tabs/${tabId}`), {
                 params: Promise.resolve({ id: tabId })
             })
         );
@@ -202,7 +202,7 @@ describe.skipIf(!runLiveEnsure)('runtime.ensure launches or reuses a real Chrome
         expect(read.body.tab.id).toBe(tabId);
 
         const disposed = await json(
-            await tabDelete(new Request(`http://local/api/agent/tabs/${tabId}`), {
+            await tabDelete(new Request(`http://localhost/api/agent/tabs/${tabId}`), {
                 params: Promise.resolve({ id: tabId })
             })
         );
@@ -210,7 +210,7 @@ describe.skipIf(!runLiveEnsure)('runtime.ensure launches or reuses a real Chrome
 
         const reused = await json(
             await discoverPost(
-                new Request('http://local/api/agent', {
+                new Request('http://localhost/api/agent', {
                     method: 'POST',
                     headers: { 'content-type': 'application/json' },
                     body: JSON.stringify({ affordance: 'runtime.ensure', input: {} })
@@ -221,7 +221,7 @@ describe.skipIf(!runLiveEnsure)('runtime.ensure launches or reuses a real Chrome
         expect(reused.body.attached).toBe(true);
         expect(reused.body.launched).toBe(false);
 
-        const listed = await json(await discoverGet());
+        const listed = await json(await discoverGet(new Request('http://localhost/api/agent')));
         expect(listed.body.affordances.map((a: { id: string }) => a.id)).toContain('runtime.ensure');
     }, 90_000);
 
@@ -252,7 +252,7 @@ describe.skipIf(!runLiveEnsure)('runtime.ensure launches or reuses a real Chrome
 
             const ensured = await json(
                 await discoverPost(
-                    new Request('http://local/api/agent', {
+                    new Request('http://localhost/api/agent', {
                         method: 'POST',
                         headers: { 'content-type': 'application/json' },
                         body: JSON.stringify({ affordance: 'runtime.ensure', input: {} })
@@ -309,7 +309,7 @@ describe.skipIf(!runLiveEnsure)('runtime.ensure launches or reuses a real Chrome
 
             const blocked = await json(
                 await discoverPost(
-                    new Request('http://local/api/agent', {
+                    new Request('http://localhost/api/agent', {
                         method: 'POST',
                         headers: { 'content-type': 'application/json' },
                         body: JSON.stringify({ affordance: 'runtime.ensure', input: {} })
@@ -354,7 +354,7 @@ describe.skipIf(!runLiveEnsure)('runtime.ensure launches or reuses a real Chrome
 
         const launched = await json(
             await discoverPost(
-                new Request('http://local/api/agent', {
+                new Request('http://localhost/api/agent', {
                     method: 'POST',
                     headers: { 'content-type': 'application/json' },
                     body: JSON.stringify({ affordance: 'runtime.ensure', input: {} })

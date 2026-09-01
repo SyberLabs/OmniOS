@@ -204,7 +204,7 @@ describe.skipIf(!runLiveBind)('tabs.bind to an already-open Chrome page', () => 
 
         const attached = await json(
             await discoverPost(
-                new Request('http://local/api/agent', {
+                new Request('http://localhost/api/agent', {
                     method: 'POST',
                     headers: { 'content-type': 'application/json' },
                     body: JSON.stringify({
@@ -220,7 +220,7 @@ describe.skipIf(!runLiveBind)('tabs.bind to an already-open Chrome page', () => 
 
         const listed = await json(
             await discoverPost(
-                new Request('http://local/api/agent', {
+                new Request('http://localhost/api/agent', {
                     method: 'POST',
                     headers: { 'content-type': 'application/json' },
                     body: JSON.stringify({ affordance: 'runtime.targets', input: {} })
@@ -239,7 +239,7 @@ describe.skipIf(!runLiveBind)('tabs.bind to an already-open Chrome page', () => 
 
         const bound = await json(
             await discoverPost(
-                new Request('http://local/api/agent', {
+                new Request('http://localhost/api/agent', {
                     method: 'POST',
                     headers: { 'content-type': 'application/json' },
                     body: JSON.stringify({
@@ -262,7 +262,7 @@ describe.skipIf(!runLiveBind)('tabs.bind to an already-open Chrome page', () => 
 
         const clicked = await json(
             await tabAct(
-                new Request(`http://local/api/agent/tabs/${tabId}/act`, {
+                new Request(`http://localhost/api/agent/tabs/${tabId}/act`, {
                     method: 'POST',
                     headers: { 'content-type': 'application/json' },
                     body: JSON.stringify({
@@ -279,7 +279,7 @@ describe.skipIf(!runLiveBind)('tabs.bind to an already-open Chrome page', () => 
         expectNoRuntimeLeak(clicked.body);
 
         const shot = await screenshotGet(
-            new Request(`http://local/api/agent/tabs/${tabId}/screenshot`),
+            new Request(`http://localhost/api/agent/tabs/${tabId}/screenshot`),
             { params: Promise.resolve({ id: tabId }) }
         );
         const bytes = Buffer.from(await shot.arrayBuffer());
@@ -288,7 +288,7 @@ describe.skipIf(!runLiveBind)('tabs.bind to an already-open Chrome page', () => 
 
         const created = await json(
             await tabsPost(
-                new Request('http://local/api/agent/tabs', {
+                new Request('http://localhost/api/agent/tabs', {
                     method: 'POST',
                     headers: { 'content-type': 'application/json' },
                     body: JSON.stringify({ url: `${fixtureOrigin}/agent-fixture-b.html` })
@@ -304,7 +304,7 @@ describe.skipIf(!runLiveBind)('tabs.bind to an already-open Chrome page', () => 
         ).id;
 
         const disposedBound = await json(
-            await tabDelete(new Request(`http://local/api/agent/tabs/${tabId}`), {
+            await tabDelete(new Request(`http://localhost/api/agent/tabs/${tabId}`), {
                 params: Promise.resolve({ id: tabId })
             })
         );
@@ -313,7 +313,7 @@ describe.skipIf(!runLiveBind)('tabs.bind to an already-open Chrome page', () => 
         expectNoRuntimeLeak(disposedBound.body);
 
         const gone = await json(
-            await tabGet(new Request(`http://local/api/agent/tabs/${tabId}`), {
+            await tabGet(new Request(`http://localhost/api/agent/tabs/${tabId}`), {
                 params: Promise.resolve({ id: tabId })
             })
         );
@@ -325,7 +325,7 @@ describe.skipIf(!runLiveBind)('tabs.bind to an already-open Chrome page', () => 
         expect(chromeAlive).toBe(true);
 
         const disposedCreated = await json(
-            await tabDelete(new Request(`http://local/api/agent/tabs/${createdId}`), {
+            await tabDelete(new Request(`http://localhost/api/agent/tabs/${createdId}`), {
                 params: Promise.resolve({ id: createdId })
             })
         );

@@ -125,7 +125,7 @@ describe('runtime.targets HTTP contract', () => {
         try {
             const attached = await json(
                 await discoverPost(
-                    new Request('http://local/api/agent', {
+                    new Request('http://localhost/api/agent', {
                         method: 'POST',
                         headers: { 'content-type': 'application/json' },
                         body: JSON.stringify({
@@ -140,7 +140,7 @@ describe('runtime.targets HTTP contract', () => {
 
             const listed = await json(
                 await discoverPost(
-                    new Request('http://local/api/agent', {
+                    new Request('http://localhost/api/agent', {
                         method: 'POST',
                         headers: { 'content-type': 'application/json' },
                         body: JSON.stringify({ affordance: 'runtime.targets', input: {} })
@@ -164,7 +164,7 @@ describe('runtime.targets HTTP contract', () => {
 
             const missing = await json(
                 await discoverPost(
-                    new Request('http://local/api/agent', {
+                    new Request('http://localhost/api/agent', {
                         method: 'POST',
                         headers: { 'content-type': 'application/json' },
                         body: JSON.stringify({

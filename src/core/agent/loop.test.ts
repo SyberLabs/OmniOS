@@ -76,14 +76,14 @@ describe('closed action loop on /surface', () => {
     });
 
     it('discover → create /surface → act-by-ref → snapshot on the same response → dispose', async () => {
-        const discovered = await json(await discoverGet());
+        const discovered = await json(await discoverGet(new Request('http://localhost/api/agent')));
         expect(discovered.status).toBe(200);
         expect(discovered.body.keyRequired).toBe(false);
         expect(discovered.body.auth).toBeUndefined();
 
         const created = await json(
             await tabsPost(
-                new Request('http://local/api/agent/tabs', {
+                new Request('http://localhost/api/agent/tabs', {
                     method: 'POST',
                     headers: { 'content-type': 'application/json' },
                     body: JSON.stringify({ url: `${origin}/surface` })
@@ -107,7 +107,7 @@ describe('closed action loop on /surface', () => {
 
         const acted = await json(
             await tabAct(
-                new Request(`http://local/api/agent/tabs/${created.body.tab.id}/act`, {
+                new Request(`http://localhost/api/agent/tabs/${created.body.tab.id}/act`, {
                     method: 'POST',
                     headers: { 'content-type': 'application/json' },
                     body: JSON.stringify({
@@ -126,7 +126,7 @@ describe('closed action loop on /surface', () => {
         expect(validateAgainstSchema(AGENT_TAB_SNAPSHOT_SCHEMA, acted.body.tab)).toEqual([]);
 
         const shot = await screenshotGet(
-            new Request(`http://local/api/agent/tabs/${created.body.tab.id}/screenshot`),
+            new Request(`http://localhost/api/agent/tabs/${created.body.tab.id}/screenshot`),
             { params: Promise.resolve({ id: created.body.tab.id }) }
         );
         expect(shot.status).toBe(200);
@@ -135,7 +135,7 @@ describe('closed action loop on /surface', () => {
         expect(png.subarray(0, 8).equals(PNG_MAGIC)).toBe(true);
 
         const read = await json(
-            await tabGet(new Request(`http://local/api/agent/tabs/${created.body.tab.id}`), {
+            await tabGet(new Request(`http://localhost/api/agent/tabs/${created.body.tab.id}`), {
                 params: Promise.resolve({ id: created.body.tab.id })
             })
         );
@@ -143,7 +143,7 @@ describe('closed action loop on /surface', () => {
 
         const disposed = await json(
             await tabDelete(
-                new Request(`http://local/api/agent/tabs/${created.body.tab.id}`),
+                new Request(`http://localhost/api/agent/tabs/${created.body.tab.id}`),
                 { params: Promise.resolve({ id: created.body.tab.id }) }
             )
         );
@@ -151,7 +151,7 @@ describe('closed action loop on /surface', () => {
         expect(disposed.body.disposed).toBe(created.body.tab.id);
 
         const gone = await json(
-            await tabGet(new Request(`http://local/api/agent/tabs/${created.body.tab.id}`), {
+            await tabGet(new Request(`http://localhost/api/agent/tabs/${created.body.tab.id}`), {
                 params: Promise.resolve({ id: created.body.tab.id })
             })
         );

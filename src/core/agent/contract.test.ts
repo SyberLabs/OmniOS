@@ -102,7 +102,7 @@ describe('frozen agent contract (runtime-agnostic)', () => {
     });
 
     it('GET /api/agent is the frozen discover contract', async () => {
-        const { status, body } = await json(await discoverGet());
+        const { status, body } = await json(await discoverGet(new Request('http://localhost/api/agent')));
         expect(status).toBe(200);
         expect(validateAgainstSchema(AGENT_DISCOVERY_SCHEMA, body)).toEqual([]);
         expect(body.keyRequired).toBe(false);
@@ -187,7 +187,7 @@ describe('frozen agent contract (runtime-agnostic)', () => {
     it('runtime.targets and tabs.bind without attach fail cleanly, not 500', async () => {
         const listed = await json(
             await discoverPost(
-                new Request('http://local/api/agent', {
+                new Request('http://localhost/api/agent', {
                     method: 'POST',
                     headers: { 'content-type': 'application/json' },
                     body: JSON.stringify({ affordance: 'runtime.targets', input: {} })
@@ -202,7 +202,7 @@ describe('frozen agent contract (runtime-agnostic)', () => {
 
         const missing = await json(
             await discoverPost(
-                new Request('http://local/api/agent', {
+                new Request('http://localhost/api/agent', {
                     method: 'POST',
                     headers: { 'content-type': 'application/json' },
                     body: JSON.stringify({ affordance: 'tabs.bind', input: {} })
@@ -217,7 +217,7 @@ describe('frozen agent contract (runtime-agnostic)', () => {
 
         const unbound = await json(
             await discoverPost(
-                new Request('http://local/api/agent', {
+                new Request('http://localhost/api/agent', {
                     method: 'POST',
                     headers: { 'content-type': 'application/json' },
                     body: JSON.stringify({
@@ -246,7 +246,7 @@ describe('frozen agent contract (runtime-agnostic)', () => {
         try {
             const ensured = await json(
                 await discoverPost(
-                    new Request('http://local/api/agent', {
+                    new Request('http://localhost/api/agent', {
                         method: 'POST',
                         headers: { 'content-type': 'application/json' },
                         body: JSON.stringify({ affordance: 'runtime.ensure', input: {} })
@@ -274,7 +274,7 @@ describe('frozen agent contract (runtime-agnostic)', () => {
     it('runtime.attach rejects invalid CDP with a clean error, not 500', async () => {
         const missing = await json(
             await discoverPost(
-                new Request('http://local/api/agent', {
+                new Request('http://localhost/api/agent', {
                     method: 'POST',
                     headers: { 'content-type': 'application/json' },
                     body: JSON.stringify({ affordance: 'runtime.attach', input: {} })
@@ -289,7 +289,7 @@ describe('frozen agent contract (runtime-agnostic)', () => {
 
         const malformed = await json(
             await discoverPost(
-                new Request('http://local/api/agent', {
+                new Request('http://localhost/api/agent', {
                     method: 'POST',
                     headers: { 'content-type': 'application/json' },
                     body: JSON.stringify({
@@ -307,7 +307,7 @@ describe('frozen agent contract (runtime-agnostic)', () => {
 
         const unreachable = await json(
             await discoverPost(
-                new Request('http://local/api/agent', {
+                new Request('http://localhost/api/agent', {
                     method: 'POST',
                     headers: { 'content-type': 'application/json' },
                     body: JSON.stringify({
@@ -329,7 +329,7 @@ describe('frozen agent contract (runtime-agnostic)', () => {
     it('create/read/list/act/screenshot/dispose stay on the snapshot shape', async () => {
         const created = await json(
             await tabsPost(
-                new Request('http://local/api/agent/tabs', {
+                new Request('http://localhost/api/agent/tabs', {
                     method: 'POST',
                     headers: { 'content-type': 'application/json' },
                     body: JSON.stringify({ url: `${fixtureOrigin}/agent-fixture.html` })
@@ -348,13 +348,13 @@ describe('frozen agent contract (runtime-agnostic)', () => {
         );
         expect(persist?.ref).toBeTruthy();
 
-        const listed = await json(await tabsGet());
+        const listed = await json(await tabsGet(new Request('http://localhost/api/agent/tabs')));
         expect(listed.status).toBe(200);
         expect(listed.body.tabs.map((t: { id: string }) => t.id)).toContain(tabId);
 
         const clicked = await json(
             await tabAct(
-                new Request(`http://local/api/agent/tabs/${tabId}/act`, {
+                new Request(`http://localhost/api/agent/tabs/${tabId}/act`, {
                     method: 'POST',
                     headers: { 'content-type': 'application/json' },
                     body: JSON.stringify({ affordance: 'tab.click', input: { ref: persist!.ref } })
@@ -385,7 +385,7 @@ describe('frozen agent contract (runtime-agnostic)', () => {
         expect(validateAgainstSchema(AGENT_TAB_SNAPSHOT_SCHEMA, navigated.body.tab)).toEqual([]);
 
         const read = await json(
-            await tabGet(new Request(`http://local/api/agent/tabs/${tabId}`), {
+            await tabGet(new Request(`http://localhost/api/agent/tabs/${tabId}`), {
                 params: Promise.resolve({ id: tabId })
             })
         );
@@ -395,7 +395,7 @@ describe('frozen agent contract (runtime-agnostic)', () => {
         expect(read.body.tab.tabRuntime).toBeUndefined();
 
         const shot = await screenshotGet(
-            new Request(`http://local/api/agent/tabs/${tabId}/screenshot`),
+            new Request(`http://localhost/api/agent/tabs/${tabId}/screenshot`),
             { params: Promise.resolve({ id: tabId }) }
         );
         expect(shot.status).toBe(200);
@@ -403,7 +403,7 @@ describe('frozen agent contract (runtime-agnostic)', () => {
 
         const viaInvoke = await json(
             await discoverPost(
-                new Request('http://local/api/agent', {
+                new Request('http://localhost/api/agent', {
                     method: 'POST',
                     headers: { 'content-type': 'application/json' },
                     body: JSON.stringify({ affordance: 'tab.screenshot', input: { tabId } })
@@ -418,7 +418,7 @@ describe('frozen agent contract (runtime-agnostic)', () => {
         expectNoRuntimeLeak(viaInvoke.body);
 
         const disposed = await json(
-            await tabDelete(new Request(`http://local/api/agent/tabs/${tabId}`), {
+            await tabDelete(new Request(`http://localhost/api/agent/tabs/${tabId}`), {
                 params: Promise.resolve({ id: tabId })
             })
         );
@@ -427,7 +427,7 @@ describe('frozen agent contract (runtime-agnostic)', () => {
         expectNoRuntimeLeak(disposed.body);
 
         const gone = await json(
-            await tabGet(new Request(`http://local/api/agent/tabs/${tabId}`), {
+            await tabGet(new Request(`http://localhost/api/agent/tabs/${tabId}`), {
                 params: Promise.resolve({ id: tabId })
             })
         );

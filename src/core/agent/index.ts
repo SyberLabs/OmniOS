@@ -22,6 +22,7 @@ export {
     __simulateProcessRestart,
     __resetAgentTabs
 } from './browserTabs';
+export { guardAgentRequest } from './guard';
 export { findChrome, resolveTabRuntimeKind } from './runtime';
 export { invokeAffordance } from './invoke';
 export type { Affordance, Actionable, AgentTab, HandlerResult, PageLink } from './types';

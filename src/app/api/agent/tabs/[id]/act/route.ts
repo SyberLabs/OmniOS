@@ -4,6 +4,7 @@
 // ============================================
 
 import { NextResponse } from 'next/server';
+import { guardAgentRequest } from '@/core/agent/guard';
 import { invokeAffordance, readJsonBody } from '@/core/agent/invoke';
 import type { HandlerResult } from '@/core/agent/types';
 
@@ -16,6 +17,8 @@ function respond(result: HandlerResult) {
 }
 
 export async function POST(request: Request, context: RouteContext) {
+    const blocked = guardAgentRequest(request);
+    if (blocked) return respond(blocked);
     const { id } = await context.params;
     try {
         const body = await readJsonBody(request);

@@ -24,7 +24,7 @@ function noKeyHeaders(): HeadersInit {
 }
 
 async function createTab(url: string) {
-    return json(await tabsPost(new Request('http://local/api/agent/tabs', {
+    return json(await tabsPost(new Request('http://localhost/api/agent/tabs', {
         method: 'POST',
         headers: noKeyHeaders(),
         body: JSON.stringify({ url })
@@ -33,7 +33,7 @@ async function createTab(url: string) {
 
 async function actTab(tabId: string, affordance: string, input: Record<string, string>) {
     return json(await tabAct(
-        new Request(`http://local/api/agent/tabs/${tabId}/act`, {
+        new Request(`http://localhost/api/agent/tabs/${tabId}/act`, {
             method: 'POST',
             headers: noKeyHeaders(),
             body: JSON.stringify({ affordance, input })
@@ -44,14 +44,14 @@ async function actTab(tabId: string, affordance: string, input: Record<string, s
 
 async function readTabHttp(tabId: string) {
     return json(await tabGet(
-        new Request(`http://local/api/agent/tabs/${tabId}`),
+        new Request(`http://localhost/api/agent/tabs/${tabId}`),
         { params: Promise.resolve({ id: tabId }) }
     ));
 }
 
 async function disposeTabHttp(tabId: string) {
     return json(await tabDelete(
-        new Request(`http://local/api/agent/tabs/${tabId}`),
+        new Request(`http://localhost/api/agent/tabs/${tabId}`),
         { params: Promise.resolve({ id: tabId }) }
     ));
 }
@@ -60,7 +60,7 @@ const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
 async function fetchPng(tabId: string) {
     const res = await screenshotGet(
-        new Request(`http://local/api/agent/tabs/${tabId}/screenshot`),
+        new Request(`http://localhost/api/agent/tabs/${tabId}/screenshot`),
         { params: Promise.resolve({ id: tabId }) }
     );
     const bytes = Buffer.from(await res.arrayBuffer());
@@ -113,7 +113,7 @@ beforeEach(async () => {
 
 describe('agent surface — live keyless browser tabs', () => {
     it('discovers named keyless page affordances without any API key', async () => {
-        const { status, body } = await json(await discoverGet());
+        const { status, body } = await json(await discoverGet(new Request('http://localhost/api/agent')));
 
         expect(status).toBe(200);
         expect(body.keyRequired).toBe(false);
@@ -148,7 +148,7 @@ describe('agent surface — live keyless browser tabs', () => {
     });
 
     it('opens a real page, reads it, acts, persists across a second request, then disposes', async () => {
-        const created = await json(await tabsPost(new Request('http://local/api/agent/tabs', {
+        const created = await json(await tabsPost(new Request('http://localhost/api/agent/tabs', {
             method: 'POST',
             headers: noKeyHeaders(),
             body: JSON.stringify({ url: `${fixtureOrigin}/agent-fixture.html` })
@@ -206,7 +206,7 @@ describe('agent surface — live keyless browser tabs', () => {
         const saveRef = openedActions.find((a) => a.name === 'Save name')!.ref;
 
         const clicked = await json(await tabAct(
-            new Request(`http://local/api/agent/tabs/${tabId}/act`, {
+            new Request(`http://localhost/api/agent/tabs/${tabId}/act`, {
                 method: 'POST',
                 headers: noKeyHeaders(),
                 body: JSON.stringify({
@@ -224,7 +224,7 @@ describe('agent surface — live keyless browser tabs', () => {
         ]));
 
         const typed = await json(await tabAct(
-            new Request(`http://local/api/agent/tabs/${tabId}/act`, {
+            new Request(`http://localhost/api/agent/tabs/${tabId}/act`, {
                 method: 'POST',
                 headers: noKeyHeaders(),
                 body: JSON.stringify({
@@ -248,7 +248,7 @@ describe('agent surface — live keyless browser tabs', () => {
         ]));
 
         const saved = await json(await tabAct(
-            new Request(`http://local/api/agent/tabs/${tabId}/act`, {
+            new Request(`http://localhost/api/agent/tabs/${tabId}/act`, {
                 method: 'POST',
                 headers: noKeyHeaders(),
                 body: JSON.stringify({
@@ -268,7 +268,7 @@ describe('agent surface — live keyless browser tabs', () => {
         await __dropLiveContexts();
 
         const persisted = await json(await tabGet(
-            new Request(`http://local/api/agent/tabs/${tabId}`),
+            new Request(`http://localhost/api/agent/tabs/${tabId}`),
             { params: Promise.resolve({ id: tabId }) }
         ));
         expect(persisted.status).toBe(200);
@@ -280,7 +280,7 @@ describe('agent surface — live keyless browser tabs', () => {
         ]));
 
         const navigated = await json(await tabAct(
-            new Request(`http://local/api/agent/tabs/${tabId}/act`, {
+            new Request(`http://localhost/api/agent/tabs/${tabId}/act`, {
                 method: 'POST',
                 headers: noKeyHeaders(),
                 body: JSON.stringify({
@@ -299,28 +299,28 @@ describe('agent surface — live keyless browser tabs', () => {
             expect.objectContaining({ role: 'link', name: 'Back to Alpha' })
         ]));
 
-        const listed = await json(await tabsGet());
+        const listed = await json(await tabsGet(new Request('http://localhost/api/agent/tabs')));
         expect(listed.status).toBe(200);
         expect(listed.body.tabs).toHaveLength(1);
         expect(listed.body.tabs[0].id).toBe(tabId);
         expect(listed.body.tabs[0].title).toBe('Agent Fixture B');
 
         const disposed = await json(await tabDelete(
-            new Request(`http://local/api/agent/tabs/${tabId}`),
+            new Request(`http://localhost/api/agent/tabs/${tabId}`),
             { params: Promise.resolve({ id: tabId }) }
         ));
         expect(disposed.status).toBe(200);
         expect(disposed.body.disposed).toBe(tabId);
 
         const gone = await json(await tabGet(
-            new Request(`http://local/api/agent/tabs/${tabId}`),
+            new Request(`http://localhost/api/agent/tabs/${tabId}`),
             { params: Promise.resolve({ id: tabId }) }
         ));
         expect(gone.status).toBe(404);
         expect(gone.body.keyRequired).toBe(false);
 
         const actGone = await json(await tabAct(
-            new Request(`http://local/api/agent/tabs/${tabId}/act`, {
+            new Request(`http://localhost/api/agent/tabs/${tabId}/act`, {
                 method: 'POST',
                 headers: noKeyHeaders(),
                 body: JSON.stringify({
@@ -332,12 +332,12 @@ describe('agent surface — live keyless browser tabs', () => {
         ));
         expect(actGone.status).toBe(404);
 
-        const empty = await json(await tabsGet());
+        const empty = await json(await tabsGet(new Request('http://localhost/api/agent/tabs')));
         expect(empty.body.tabs).toEqual([]);
     }, 60_000);
 
     it('invokes the same live loop through POST /api/agent with no key', async () => {
-        const created = await json(await discoverPost(new Request('http://local/api/agent', {
+        const created = await json(await discoverPost(new Request('http://localhost/api/agent', {
             method: 'POST',
             headers: noKeyHeaders(),
             body: JSON.stringify({
@@ -349,7 +349,7 @@ describe('agent surface — live keyless browser tabs', () => {
         expect(created.body.tab.title).toBe('Agent Fixture A');
         const tabId = created.body.tab.id as string;
 
-        const acted = await json(await discoverPost(new Request('http://local/api/agent', {
+        const acted = await json(await discoverPost(new Request('http://localhost/api/agent', {
             method: 'POST',
             headers: noKeyHeaders(),
             body: JSON.stringify({
@@ -363,7 +363,7 @@ describe('agent surface — live keyless browser tabs', () => {
             expect.objectContaining({ name: 'Reveal next', role: 'button' })
         ]));
 
-        const read = await json(await discoverPost(new Request('http://local/api/agent', {
+        const read = await json(await discoverPost(new Request('http://localhost/api/agent', {
             method: 'POST',
             headers: noKeyHeaders(),
             body: JSON.stringify({
@@ -374,7 +374,7 @@ describe('agent surface — live keyless browser tabs', () => {
         expect(read.status).toBe(200);
         expect(read.body.tab.text).toContain('session: alive / persisted');
 
-        const disposed = await json(await discoverPost(new Request('http://local/api/agent', {
+        const disposed = await json(await discoverPost(new Request('http://localhost/api/agent', {
             method: 'POST',
             headers: noKeyHeaders(),
             body: JSON.stringify({
@@ -387,7 +387,7 @@ describe('agent surface — live keyless browser tabs', () => {
     }, 60_000);
 
     it('rejects unknown affordances and missing tabs without asking for a key', async () => {
-        const unknown = await json(await discoverPost(new Request('http://local/api/agent', {
+        const unknown = await json(await discoverPost(new Request('http://localhost/api/agent', {
             method: 'POST',
             headers: noKeyHeaders(),
             body: JSON.stringify({ affordance: 'llm.chat', input: {} })
@@ -397,7 +397,7 @@ describe('agent surface — live keyless browser tabs', () => {
         expect(unknown.body.keyRequired).toBe(false);
 
         const missing = await json(await tabGet(
-            new Request('http://local/api/agent/tabs/tab_missing'),
+            new Request('http://localhost/api/agent/tabs/tab_missing'),
             { params: Promise.resolve({ id: 'tab_missing' }) }
         ));
         expect(missing.status).toBe(404);
@@ -405,7 +405,7 @@ describe('agent surface — live keyless browser tabs', () => {
     });
 
     it('returns a full snapshot on create and click so no follow-up read is required', async () => {
-        const created = await json(await tabsPost(new Request('http://local/api/agent/tabs', {
+        const created = await json(await tabsPost(new Request('http://localhost/api/agent/tabs', {
             method: 'POST',
             headers: noKeyHeaders(),
             body: JSON.stringify({ url: `${fixtureOrigin}/agent-fixture.html` })
@@ -433,7 +433,7 @@ describe('agent surface — live keyless browser tabs', () => {
 
         const persistRef = openedActions.find((a) => a.name === 'Persist session')!.ref;
         const clicked = await json(await tabAct(
-            new Request(`http://local/api/agent/tabs/${created.body.tab.id}/act`, {
+            new Request(`http://localhost/api/agent/tabs/${created.body.tab.id}/act`, {
                 method: 'POST',
                 headers: noKeyHeaders(),
                 body: JSON.stringify({
@@ -550,7 +550,7 @@ describe('agent surface — live keyless browser tabs', () => {
 
         await __simulateProcessRestart();
 
-        const listed = await json(await tabsGet());
+        const listed = await json(await tabsGet(new Request('http://localhost/api/agent/tabs')));
         expect(listed.body.tabs.map((t: { id: string }) => t.id)).toEqual(
             expect.arrayContaining([tabA, tabB])
         );
@@ -594,7 +594,7 @@ describe('agent surface — live keyless browser tabs', () => {
         const first = await fetchPng(tabId);
         expectPng(first);
 
-        const viaAffordance = await json(await discoverPost(new Request('http://local/api/agent', {
+        const viaAffordance = await json(await discoverPost(new Request('http://localhost/api/agent', {
             method: 'POST',
             headers: noKeyHeaders(),
             body: JSON.stringify({ affordance: 'tab.screenshot', input: { tabId } })
@@ -636,14 +636,14 @@ describe('agent surface — live keyless browser tabs', () => {
     }, 60_000);
 
     it('still accepts a CSS selector as a fallback', async () => {
-        const created = await json(await tabsPost(new Request('http://local/api/agent/tabs', {
+        const created = await json(await tabsPost(new Request('http://localhost/api/agent/tabs', {
             method: 'POST',
             headers: noKeyHeaders(),
             body: JSON.stringify({ url: `${fixtureOrigin}/agent-fixture.html` })
         })));
         const tabId = created.body.tab.id as string;
         const clicked = await json(await tabAct(
-            new Request(`http://local/api/agent/tabs/${tabId}/act`, {
+            new Request(`http://localhost/api/agent/tabs/${tabId}/act`, {
                 method: 'POST',
                 headers: noKeyHeaders(),
                 body: JSON.stringify({

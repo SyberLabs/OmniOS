@@ -34,6 +34,24 @@ Callers depend on named affordances and the snapshot shape
 `tabRuntime` is discovery-only (`cdp` | `playwright`). No caller-visible
 `BrowserContext`, `storageState`, or CDP port.
 
+### Keyless, not open
+
+Keyless means *no API key*, not *no boundary*. The surface drives a real
+browser, so it is reachable only from this machine and only by a caller that
+is not a web page (`src/core/agent/guard.ts`):
+
+- **Loopback only.** `npm run dev` / `npm run start` bind `127.0.0.1`, and the
+  surface refuses any request whose `Host` is not loopback — so a peer on your
+  network cannot reach it even if the server is rebound.
+- **No browser drive-by.** A cross-origin `Sec-Fetch-Site` or `Origin` is
+  refused, so a page you happen to visit cannot call these affordances.
+- **`content-type: application/json` is required on POST.** `text/plain` is
+  CORS-safelisted, which would make a cross-origin POST a *simple request*:
+  no preflight, delivered, side effects run. Requiring JSON forces a preflight
+  this app never answers.
+
+The curl examples below satisfy all three as written.
+
 Each tab is a **local lightweight browser state** — not a JSON note, not a
 Citadel canvas, and not a hosted-model chat. OmniOS-created tabs keep cookies /
 `localStorage` in `.omni/profiles/<tabId>/` and rehydrate after a process

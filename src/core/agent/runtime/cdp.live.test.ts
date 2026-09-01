@@ -67,7 +67,7 @@ describe.skipIf(!runLiveCdp)('local Chrome/CDP product runtime', () => {
     it('isolates two Chrome profiles, returns refs and a real PNG, then 404s on dispose', async () => {
         const openedA = await json(
             await tabsPost(
-                new Request('http://local/api/agent/tabs', {
+                new Request('http://localhost/api/agent/tabs', {
                     method: 'POST',
                     headers: { 'content-type': 'application/json' },
                     body: JSON.stringify({ url: `${fixtureOrigin}/agent-fixture.html` })
@@ -76,7 +76,7 @@ describe.skipIf(!runLiveCdp)('local Chrome/CDP product runtime', () => {
         );
         const openedB = await json(
             await tabsPost(
-                new Request('http://local/api/agent/tabs', {
+                new Request('http://localhost/api/agent/tabs', {
                     method: 'POST',
                     headers: { 'content-type': 'application/json' },
                     body: JSON.stringify({ url: `${fixtureOrigin}/agent-fixture.html` })
@@ -93,7 +93,7 @@ describe.skipIf(!runLiveCdp)('local Chrome/CDP product runtime', () => {
         );
 
         const shot1 = await screenshotGet(
-            new Request(`http://local/api/agent/tabs/${tabA}/screenshot`),
+            new Request(`http://localhost/api/agent/tabs/${tabA}/screenshot`),
             { params: Promise.resolve({ id: tabA }) }
         );
         const bytes1 = Buffer.from(await shot1.arrayBuffer());
@@ -107,7 +107,7 @@ describe.skipIf(!runLiveCdp)('local Chrome/CDP product runtime', () => {
         ).find((a) => a.name === 'Persist session')!.ref;
         const clicked = await json(
             await tabAct(
-                new Request(`http://local/api/agent/tabs/${tabA}/act`, {
+                new Request(`http://localhost/api/agent/tabs/${tabA}/act`, {
                     method: 'POST',
                     headers: { 'content-type': 'application/json' },
                     body: JSON.stringify({
@@ -121,7 +121,7 @@ describe.skipIf(!runLiveCdp)('local Chrome/CDP product runtime', () => {
         expect(clicked.body.tab.text).toContain('session: alive / persisted');
 
         const shot2 = await screenshotGet(
-            new Request(`http://local/api/agent/tabs/${tabA}/screenshot`),
+            new Request(`http://localhost/api/agent/tabs/${tabA}/screenshot`),
             { params: Promise.resolve({ id: tabA }) }
         );
         const bytes2 = Buffer.from(await shot2.arrayBuffer());
@@ -130,7 +130,7 @@ describe.skipIf(!runLiveCdp)('local Chrome/CDP product runtime', () => {
 
         const navigatedB = await json(
             await tabAct(
-                new Request(`http://local/api/agent/tabs/${tabB}/act`, {
+                new Request(`http://localhost/api/agent/tabs/${tabB}/act`, {
                     method: 'POST',
                     headers: { 'content-type': 'application/json' },
                     body: JSON.stringify({
@@ -145,19 +145,19 @@ describe.skipIf(!runLiveCdp)('local Chrome/CDP product runtime', () => {
         expect(navigatedB.body.tab.text).not.toContain('session: alive / persisted');
 
         await json(
-            await tabDelete(new Request(`http://local/api/agent/tabs/${tabA}`), {
+            await tabDelete(new Request(`http://localhost/api/agent/tabs/${tabA}`), {
                 params: Promise.resolve({ id: tabA })
             })
         );
         const goneA = await json(
-            await tabGet(new Request(`http://local/api/agent/tabs/${tabA}`), {
+            await tabGet(new Request(`http://localhost/api/agent/tabs/${tabA}`), {
                 params: Promise.resolve({ id: tabA })
             })
         );
         expect(goneA.status).toBe(404);
 
         const stillB = await json(
-            await tabGet(new Request(`http://local/api/agent/tabs/${tabB}`), {
+            await tabGet(new Request(`http://localhost/api/agent/tabs/${tabB}`), {
                 params: Promise.resolve({ id: tabB })
             })
         );
@@ -165,12 +165,12 @@ describe.skipIf(!runLiveCdp)('local Chrome/CDP product runtime', () => {
         expect(stillB.body.tab.text).toContain('session: empty / empty');
 
         await json(
-            await tabDelete(new Request(`http://local/api/agent/tabs/${tabB}`), {
+            await tabDelete(new Request(`http://localhost/api/agent/tabs/${tabB}`), {
                 params: Promise.resolve({ id: tabB })
             })
         );
         const goneB = await screenshotGet(
-            new Request(`http://local/api/agent/tabs/${tabB}/screenshot`),
+            new Request(`http://localhost/api/agent/tabs/${tabB}/screenshot`),
             { params: Promise.resolve({ id: tabB }) }
         );
         expect(goneB.status).toBe(404);
@@ -179,7 +179,7 @@ describe.skipIf(!runLiveCdp)('local Chrome/CDP product runtime', () => {
     it('rehydrates cookies from the local Chrome profile after process restart', async () => {
         const openedA = await json(
             await tabsPost(
-                new Request('http://local/api/agent/tabs', {
+                new Request('http://localhost/api/agent/tabs', {
                     method: 'POST',
                     headers: { 'content-type': 'application/json' },
                     body: JSON.stringify({ url: `${fixtureOrigin}/agent-fixture.html` })
@@ -188,7 +188,7 @@ describe.skipIf(!runLiveCdp)('local Chrome/CDP product runtime', () => {
         );
         const openedB = await json(
             await tabsPost(
-                new Request('http://local/api/agent/tabs', {
+                new Request('http://localhost/api/agent/tabs', {
                     method: 'POST',
                     headers: { 'content-type': 'application/json' },
                     body: JSON.stringify({ url: `${fixtureOrigin}/agent-fixture.html` })
@@ -202,7 +202,7 @@ describe.skipIf(!runLiveCdp)('local Chrome/CDP product runtime', () => {
         ).find((a) => a.name === 'Persist session')!.ref;
         await json(
             await tabAct(
-                new Request(`http://local/api/agent/tabs/${tabA}/act`, {
+                new Request(`http://localhost/api/agent/tabs/${tabA}/act`, {
                     method: 'POST',
                     headers: { 'content-type': 'application/json' },
                     body: JSON.stringify({
@@ -217,7 +217,7 @@ describe.skipIf(!runLiveCdp)('local Chrome/CDP product runtime', () => {
         await __simulateProcessRestart();
 
         const readA = await json(
-            await tabGet(new Request(`http://local/api/agent/tabs/${tabA}`), {
+            await tabGet(new Request(`http://localhost/api/agent/tabs/${tabA}`), {
                 params: Promise.resolve({ id: tabA })
             })
         );
@@ -225,21 +225,21 @@ describe.skipIf(!runLiveCdp)('local Chrome/CDP product runtime', () => {
         expect(readA.body.tab.text).toContain('session: alive / persisted');
 
         const readB = await json(
-            await tabGet(new Request(`http://local/api/agent/tabs/${tabB}`), {
+            await tabGet(new Request(`http://localhost/api/agent/tabs/${tabB}`), {
                 params: Promise.resolve({ id: tabB })
             })
         );
         expect(readB.body.tab.text).toContain('session: empty / empty');
 
         await json(
-            await tabDelete(new Request(`http://local/api/agent/tabs/${tabA}`), {
+            await tabDelete(new Request(`http://localhost/api/agent/tabs/${tabA}`), {
                 params: Promise.resolve({ id: tabA })
             })
         );
         expect(
             (
                 await json(
-                    await tabGet(new Request(`http://local/api/agent/tabs/${tabA}`), {
+                    await tabGet(new Request(`http://localhost/api/agent/tabs/${tabA}`), {
                         params: Promise.resolve({ id: tabA })
                     })
                 )
@@ -248,7 +248,7 @@ describe.skipIf(!runLiveCdp)('local Chrome/CDP product runtime', () => {
 
         const openedC = await json(
             await tabsPost(
-                new Request('http://local/api/agent/tabs', {
+                new Request('http://localhost/api/agent/tabs', {
                     method: 'POST',
                     headers: { 'content-type': 'application/json' },
                     body: JSON.stringify({ url: `${fixtureOrigin}/agent-fixture.html` })
@@ -257,12 +257,12 @@ describe.skipIf(!runLiveCdp)('local Chrome/CDP product runtime', () => {
         );
         expect(openedC.body.tab.text).toContain('session: empty / empty');
         await json(
-            await tabDelete(new Request(`http://local/api/agent/tabs/${tabB}`), {
+            await tabDelete(new Request(`http://localhost/api/agent/tabs/${tabB}`), {
                 params: Promise.resolve({ id: tabB })
             })
         );
         await json(
-            await tabDelete(new Request(`http://local/api/agent/tabs/${openedC.body.tab.id}`), {
+            await tabDelete(new Request(`http://localhost/api/agent/tabs/${openedC.body.tab.id}`), {
                 params: Promise.resolve({ id: openedC.body.tab.id })
             })
         );

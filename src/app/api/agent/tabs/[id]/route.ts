@@ -5,6 +5,7 @@
 // ============================================
 
 import { NextResponse } from 'next/server';
+import { guardAgentRequest } from '@/core/agent/guard';
 import { invokeAffordance } from '@/core/agent/invoke';
 import type { HandlerResult } from '@/core/agent/types';
 
@@ -16,12 +17,16 @@ function respond(result: HandlerResult) {
     return NextResponse.json(result.body, { status: result.status });
 }
 
-export async function GET(_request: Request, context: RouteContext) {
+export async function GET(request: Request, context: RouteContext) {
+    const blocked = guardAgentRequest(request);
+    if (blocked) return respond(blocked);
     const { id } = await context.params;
     return respond(await invokeAffordance('tabs.read', { tabId: id }, id));
 }
 
-export async function DELETE(_request: Request, context: RouteContext) {
+export async function DELETE(request: Request, context: RouteContext) {
+    const blocked = guardAgentRequest(request);
+    if (blocked) return respond(blocked);
     const { id } = await context.params;
     return respond(await invokeAffordance('tabs.dispose', { tabId: id }, id));
 }

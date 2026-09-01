@@ -169,7 +169,7 @@ describe.skipIf(!runLiveAttach)('runtime.attach to an already-open Chrome', () =
 
         const attached = await json(
             await discoverPost(
-                new Request('http://local/api/agent', {
+                new Request('http://localhost/api/agent', {
                     method: 'POST',
                     headers: { 'content-type': 'application/json' },
                     body: JSON.stringify({
@@ -190,7 +190,7 @@ describe.skipIf(!runLiveAttach)('runtime.attach to an already-open Chrome', () =
 
         const created = await json(
             await tabsPost(
-                new Request('http://local/api/agent/tabs', {
+                new Request('http://localhost/api/agent/tabs', {
                     method: 'POST',
                     headers: { 'content-type': 'application/json' },
                     body: JSON.stringify({ url: `${fixtureOrigin}/agent-fixture.html` })
@@ -211,7 +211,7 @@ describe.skipIf(!runLiveAttach)('runtime.attach to an already-open Chrome', () =
 
         const clicked = await json(
             await tabAct(
-                new Request(`http://local/api/agent/tabs/${tabId}/act`, {
+                new Request(`http://localhost/api/agent/tabs/${tabId}/act`, {
                     method: 'POST',
                     headers: { 'content-type': 'application/json' },
                     body: JSON.stringify({
@@ -226,7 +226,7 @@ describe.skipIf(!runLiveAttach)('runtime.attach to an already-open Chrome', () =
         expect(clicked.body.tab.text).toContain('session: alive / persisted');
 
         const read = await json(
-            await tabGet(new Request(`http://local/api/agent/tabs/${tabId}`), {
+            await tabGet(new Request(`http://localhost/api/agent/tabs/${tabId}`), {
                 params: Promise.resolve({ id: tabId })
             })
         );
@@ -234,7 +234,7 @@ describe.skipIf(!runLiveAttach)('runtime.attach to an already-open Chrome', () =
         expect(read.body.tab.id).toBe(tabId);
 
         const shot = await screenshotGet(
-            new Request(`http://local/api/agent/tabs/${tabId}/screenshot`),
+            new Request(`http://localhost/api/agent/tabs/${tabId}/screenshot`),
             { params: Promise.resolve({ id: tabId }) }
         );
         const bytes = Buffer.from(await shot.arrayBuffer());
@@ -246,7 +246,7 @@ describe.skipIf(!runLiveAttach)('runtime.attach to an already-open Chrome', () =
         expect(beforeDispose).toBeTruthy();
 
         const disposed = await json(
-            await tabDelete(new Request(`http://local/api/agent/tabs/${tabId}`), {
+            await tabDelete(new Request(`http://localhost/api/agent/tabs/${tabId}`), {
                 params: Promise.resolve({ id: tabId })
             })
         );
@@ -254,7 +254,7 @@ describe.skipIf(!runLiveAttach)('runtime.attach to an already-open Chrome', () =
         expect(disposed.body.disposed).toBe(tabId);
 
         const gone = await json(
-            await tabGet(new Request(`http://local/api/agent/tabs/${tabId}`), {
+            await tabGet(new Request(`http://localhost/api/agent/tabs/${tabId}`), {
                 params: Promise.resolve({ id: tabId })
             })
         );
@@ -267,7 +267,7 @@ describe.skipIf(!runLiveAttach)('runtime.attach to an already-open Chrome', () =
 
         const viaPort = await json(
             await discoverPost(
-                new Request('http://local/api/agent', {
+                new Request('http://localhost/api/agent', {
                     method: 'POST',
                     headers: { 'content-type': 'application/json' },
                     body: JSON.stringify({
@@ -281,7 +281,7 @@ describe.skipIf(!runLiveAttach)('runtime.attach to an already-open Chrome', () =
         expect(viaPort.body.attached).toBe(true);
 
         const launchedStillWorks = await json(
-            await discoverGet()
+            await discoverGet(new Request('http://localhost/api/agent'))
         );
         expect(launchedStillWorks.body.affordances.map((a: { id: string }) => a.id)).toContain(
             'tabs.create'

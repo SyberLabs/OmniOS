@@ -5,6 +5,7 @@
 
 import { NextResponse } from 'next/server';
 import { AgentTabError, readTabScreenshot } from '@/core/agent/browserTabs';
+import { guardAgentRequest } from '@/core/agent/guard';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -13,6 +14,8 @@ export const revalidate = 0;
 type RouteContext = { params: Promise<{ id: string }> };
 
 export async function GET(request: Request, context: RouteContext) {
+    const blocked = guardAgentRequest(request);
+    if (blocked) return NextResponse.json(blocked.body, { status: blocked.status });
     const { id } = await context.params;
     // Touch the cache-buster so Next never treats this GET as static.
     void new URL(request.url).searchParams.get('t');
