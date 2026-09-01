@@ -73,6 +73,24 @@ export interface DataWire {
 }
 
 /**
+ * Where one section of a persona's context came from.
+ *
+ * `wire` sources are visible on the canvas — the user can point at the block.
+ * `ambient` sources are Mind pools, which enter the prompt with equal weight
+ * but have no on-canvas representation. Labelling them separately is the
+ * whole point: a context source the user cannot see must at least be named.
+ */
+export type ContextSourceKind = 'wire' | 'ambient';
+
+export interface ContextSource {
+    /** Block instance id for `wire`; pool id for `ambient`. */
+    id: string;
+    kind: ContextSourceKind;
+    /** Short human label for the provenance chip. */
+    label: string;
+}
+
+/**
  * Chat message in a persona block
  */
 export interface PersonaChatMessage {
@@ -80,8 +98,14 @@ export interface PersonaChatMessage {
     role: 'user' | 'assistant' | 'system';
     content: string;
     timestamp: number;
-    /** Block IDs whose data informed this response */
+    /** Block IDs whose data informed this response. Legacy; see `sources`. */
     sourcedFrom?: string[];
+    /**
+     * Everything that actually fed this response, wired and ambient alike.
+     * Recorded from the turn's own result, not from the block's wires —
+     * a connected wire that carried no data is not a source.
+     */
+    sources?: ContextSource[];
 }
 
 /**

@@ -9,7 +9,7 @@
 import { LLMMessage } from './llm.service';
 import { aggregateWireContext } from './wire.service';
 import { runTurnStream } from '@/core/cognition';
-import { PERSONA_CONFIGS, PersonaChatMessage } from '@/core/schemas/wire.schema';
+import { PERSONA_CONFIGS, PersonaChatMessage, ContextSource } from '@/core/schemas/wire.schema';
 import { PersonaType } from '@/core/schemas/shell.schema';
 
 const MAX_HISTORY = 10;
@@ -50,6 +50,8 @@ export interface PersonaTurnInput {
 export interface PersonaTurnPrepared {
     messages: LLMMessage[];
     sourceIds: string[];
+    /** Labelled provenance for the UI: wired blocks and ambient pools. */
+    sources: ContextSource[];
     /** Whether any wired data context was found. */
     hasContext: boolean;
 }
@@ -63,7 +65,7 @@ const DEFAULT_THINK_TASK =
  * context + recent history + the user task. Pure (no network) for easy testing.
  */
 export function preparePersonaTurn(input: PersonaTurnInput): PersonaTurnPrepared {
-    const { context, sourceIds } = aggregateWireContext(input.instanceId);
+    const { context, sourceIds, sources } = aggregateWireContext(input.instanceId);
     // aggregateWireContext returns a human sentinel string when nothing is
     // wired, so presence of real context is keyed off sourceIds, not the text.
     const hasContext = sourceIds.length > 0;
@@ -87,13 +89,15 @@ export function preparePersonaTurn(input: PersonaTurnInput): PersonaTurnPrepared
         { role: 'user', content: `${contextBlock}\n\n---\n\n${task}` }
     ];
 
-    return { messages, sourceIds, hasContext };
+    return { messages, sourceIds, sources, hasContext };
 }
 
 export interface PersonaTurnResult {
     success: boolean;
     content?: string;
     sourceIds: string[];
+    /** What actually fed this turn — record this, not the block's wires. */
+    sources: ContextSource[];
     error?: string;
 }
 
@@ -104,7 +108,7 @@ export interface PersonaTurnResult {
 export async function* streamPersonaTurn(
     input: PersonaTurnInput
 ): AsyncGenerator<string, PersonaTurnResult> {
-    const { messages, sourceIds } = preparePersonaTurn(input);
+    const { messages, sourceIds, sources } = preparePersonaTurn(input);
 
     // The Cognition Kernel owns the turn lifecycle (availability, registry
     // token floor, streaming, fail-closed errors) — apex A4.
@@ -117,6 +121,6 @@ export async function* streamPersonaTurn(
     const result = step.value;
 
     return result.success
-        ? { success: true, content: result.content, sourceIds }
-        : { success: false, sourceIds, error: result.error };
+        ? { success: true, content: result.content, sourceIds, sources }
+        : { success: false, sourceIds, sources, error: result.error };
 }

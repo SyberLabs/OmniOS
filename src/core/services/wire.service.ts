@@ -6,7 +6,7 @@
 import { useBlockStore } from '../stores';
 import { useWireStore } from '../stores/wireStore';
 import { useMindStore } from '../stores/mindStore';
-import { WireFilters, PersonaBlockData } from '../schemas/wire.schema';
+import { WireFilters, PersonaBlockData, ContextSource } from '../schemas/wire.schema';
 import { PolymarketMarket, NewsArticle, NewsFeed } from '../schemas/block.schema';
 
 /**
@@ -257,6 +257,8 @@ function formatNewsDetailed(articles: NewsArticle[]): string {
 export function aggregateWireContext(targetBlockId: string): {
     context: string;
     sourceIds: string[];
+    /** Everything that fed this context, wired and ambient alike. */
+    sources: ContextSource[];
     lastUpdate: number;
 } {
     const wires = useWireStore.getState().getWiresToBlock(targetBlockId);
@@ -269,6 +271,7 @@ export function aggregateWireContext(targetBlockId: string): {
 
     const contextParts: string[] = [];
     const sourceIds: string[] = [];
+    const sources: ContextSource[] = [];
 
     // Add Shell Mind context if enabled
     if (contextSettings) {
@@ -284,6 +287,7 @@ export function aggregateWireContext(targetBlockId: string): {
 
             if (recentObs) {
                 contextParts.push(`## 🌐 Shell Mind Observations\n\n${recentObs}`);
+                sources.push({ id: 'pool:observations', kind: 'ambient', label: 'Observations' });
             }
         }
 
@@ -295,6 +299,7 @@ export function aggregateWireContext(targetBlockId: string): {
                     .map(entry => entry.content)
                     .join('\n\n---\n\n');
                 contextParts.push(`## 🎯 Focused Context\n\n${focusContent}`);
+                sources.push({ id: 'pool:focus', kind: 'ambient', label: 'Focused blocks' });
             }
         }
 
@@ -308,6 +313,7 @@ export function aggregateWireContext(targetBlockId: string): {
 
             if (recentMemories) {
                 contextParts.push(`## 🧠 Long-Term Memory\n\n${recentMemories}`);
+                sources.push({ id: 'pool:memory', kind: 'ambient', label: 'Long-term memory' });
             }
         }
     }
@@ -317,6 +323,7 @@ export function aggregateWireContext(targetBlockId: string): {
         return {
             context: 'No active data sources connected. Wire some blocks to provide context!',
             sourceIds: [],
+            sources: [],
             lastUpdate: Date.now()
         };
     }
@@ -329,6 +336,11 @@ export function aggregateWireContext(targetBlockId: string): {
         if (data) {
             contextParts.push(`## ${sourceBlock.schema.display_name}\n\n${data}`);
             sourceIds.push(wire.sourceBlockId);
+            sources.push({
+                id: wire.sourceBlockId,
+                kind: 'wire',
+                label: sourceBlock.schema.display_name
+            });
         }
     });
 
@@ -337,6 +349,7 @@ export function aggregateWireContext(targetBlockId: string): {
             ? contextParts.join('\n\n═══════════════════════════════════════\n\n')
             : 'Connected sources have no data available yet.',
         sourceIds,
+        sources,
         lastUpdate: Date.now()
     };
 }

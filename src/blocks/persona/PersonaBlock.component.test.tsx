@@ -4,6 +4,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { PersonaBlockView } from './PersonaBlock';
 import { useBlockStore } from '@/core/stores';
 import { useWireStore } from '@/core/stores/wireStore';
+import { useUIStore } from '@/core/stores';
 import { createPersonaBlockData } from '@/core/schemas/wire.schema';
 import type { BlockInstance } from '@/core/schemas/block.schema';
 import type { PersonaTurnResult } from '@/core/services/persona.engine';
@@ -60,7 +61,8 @@ describe('PersonaBlockView — UI wiring', () => {
         mockStream(['Markets look ', 'stable today.'], {
             success: true,
             content: 'Markets look stable today.',
-            sourceIds: []
+            sourceIds: [],
+            sources: []
         });
         render(<PersonaBlockView instanceId={PERSONA_ID} />);
 
@@ -76,7 +78,8 @@ describe('PersonaBlockView — UI wiring', () => {
         mockStream(['Grounded ', 'answer.'], {
             success: true,
             content: 'Grounded answer.',
-            sourceIds: []
+            sourceIds: [],
+            sources: []
         });
         render(<PersonaBlockView instanceId={PERSONA_ID} />);
 
@@ -96,6 +99,7 @@ describe('PersonaBlockView — UI wiring', () => {
         mockStream([], {
             success: false,
             sourceIds: [],
+            sources: [],
             error: 'No LLM available — make sure Ollama is running (localhost:11434).'
         });
         render(<PersonaBlockView instanceId={PERSONA_ID} />);
@@ -106,3 +110,75 @@ describe('PersonaBlockView — UI wiring', () => {
         expect(screen.queryByText(/placeholder response/i)).toBeNull();
     });
 });
+
+describe('PersonaBlockView — provenance', () => {
+    beforeEach(() => {
+        seedPersonaBlock();
+        useWireStore.setState({ wires: [] });
+        useUIStore.setState({ highlightedBlockIds: [] });
+        vi.mocked(streamPersonaTurn).mockReset();
+    });
+
+    it('names the blocks that fed the answer', async () => {
+        mockStream(['Grounded.'], {
+            success: true,
+            content: 'Grounded.',
+            sourceIds: ['src-fred'],
+            sources: [{ id: 'src-fred', kind: 'wire', label: 'FRED Series' }]
+        });
+        render(<PersonaBlockView instanceId={PERSONA_ID} />);
+        fireEvent.click(screen.getByTitle('Think'));
+
+        expect(await screen.findByText('FRED Series')).toBeTruthy();
+        expect(screen.getByText(/Grounded in/i)).toBeTruthy();
+    });
+
+    it('hovering a source chip lights that block on the canvas', async () => {
+        mockStream(['ok'], {
+            success: true,
+            content: 'ok',
+            sourceIds: ['src-fred'],
+            sources: [{ id: 'src-fred', kind: 'wire', label: 'FRED Series' }]
+        });
+        render(<PersonaBlockView instanceId={PERSONA_ID} />);
+        fireEvent.click(screen.getByTitle('Think'));
+
+        const chip = await screen.findByText('FRED Series');
+        fireEvent.mouseEnter(chip);
+        expect(useUIStore.getState().highlightedBlockIds).toEqual(['src-fred']);
+
+        fireEvent.mouseLeave(chip);
+        expect(useUIStore.getState().highlightedBlockIds).toEqual([]);
+    });
+
+    it('shows ambient Mind context as a source, distinctly from wires', async () => {
+        // The invisible-input case: nothing is wired, yet the answer is
+        // grounded in memory the canvas never shows.
+        mockStream(['from memory'], {
+            success: true,
+            content: 'from memory',
+            sourceIds: [],
+            sources: [{ id: 'pool:memory', kind: 'ambient', label: 'Long-term memory' }]
+        });
+        render(<PersonaBlockView instanceId={PERSONA_ID} />);
+        fireEvent.click(screen.getByTitle('Think'));
+
+        expect(await screen.findByText('Long-term memory')).toBeTruthy();
+        expect(screen.getByText(/ambient memory, not wired blocks/i)).toBeTruthy();
+    });
+
+    it('an ungrounded answer claims no sources', async () => {
+        mockStream(['general reasoning'], {
+            success: true,
+            content: 'general reasoning',
+            sourceIds: [],
+            sources: []
+        });
+        render(<PersonaBlockView instanceId={PERSONA_ID} />);
+        fireEvent.click(screen.getByTitle('Think'));
+
+        await screen.findByText(/general reasoning/);
+        expect(screen.queryByText(/Grounded in/i)).toBeNull();
+    });
+});
+

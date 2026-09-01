@@ -20,7 +20,7 @@ import {
     MessageSquare,
     X
 } from 'lucide-react';
-import { useBlockStore } from '@/core/stores';
+import { useBlockStore, useUIStore } from '@/core/stores';
 import { useWireStore } from '@/core/stores/wireStore';
 import { aggregateWireContext } from '@/core/services/wire.service';
 import { streamPersonaTurn } from '@/core/services/persona.engine';
@@ -29,7 +29,9 @@ import {
     PersonaBlockData,
     PERSONA_CONFIGS,
     createPersonaBlockData,
-    DEFAULT_CONTEXT_SETTINGS
+    DEFAULT_CONTEXT_SETTINGS,
+    ContextSource,
+    PersonaChatMessage
 } from '@/core/schemas/wire.schema';
 import { cn } from '@/lib/utils';
 
@@ -100,6 +102,9 @@ export function PersonaBlockView({ instanceId }: PersonaBlockViewProps) {
 
         const assistantId = `msg-${Date.now()}-a`;
         let acc = '';
+        // Provenance comes from the turn itself. A wire that is connected but
+        // carried no data did not feed this answer and must not be cited.
+        let turnSources: ContextSource[] = [];
         const commit = (content: string, isThinking: boolean) => {
             const latest = (getBlock(instanceId)?.data as PersonaBlockData) || current;
             const withoutDraft = latest.messages.filter(m => m.id !== assistantId);
@@ -114,7 +119,8 @@ export function PersonaBlockView({ instanceId }: PersonaBlockViewProps) {
                         role: 'assistant' as const,
                         content,
                         timestamp: Date.now(),
-                        sourcedFrom: connectedWires.map(w => w.sourceBlockId)
+                        sourcedFrom: turnSources.filter(x => x.kind === 'wire').map(x => x.id),
+                        sources: turnSources
                     }
                 ]
             });
@@ -137,6 +143,7 @@ export function PersonaBlockView({ instanceId }: PersonaBlockViewProps) {
             }
 
             const final = result.value;
+            turnSources = final.sources;
             if (!final.success) {
                 commit(`⚠️ ${final.error}`, false);
             } else {
@@ -423,11 +430,10 @@ export function PersonaBlockView({ instanceId }: PersonaBlockViewProps) {
                                 style={msg.role === 'user' ? { backgroundColor: config.color } : undefined}
                             >
                                 <p className="whitespace-pre-wrap">{msg.content}</p>
-                                {msg.sourcedFrom && msg.sourcedFrom.length > 0 && (
-                                    <p className="text-xs mt-1 opacity-60">
-                                        📎 From {msg.sourcedFrom.length} source(s)
-                                    </p>
-                                )}
+                                <ProvenanceChips
+                                    message={msg}
+                                    show={msg.role === 'assistant'}
+                                />
                             </div>
                         </div>
                     ))
@@ -475,6 +481,72 @@ export function PersonaBlockView({ instanceId }: PersonaBlockViewProps) {
                     </button>
                 </div>
             </div>
+        </div>
+    );
+}
+
+
+// ============================================
+// PROVENANCE CHIPS
+// The answer to "what does this persona actually know?". Every source that
+// fed a turn is named here — wired blocks AND ambient Mind pools, which enter
+// the prompt with equal weight but have no representation on the canvas.
+// Hovering a wire chip lights its block; ambient chips say plainly that there
+// is nothing on the canvas to point at.
+// ============================================
+
+function ProvenanceChips({ message, show }: { message: PersonaChatMessage; show: boolean }) {
+    const setHighlightedBlocks = useUIStore(state => state.setHighlightedBlocks);
+
+    // Older messages predate typed sources; fall back to the legacy id list.
+    const sources: ContextSource[] =
+        message.sources && message.sources.length > 0
+            ? message.sources
+            : (message.sourcedFrom || []).map(id => ({ id, kind: 'wire' as const, label: id }));
+
+    if (!show || sources.length === 0) return null;
+
+    const wired = sources.filter(s => s.kind === 'wire');
+    const ambient = sources.filter(s => s.kind === 'ambient');
+
+    return (
+        <div className="mt-2 pt-2 border-t border-[var(--citadel-border)]/60">
+            <div className="flex flex-wrap items-center gap-1">
+                <span className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] mr-1">
+                    Grounded in
+                </span>
+
+                {wired.map(src => (
+                    <button
+                        key={src.id}
+                        type="button"
+                        onMouseEnter={() => setHighlightedBlocks([src.id])}
+                        onMouseLeave={() => setHighlightedBlocks([])}
+                        onFocus={() => setHighlightedBlocks([src.id])}
+                        onBlur={() => setHighlightedBlocks([])}
+                        className="px-1.5 py-0.5 rounded text-[10px] border border-[var(--citadel-secondary)]/40 text-[var(--citadel-secondary)] bg-[var(--citadel-secondary)]/10 hover:bg-[var(--citadel-secondary)]/20 transition-colors"
+                        title="Highlight this block on the canvas"
+                    >
+                        {src.label}
+                    </button>
+                ))}
+
+                {ambient.map(src => (
+                    <span
+                        key={src.id}
+                        className="px-1.5 py-0.5 rounded text-[10px] border border-dashed border-[var(--truth-amber)]/50 text-[var(--truth-amber)] bg-[var(--truth-amber)]/10"
+                        title="Ambient context from the Shell Mind — not a block on this canvas"
+                    >
+                        {src.label}
+                    </span>
+                ))}
+            </div>
+
+            {ambient.length > 0 && (
+                <p className="mt-1 text-[10px] text-[var(--text-muted)]">
+                    Dashed sources are ambient memory, not wired blocks.
+                </p>
+            )}
         </div>
     );
 }

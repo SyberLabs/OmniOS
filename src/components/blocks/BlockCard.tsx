@@ -24,7 +24,7 @@ import {
     Brain
 } from 'lucide-react';
 import { BlockInstance, ConnectionStatus } from '@/core/schemas/block.schema';
-import { useMindStore, useBlockStore } from '@/core/stores';
+import { useMindStore, useBlockStore, useUIStore } from '@/core/stores';
 import { useWireStore } from '@/core/stores/wireStore';
 import { WireHandle } from '@/canvas/WireHandle';
 import { BlockErrorBoundary } from './BlockErrorBoundary';
@@ -78,6 +78,8 @@ export function BlockCard({
 
     // Focus (pin) state
     const isPinned = useMindStore(state => state.isPinned(block.instance_id));
+    // Lit while a provenance chip for this block is hovered (see PersonaBlock).
+    const isCited = useUIStore(state => state.highlightedBlockIds.includes(block.instance_id));
     const pinBlock = useMindStore(state => state.pinBlock);
     const unpinBlock = useMindStore(state => state.unpinBlock);
 
@@ -111,7 +113,9 @@ export function BlockCard({
                 scale: isDragging ? 1.02 : 1,
                 boxShadow: isDragging
                     ? '0 20px 40px rgba(0, 0, 0, 0.4), 0 0 40px rgba(99, 102, 241, 0.2)'
-                    : undefined
+                    : isCited
+                        ? '0 0 0 1px rgba(34, 211, 238, 0.35), 0 0 28px rgba(34, 211, 238, 0.25)'
+                        : undefined
             }}
             exit={{ opacity: 0, scale: 0.95 }}
             onMouseEnter={() => setIsHovered(true)}
@@ -120,7 +124,8 @@ export function BlockCard({
                 "block-card flex flex-col group",
                 isDragging && "ring-2 ring-[var(--citadel-primary)]",
                 isPinned && "ring-1 ring-[var(--mind-aqua-surface)] shadow-[0_0_12px_rgba(99,255,230,0.15)]",
-                !isPinned && isWired && "ring-1 ring-[var(--truth-amber)]/20"
+                !isPinned && isWired && "ring-1 ring-[var(--truth-amber)]/20",
+                isCited && "ring-2 ring-[var(--citadel-secondary)]"
             )}
             style={{
                 width: block.dimensions.width,
