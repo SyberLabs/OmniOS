@@ -1,7 +1,5 @@
 import type { NextConfig } from "next";
 
-const nextConfig: NextConfig = {
-  serverExternalPackages: ["playwright", "playwright-core"],
-};
+const nextConfig: NextConfig = {};
 
 export default nextConfig;

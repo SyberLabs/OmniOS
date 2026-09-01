@@ -37,9 +37,6 @@ yarn-error.log*
 # local editor / agent config
 .claude/
 
-# local agent-surface tab persistence
-.omni/
-
 # playwright
 /test-results/
 /playwright-report/
@@ -51,3 +48,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# agent working notes, not product source
+working_memory/
