@@ -80,26 +80,11 @@ export function MindPanel({ isOpen, onClose }: MindPanelProps) {
     return (
         <div className="mind-panel-overlay" onClick={onClose} onMouseUp={handleMouseUp}>
             <div className={`mind-panel ${activeTool === 'highlighter' ? 'cursor-text' : ''}`} onClick={e => e.stopPropagation()}>
-                {/* Glossy highlight overlay */}
-                <div className="mind-panel-highlight" />
-
-                {/* Floating bubbles background */}
-                <div className="mind-bubbles">
-                    <div className="bubble bubble-1" />
-                    <div className="bubble bubble-2" />
-                    <div className="bubble bubble-3" />
-                    <div className="bubble bubble-4" />
-                    <div className="bubble bubble-5" />
-                </div>
-
                 {/* Header */}
                 <header className="mind-panel-header">
                     <div className="mind-title">
                         <span className="mind-icon">🧠</span>
-                        <div>
-                            <h2>The Mind</h2>
-                            <span className="mind-subtitle">Cognitive Substrate v2.0</span>
-                        </div>
+                        <h2>The Mind</h2>
                     </div>
 
                     {/* Tool Strip */}
@@ -241,25 +226,9 @@ function PersonasView({ personas, activePersonaId, onSelect }: PersonasViewProps
                     className={`persona-card ${persona.id === activePersonaId ? 'active' : ''}`}
                     onClick={() => onSelect(persona.id)}
                 >
-                    <div className="persona-card-highlight" />
                     <div className="persona-avatar-large">{persona.avatar}</div>
                     <h3 className="persona-name">{persona.name}</h3>
                     <p className="persona-description">{persona.description}</p>
-
-                    {/* Trait bars */}
-                    <div className="persona-traits">
-                        {persona.traits.slice(0, 4).map(trait => (
-                            <div key={trait.id} className="trait-row">
-                                <span className="trait-name">{trait.name}</span>
-                                <div className="trait-bar">
-                                    <div
-                                        className="trait-fill"
-                                        style={{ width: `${trait.value * 100}%` }}
-                                    />
-                                </div>
-                            </div>
-                        ))}
-                    </div>
 
                     {persona.id === activePersonaId && (
                         <div className="persona-active-badge">✓ Active</div>

@@ -4,13 +4,12 @@
 // PROJECT OMNI: DRAG-AND-DROP CANVAS
 // ============================================
 
-import { useCallback, useRef, useState, useEffect, useMemo } from 'react';
+import { useCallback, useState, useEffect, useMemo } from 'react';
 import {
     DndContext,
     DragEndEvent,
     DragStartEvent,
     useDraggable,
-    useDroppable,
     PointerSensor,
     useSensor,
     useSensors
@@ -21,6 +20,7 @@ import { BlockCard } from '@/components/blocks/BlockCard';
 import { WireRenderer } from './WireRenderer';
 import { snapToGrid, cn } from '@/lib/utils';
 import { getBlockView } from '@/core/registry/ViewRegistry';
+import { blockRegistry } from '@/core/registry/BlockRegistry';
 
 interface CanvasProps {
     hideEmptyState?: boolean;
@@ -30,18 +30,17 @@ interface CanvasProps {
 export function Canvas({ hideEmptyState = false, shellId }: CanvasProps) {
     const {
         blocks,
+        addBlock,
         updatePosition,
         removeBlock,
         getBlocksByShell,
-        getConnectionsByShell,
         activeShellId,
         setActiveShell
     } = useBlockStore();
     const { gridSnapping, gridSize } = useSettingsStore();
-    const { draggingBlockId, setSelectedBlock, selectedBlockId } = useUIStore();
+    const { draggingBlockId, setDraggingBlock, setSelectedBlock, selectedBlockId } = useUIStore();
     const [activeDragId, setActiveDragId] = useState<string | null>(null);
     const [dragDelta, setDragDelta] = useState<{ x: number; y: number } | null>(null);
-    const canvasRef = useRef<HTMLDivElement>(null);
 
     // Hydration fix: only render dynamic content after mount
     const [hasMounted, setHasMounted] = useState(false);
@@ -52,15 +51,10 @@ export function Canvas({ hideEmptyState = false, shellId }: CanvasProps) {
     // Use shellId prop or fallback to active shell
     const currentShell = shellId || activeShellId;
 
-    // Filter blocks and connections by shell (only after mount to avoid hydration mismatch)
+    // Filter blocks by shell after mount to avoid hydration mismatch
     const shellBlocks = useMemo(
         () => hasMounted ? getBlocksByShell(currentShell) : [],
         [blocks, currentShell, getBlocksByShell, hasMounted]
-    );
-
-    const shellConnections = useMemo(
-        () => hasMounted ? getConnectionsByShell(currentShell) : [],
-        [blocks, currentShell, getConnectionsByShell, hasMounted]
     );
 
     // Set active shell when shellId prop changes
@@ -78,10 +72,24 @@ export function Canvas({ hideEmptyState = false, shellId }: CanvasProps) {
         })
     );
 
-    // Droppable canvas area
-    const { setNodeRef: setDropRef, isOver } = useDroppable({
-        id: 'canvas-drop-zone'
-    });
+    const handleSidebarDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'copy';
+    };
+
+    const handleSidebarDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        const blockId = e.dataTransfer.getData('text/plain');
+        const schema = blockId ? blockRegistry.get(blockId) : undefined;
+        if (schema) {
+            const rect = e.currentTarget.getBoundingClientRect();
+            addBlock(schema, {
+                x: Math.max(0, e.clientX - rect.left - 160),
+                y: Math.max(0, e.clientY - rect.top - 20)
+            });
+        }
+        setDraggingBlock(null);
+    };
 
     const handleDragStart = (event: DragStartEvent) => {
         setActiveDragId(event.active.id as string);
@@ -129,14 +137,9 @@ export function Canvas({ hideEmptyState = false, shellId }: CanvasProps) {
             onDragEnd={handleDragEnd}
         >
             <div
-                ref={(node) => {
-                    canvasRef.current = node;
-                    setDropRef(node);
-                }}
-                className={cn(
-                    "canvas-workspace relative",
-                    isOver && draggingBlockId && "ring-2 ring-inset ring-[var(--citadel-primary)]/30"
-                )}
+                className="canvas-workspace relative"
+                onDragOver={handleSidebarDragOver}
+                onDrop={handleSidebarDrop}
             >
                 {/* Grid overlay */}
                 <div className="canvas-grid" />

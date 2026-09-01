@@ -1,6 +1,5 @@
 // ============================================
 // PROJECT OMNI: API STORE
-// Encrypted API key storage and management
 // ============================================
 
 import { create } from 'zustand';
@@ -17,39 +16,6 @@ import {
 import { apiGateway } from '../gateway';
 
 // ============================================
-// SIMPLE ENCRYPTION (for localStorage)
-// Note: This is basic obfuscation, not secure encryption
-// For production, use Web Crypto API or a proper solution
-// ============================================
-
-const ENCRYPTION_KEY = 'omni-api-vault-2024';
-
-function simpleEncrypt(text: string): string {
-    if (!text) return '';
-    let result = '';
-    for (let i = 0; i < text.length; i++) {
-        const charCode = text.charCodeAt(i) ^ ENCRYPTION_KEY.charCodeAt(i % ENCRYPTION_KEY.length);
-        result += String.fromCharCode(charCode);
-    }
-    return btoa(result);
-}
-
-function simpleDecrypt(encoded: string): string {
-    if (!encoded) return '';
-    try {
-        const text = atob(encoded);
-        let result = '';
-        for (let i = 0; i < text.length; i++) {
-            const charCode = text.charCodeAt(i) ^ ENCRYPTION_KEY.charCodeAt(i % ENCRYPTION_KEY.length);
-            result += String.fromCharCode(charCode);
-        }
-        return result;
-    } catch {
-        return '';
-    }
-}
-
-// ============================================
 // STORE INTERFACE
 // ============================================
 
@@ -63,7 +29,7 @@ interface ApiStoreState {
     /** Set API key for a provider */
     setApiKey: (providerId: string, key: string) => void;
 
-    /** Get decrypted API key */
+    /** Get API key */
     getApiKey: (providerId: string) => string;
 
     /** Install an API (add to dashboard) */
@@ -131,14 +97,13 @@ export const useApiStore = create<ApiStoreState>()(
             },
 
             setApiKey: (providerId, key) => {
-                const encryptedKey = simpleEncrypt(key);
                 set(state => ({
                     configs: {
                         ...state.configs,
                         [providerId]: {
                             ...state.configs[providerId],
                             providerId,
-                            encryptedKey,
+                            apiKey: key || undefined,
                             status: key ? 'idle' : 'not_configured',
                             requestCount: state.configs[providerId]?.requestCount || 0
                         }
@@ -148,7 +113,7 @@ export const useApiStore = create<ApiStoreState>()(
 
             getApiKey: (providerId) => {
                 const config = get().configs[providerId];
-                return config?.encryptedKey ? simpleDecrypt(config.encryptedKey) : '';
+                return config?.apiKey || '';
             },
 
             installApi: (providerId) => {
@@ -281,7 +246,7 @@ export const useApiStore = create<ApiStoreState>()(
                     configs: Object.fromEntries(
                         Object.entries(state.configs).map(([id, config]) => [
                             id,
-                            { ...config, encryptedKey: undefined, status: 'not_configured' as ApiStatus }
+                            { ...config, apiKey: undefined, status: 'not_configured' as ApiStatus }
                         ])
                     )
                 }));

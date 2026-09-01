@@ -82,7 +82,7 @@ export interface ApiProvider {
 
 export interface ApiConfig {
     providerId: string;
-    encryptedKey?: string;
+    apiKey?: string;
     status: ApiStatus;
     lastTested?: number;
     requestCount: number;

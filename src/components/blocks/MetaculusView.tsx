@@ -14,19 +14,20 @@ import {
     TrendingUp,
     AlertCircle
 } from 'lucide-react';
-import { OmniItem, ApiStatus } from '@/core/schemas/omnidata.schema';
+import type { OmniItem } from '@/core/gateway';
+import type { ConnectionStatus } from '@/core/schemas/block.schema';
 import { cn } from '@/lib/utils';
 import { PortBadge } from './PortBadge';
 
 interface MetaculusViewProps {
     questions: OmniItem[];
-    status: ApiStatus;
+    status: ConnectionStatus;
     lastUpdated: number | null;
     onRefresh: () => void;
 }
 
 export function MetaculusView({ questions, status, lastUpdated, onRefresh }: MetaculusViewProps) {
-    const isLoading = status === 'fetching' && questions.length === 0;
+    const isLoading = status === 'connecting' && questions.length === 0;
     const isError = status === 'error';
 
     return (
@@ -59,7 +60,7 @@ export function MetaculusView({ questions, status, lastUpdated, onRefresh }: Met
                         onClick={onRefresh}
                         className={cn(
                             "p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--citadel-border)]/50 transition-colors",
-                            status === 'fetching' && "animate-spin"
+                            status === 'connecting' && "animate-spin"
                         )}
                     >
                         <RefreshCw className="w-4 h-4" />

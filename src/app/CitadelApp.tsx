@@ -1,11 +1,6 @@
 'use client';
 
-// ============================================
-// PROJECT OMNI: MAIN APPLICATION
-// ============================================
-
 import { useState, useEffect, useCallback } from 'react';
-import { DndContext, DragEndEvent, useSensor, useSensors, PointerSensor } from '@dnd-kit/core';
 import { Canvas } from '@/canvas/Canvas';
 import { Sidebar } from '@/components/Sidebar';
 import { TopBar } from '@/components/TopBar';
@@ -17,14 +12,11 @@ import { MindPanel } from '@/components/mind';
 import { MindDock } from '@/components/mind/MindDock';
 import { SettingsPanel } from '@/components/settings/SettingsPanel';
 import { ContextCaptureModal } from '@/components/mind/ContextCaptureModal';
-import { useBlockStore, useUIStore, useToolStore } from '@/core/stores';
+import { useToolStore } from '@/core/stores';
 import { useApiStore } from '@/core/stores/apiStore';
-import { blockRegistry } from '@/core/registry/BlockRegistry';
 import { useMindShellSync, useShellNavigation } from '@/core/hooks';
 
 export default function CitadelApp() {
-    const { addBlock } = useBlockStore();
-    const { draggingBlockId, setDraggingBlock } = useUIStore();
     const { activeTool, selection, captureSelection, clearSelection } = useToolStore();
     const { initializeDefaults } = useApiStore();
 
@@ -41,15 +33,6 @@ export default function CitadelApp() {
         initializeDefaults();
     }, [initializeDefaults]);
 
-    const sensors = useSensors(
-        useSensor(PointerSensor, {
-            activationConstraint: {
-                distance: 8
-            }
-        })
-    );
-
-    // Global selection handler for Highlighter tool
     const handleMouseUp = useCallback(() => {
         if (activeTool !== 'highlighter') return;
 
@@ -58,120 +41,41 @@ export default function CitadelApp() {
 
         if (text && text.length > 0) {
             captureSelection({ text });
-            // windowSelection?.removeAllRanges(); // Optional: clear selection
         }
     }, [activeTool, captureSelection]);
-    const handleDragEnd = useCallback((event: DragEndEvent) => {
-        const { over } = event;
-
-        if (draggingBlockId && over?.id === 'canvas-drop-zone') {
-            const schema = blockRegistry.get(draggingBlockId);
-            if (schema) {
-                // Add block at a reasonable position
-                addBlock(schema, { x: 350, y: 100 });
-            }
-        }
-
-        setDraggingBlock(null);
-    }, [draggingBlockId, addBlock, setDraggingBlock]);
-
-    // Handle native drag events from sidebar
-    useEffect(() => {
-        const handleDrop = (e: DragEvent) => {
-            e.preventDefault();
-            const blockId = e.dataTransfer?.getData('text/plain');
-
-            if (blockId) {
-                const schema = blockRegistry.get(blockId);
-                if (schema) {
-                    // Calculate drop position relative to canvas
-                    const canvas = document.querySelector('.canvas-workspace');
-                    if (canvas) {
-                        const rect = canvas.getBoundingClientRect();
-                        const x = e.clientX - rect.left;
-                        const y = e.clientY - rect.top;
-                        addBlock(schema, { x: Math.max(0, x - 160), y: Math.max(0, y - 20) });
-                    }
-                }
-            }
-
-            setDraggingBlock(null);
-        };
-
-        const handleDragOver = (e: DragEvent) => {
-            e.preventDefault();
-            if (e.dataTransfer) {
-                e.dataTransfer.dropEffect = 'copy';
-            }
-        };
-
-        const canvas = document.querySelector('.canvas-workspace');
-        if (canvas) {
-            canvas.addEventListener('drop', handleDrop as EventListener);
-            canvas.addEventListener('dragover', handleDragOver as EventListener);
-        }
-
-        return () => {
-            if (canvas) {
-                canvas.removeEventListener('drop', handleDrop as EventListener);
-                canvas.removeEventListener('dragover', handleDragOver as EventListener);
-            }
-        };
-    }, [addBlock, setDraggingBlock]);
 
     return (
-        <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-            <div
-                className={`flex flex-col h-screen overflow-hidden bg-[var(--citadel-void)] ${activeTool === 'highlighter' ? 'cursor-text' : ''}`}
-                onMouseUp={handleMouseUp}
-            >
-                {/* Top Bar */}
-                <TopBar
-                    onOpenSkin={() => setIsSkinOpen(true)}
-                    onOpenApi={() => setIsApiOpen(true)}
-                    onOpenSettings={() => setIsSettingsOpen(true)}
-                    onOpenShells={() => setIsShellsOpen(true)}
-                />
+        <div
+            className={`flex flex-col h-screen overflow-hidden bg-[var(--citadel-void)] ${activeTool === 'highlighter' ? 'cursor-text' : ''}`}
+            onMouseUp={handleMouseUp}
+        >
+            <TopBar
+                onOpenSkin={() => setIsSkinOpen(true)}
+                onOpenApi={() => setIsApiOpen(true)}
+                onOpenSettings={() => setIsSettingsOpen(true)}
+                onOpenShells={() => setIsShellsOpen(true)}
+            />
 
-                {/* Main Content */}
-                <div className="flex flex-1 overflow-hidden">
-                    {/* Sidebar / Armory */}
-                    <Sidebar />
+            <div className="flex flex-1 overflow-hidden">
+                <Sidebar />
 
-                    {/* Canvas Workspace - Root Shell */}
-                    <main className="flex-1 overflow-hidden relative">
-                        <Canvas shellId="root" />
-
-                        <MindDock onExpandPanel={() => setIsMindOpen(true)} />
-                    </main>
-                </div>
-
-                {/* Command Palette */}
-                <CommandPalette />
-
-                {/* Shell Manager Panel */}
-                <ShellPanel isOpen={isShellsOpen} onClose={() => setIsShellsOpen(false)} />
-
-                {/* Mind Panel */}
-                <MindPanel isOpen={isMindOpen} onClose={() => setIsMindOpen(false)} />
-
-                {/* Skin Modal */}
-                <SkinModal isOpen={isSkinOpen} onClose={() => setIsSkinOpen(false)} />
-
-                {/* API Dashboard Modal */}
-                <ApiDashboardModal isOpen={isApiOpen} onClose={() => setIsApiOpen(false)} />
-
-                <SettingsPanel isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
-
-                {/* Context Capture Modal (for Highlighter tool) */}
-                <ContextCaptureModal
-                    isOpen={!!selection?.text}
-                    onClose={clearSelection}
-                    selectedText={selection?.text || ''}
-                />
+                <main className="flex-1 overflow-hidden relative">
+                    <Canvas shellId="root" />
+                    <MindDock onExpandPanel={() => setIsMindOpen(true)} />
+                </main>
             </div>
-        </DndContext>
+
+            <CommandPalette />
+            <ShellPanel isOpen={isShellsOpen} onClose={() => setIsShellsOpen(false)} />
+            <MindPanel isOpen={isMindOpen} onClose={() => setIsMindOpen(false)} />
+            <SkinModal isOpen={isSkinOpen} onClose={() => setIsSkinOpen(false)} />
+            <ApiDashboardModal isOpen={isApiOpen} onClose={() => setIsApiOpen(false)} />
+            <SettingsPanel isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
+            <ContextCaptureModal
+                isOpen={!!selection?.text}
+                onClose={clearSelection}
+                selectedText={selection?.text || ''}
+            />
+        </div>
     );
 }
-
-

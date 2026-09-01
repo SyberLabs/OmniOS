@@ -12,7 +12,7 @@ interface UseOmniDataOptions {
     immediate?: boolean;
 
     /** Parameters for the API call */
-    params?: object;
+    params?: Record<string, unknown>;
 
     /** Auto-refresh interval in milliseconds */
     refreshInterval?: number;
@@ -55,34 +55,21 @@ export function useOmniData(
     const [data, setData] = useState<OmniData | null>(null);
     const [isLoading, setIsLoading] = useState(false);
 
-    // Get API key from apiStore
     const getApiKey = useApiStore(state => state.getApiKey);
 
-    console.log('[useOmniData] 🎣 Hook called', { apiId, blockId, immediate, hasParams: !!params });
-
     const refresh = useCallback(async () => {
-        console.log('[useOmniData] 🔄 Refresh triggered for', apiId);
         setIsLoading(true);
 
-        // Ensure API key is set in gateway
         const apiKey = getApiKey(apiId);
-        console.log('[useOmniData] 🔑 API key lookup:', { apiId, hasKey: !!apiKey });
         if (apiKey) {
             apiGateway.setApiKey(apiId, apiKey);
         }
 
         try {
-            console.log('[useOmniData] 📡 Calling apiGateway.fetch...');
-            const result = await apiGateway.fetch(apiId, params as Record<string, unknown> | undefined);
-            console.log('[useOmniData] ✅ Gateway returned:', {
-                hasItems: !!result.items,
-                itemsCount: result.items?.length || 0,
-                hasError: !!result.error,
-                error: result.error?.message
-            });
+            const result = await apiGateway.fetch(apiId, params);
             setData(result);
         } catch (err) {
-            console.error(`[useOmniData] ❌ Error fetching ${apiId}:`, err);
+            console.error(`[useOmniData] Failed to fetch ${apiId}:`, err);
         } finally {
             setIsLoading(false);
         }
