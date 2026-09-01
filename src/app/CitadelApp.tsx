@@ -77,7 +77,7 @@ export default function CitadelApp() {
                 {/* Canvas Workspace - follows the active shell (root by default,
                     or a template-spawned shell after using the Shell Store) */}
                 <main className="flex-1 overflow-hidden relative">
-                    <Canvas shellId={activeShellId} />
+                    <Canvas shellId={activeShellId} onBrowseShells={() => setIsShellsOpen(true)} />
 
                     {/* Mind Dock - Always Visible */}
                     <MindDock onExpandPanel={() => setIsMindOpen(true)} />

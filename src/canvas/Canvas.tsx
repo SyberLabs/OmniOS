@@ -24,10 +24,12 @@ import { getBlockView } from '@/core/registry/ViewRegistry';
 
 interface CanvasProps {
     hideEmptyState?: boolean;
+    /** Opens the Shell Store. The empty canvas leads with it. */
+    onBrowseShells?: () => void;
     shellId?: string; // Optional shell ID for filtering blocks
 }
 
-export function Canvas({ hideEmptyState = false, shellId }: CanvasProps) {
+export function Canvas({ hideEmptyState = false, shellId, onBrowseShells }: CanvasProps) {
     const {
         blocks,
         addBlock,
@@ -193,15 +195,29 @@ export function Canvas({ hideEmptyState = false, shellId }: CanvasProps) {
 
                 {/* Empty state - shell-aware */}
                 {shellBlocks.length === 0 && !draggingBlockId && !hideEmptyState && (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="text-center">
-                            <div className="text-[var(--text-muted)] text-lg mb-2">
-                                Your Canvas is Empty
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <div className="text-center pointer-events-auto max-w-md px-6">
+                            <div className="text-[var(--text-primary)] text-lg mb-2">
+                                Start with an environment
                             </div>
-                            <p className="text-[var(--text-muted)]/60 text-sm max-w-md">
-                                Drag blocks from the Armory sidebar to start building your cognitive workspace.
-                                <br />
-                                Press <kbd className="px-2 py-0.5 bg-[var(--citadel-surface)] rounded text-xs font-mono">⌘K</kbd> to open the command palette.
+                            <p className="text-[var(--text-muted)] text-sm mb-5">
+                                A shell arrives pre-wired — live data blocks already connected to
+                                personas, so you can ask a question immediately.
+                            </p>
+                            {onBrowseShells && (
+                                <button
+                                    onClick={onBrowseShells}
+                                    className="px-4 py-2 rounded-lg text-sm font-medium bg-[var(--citadel-primary)] text-white hover:opacity-90 transition-opacity"
+                                >
+                                    Browse shells
+                                </button>
+                            )}
+                            <p className="text-[var(--text-muted)]/70 text-xs mt-5">
+                                Or drag a block from the sidebar &middot; press{' '}
+                                <kbd className="px-1.5 py-0.5 bg-[var(--citadel-surface)] rounded text-[10px] font-mono">
+                                    &#8984;K
+                                </kbd>{' '}
+                                for the command palette
                             </p>
                         </div>
                     </div>

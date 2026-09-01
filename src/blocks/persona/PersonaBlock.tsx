@@ -14,11 +14,14 @@ import {
     Loader2,
     Plug,
     MessageSquare,
+    Gem,
+    Workflow
 } from 'lucide-react';
 import { useBlockStore, useUIStore } from '@/core/stores';
 import { useWireStore } from '@/core/stores/wireStore';
 import { aggregateWireContext } from '@/core/services/wire.service';
-import { streamPersonaTurn } from '@/core/services/persona.engine';
+import { runPersonaTurn } from '@/core/services/personaTurn.service';
+import { planCascade, hasUpstreamPersonas } from '@/core/services/cascade.service';
 import { PersonaType } from '@/core/schemas/shell.schema';
 import {
     PersonaBlockData,
@@ -29,17 +32,12 @@ import {
 } from '@/core/schemas/wire.schema';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { crystallize } from '@/core/services/crystallize.service';
 import { cn } from '@/lib/utils';
 
 interface PersonaBlockViewProps {
     instanceId: string;
 }
-
-/**
- * How often a streaming answer is published to the store. Fast enough to read
- * as live typing, slow enough that the canvas is not re-rendered per token.
- */
-const STREAM_COMMIT_MS = 80;
 
 export function PersonaBlockView({ instanceId }: PersonaBlockViewProps) {
     const block = useBlockStore(state => state.blocks.find(b => b.instance_id === instanceId));
@@ -82,88 +80,21 @@ export function PersonaBlockView({ instanceId }: PersonaBlockViewProps) {
     // commits it to the block's message history. Used by both chat and Think.
     // Reads the latest persona data from the store on each commit to avoid
     // stale-closure issues during streaming.
-    const runTurn = useCallback(async (userMessage?: string) => {
-        const current = (getBlock(instanceId)?.data as PersonaBlockData) || personaData;
-        if (current.isThinking) return;
+    // The turn itself lives in personaTurn.service so the cascade can run a
+    // persona this component is not rendering.
+    const runTurn = useCallback(
+        (userMessage?: string) => runPersonaTurn(instanceId, userMessage),
+        [instanceId]
+    );
 
-        const baseMessages = userMessage
-            ? [
-                ...current.messages,
-                {
-                    id: `msg-${Date.now()}`,
-                    role: 'user' as const,
-                    content: userMessage,
-                    timestamp: Date.now()
-                }
-            ]
-            : current.messages;
-
-        // Show the user message immediately + thinking state.
-        updateData(instanceId, { ...current, messages: baseMessages, isThinking: true });
-
-        const assistantId = `msg-${Date.now()}-a`;
-        let acc = '';
-        // Provenance comes from the turn itself. A wire that is connected but
-        // carried no data did not feed this answer and must not be cited.
-        let turnSources: ContextSource[] = [];
-        const commit = (content: string, isThinking: boolean) => {
-            const latest = (getBlock(instanceId)?.data as PersonaBlockData) || current;
-            const withoutDraft = latest.messages.filter(m => m.id !== assistantId);
-            updateData(instanceId, {
-                ...latest,
-                isThinking,
-                lastContextUpdate: Date.now(),
-                messages: [
-                    ...withoutDraft,
-                    {
-                        id: assistantId,
-                        role: 'assistant' as const,
-                        content,
-                        timestamp: Date.now(),
-                        sourcedFrom: turnSources.map(x => x.id),
-                        sources: turnSources
-                    }
-                ]
-            });
-        };
-
-        try {
-            const gen = streamPersonaTurn({
-                instanceId,
-                personaType: personaData.personaType,
-                customName: personaData.customName,
-                history: current.messages,
-                userMessage
-            });
-
-            // Accumulate every token, but publish on a clock. commit() writes
-            // to the global block store, so a per-token commit re-rendered the
-            // whole canvas once per token — hundreds of full renders per answer,
-            // felt exactly when the user is watching most closely. The text is
-            // never lost: acc holds it and the final commit below always runs.
-            let lastCommit = 0;
-            let result = await gen.next();
-            while (!result.done) {
-                acc += result.value;
-                const now = Date.now();
-                if (now - lastCommit >= STREAM_COMMIT_MS) {
-                    lastCommit = now;
-                    commit(acc, true);
-                }
-                result = await gen.next();
-            }
-
-            const final = result.value;
-            turnSources = final.sources;
-            if (!final.success) {
-                commit(`⚠️ ${final.error}`, false);
-            } else {
-                commit(final.content || acc, false);
-            }
-        } catch (err) {
-            commit(`⚠️ ${err instanceof Error ? err.message : 'Something went wrong.'}`, false);
+    const runChain = useCallback(async () => {
+        const { order } = planCascade(instanceId);
+        // Upstream first, sequentially: each persona must see the previous
+        // one's finished answer, not a half-streamed draft.
+        for (const id of order) {
+            await runPersonaTurn(id);
         }
-    }, [instanceId, getBlock, updateData, personaData]);
+    }, [instanceId]);
 
     const handleSendMessage = () => {
         if (!input.trim() || personaData.isThinking) return;
@@ -181,6 +112,10 @@ export function PersonaBlockView({ instanceId }: PersonaBlockViewProps) {
             lastContextUpdate: lastUpdate
         });
     }, [instanceId, updatePersonaData]);
+
+    // Only offer the chain when there is one: a lone persona has nothing
+    // upstream to run, and an always-visible button would imply otherwise.
+    const hasChain = hasUpstreamPersonas(instanceId);
 
     const handleThink = () => {
         if (personaData.isThinking) return;
@@ -310,6 +245,12 @@ export function PersonaBlockView({ instanceId }: PersonaBlockViewProps) {
                                     message={msg}
                                     show={msg.role === 'assistant'}
                                 />
+                                {msg.role === 'assistant' && !msg.content.startsWith('⚠️') && (
+                                    <CrystallizeButton
+                                        content={msg.content}
+                                        personaId={instanceId}
+                                    />
+                                )}
                             </div>
                         </div>
                     ))
@@ -338,6 +279,16 @@ export function PersonaBlockView({ instanceId }: PersonaBlockViewProps) {
                         disabled={personaData.isThinking}
                         className="flex-1 px-2 py-1 bg-transparent border border-[var(--citadel-border)]/50 rounded text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)]/50 focus:outline-none focus:border-[var(--citadel-primary)] disabled:opacity-50"
                     />
+                    {hasChain && (
+                        <button
+                            onClick={() => { if (!personaData.isThinking) void runChain(); }}
+                            disabled={personaData.isThinking}
+                            className="p-1 rounded transition-colors disabled:opacity-50 text-[var(--citadel-primary-glow)] bg-[var(--citadel-primary)]/15 hover:bg-[var(--citadel-primary)]/25"
+                            title="Run chain — think upstream personas first, then this one"
+                        >
+                            <Workflow className="w-3 h-3" />
+                        </button>
+                    )}
                     <button
                         onClick={handleThink}
                         disabled={personaData.isThinking}
@@ -541,6 +492,49 @@ function AnswerBody({ content }: { content: string }) {
                 {content}
             </ReactMarkdown>
         </div>
+    );
+}
+
+
+// ============================================
+// CRYSTALLIZE
+// data -> insight -> memory -> context for the next question. The button
+// reports where the insight went, because an insight you cannot find again
+// is not memory.
+// ============================================
+
+function CrystallizeButton({ content, personaId }: { content: string; personaId: string }) {
+    const setHighlightedBlocks = useUIStore(state => state.setHighlightedBlocks);
+    const [result, setResult] = useState<null | { blockId?: string; created: boolean }>(null);
+
+    if (result) {
+        return (
+            <button
+                type="button"
+                onMouseEnter={() => result.blockId && setHighlightedBlocks([result.blockId])}
+                onMouseLeave={() => setHighlightedBlocks([])}
+                className="mt-1.5 flex items-center gap-1 text-[10px] text-[var(--truth-amber)]"
+                title="Highlight the Memory block holding this"
+            >
+                <Gem className="w-3 h-3" />
+                {result.created ? 'Kept in a new Memory block' : 'Kept in Memory'}
+            </button>
+        );
+    }
+
+    return (
+        <button
+            type="button"
+            onClick={() => {
+                const r = crystallize(content, personaId);
+                if (r.ok) setResult({ blockId: r.memoryBlockId, created: r.createdBlock });
+            }}
+            className="mt-1.5 flex items-center gap-1 text-[10px] text-[var(--text-muted)] hover:text-[var(--truth-amber)] transition-colors"
+            title="Keep this as memory — it becomes a block you can wire anywhere"
+        >
+            <Gem className="w-3 h-3" />
+            Crystallize
+        </button>
     );
 }
 
