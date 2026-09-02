@@ -12,6 +12,8 @@
 // ============================================
 
 import { useBlockStore } from '@/core/stores/blockStore';
+import { useWireStore } from '@/core/stores/wireStore';
+import { useUIStore } from '@/core/stores/uiStore';
 import { streamPersonaTurn } from './persona.engine';
 import type { PersonaBlockData, ContextSource } from '@/core/schemas/wire.schema';
 
@@ -94,7 +96,14 @@ export async function runPersonaTurn(
             personaType: current.personaType,
             customName: current.customName,
             history: current.messages,
-            userMessage
+            userMessage,
+            onPrepared: (sources) => {
+                const incoming = useWireStore.getState().getWiresToBlock(instanceId);
+                const contributing = new Set(sources.map(s => s.id));
+                useUIStore.getState().setReadingWires(
+                    incoming.filter(w => contributing.has(w.sourceBlockId)).map(w => w.id)
+                );
+            }
         });
 
         // Accumulate every token, but publish on a clock. commit() writes to
@@ -128,5 +137,7 @@ export async function runPersonaTurn(
         const message = err instanceof Error ? err.message : 'Something went wrong.';
         commit(`⚠️ ${message}`, false);
         return { ran: true, success: false, error: message };
+    } finally {
+        useUIStore.getState().setReadingWires([]);
     }
 }

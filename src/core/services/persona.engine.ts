@@ -45,6 +45,8 @@ export interface PersonaTurnInput {
     history?: PersonaChatMessage[];
     /** The user's message. Omit for autonomous Think. */
     userMessage?: string;
+    /** Fired once after context is assembled, before any token. */
+    onPrepared?: (sources: ContextSource[]) => void;
 }
 
 export interface PersonaTurnPrepared {
@@ -109,6 +111,7 @@ export async function* streamPersonaTurn(
     input: PersonaTurnInput
 ): AsyncGenerator<string, PersonaTurnResult> {
     const { messages, sourceIds, sources } = preparePersonaTurn(input);
+    input.onPrepared?.(sources);
 
     // The Cognition Kernel owns the turn lifecycle (availability, registry
     // token floor, streaming, fail-closed errors) — apex A4.

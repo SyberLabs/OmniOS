@@ -42,6 +42,13 @@ interface UIState {
      */
     highlightedBlockIds: string[];
     setHighlightedBlocks: (ids: string[]) => void;
+
+    /**
+     * Wires currently feeding a persona turn. Ephemeral — must not survive
+     * a reload, and must clear even if the turn errors.
+     */
+    readingWireIds: string[];
+    setReadingWires: (ids: string[]) => void;
 }
 
 export const useUIStore = create<UIState>()((set) => ({
@@ -49,11 +56,13 @@ export const useUIStore = create<UIState>()((set) => ({
     draggingBlockId: null,
     selectedBlockId: null,
     highlightedBlockIds: [],
+    readingWireIds: [],
 
     openCommandPalette: () => set({ commandPaletteOpen: true }),
     closeCommandPalette: () => set({ commandPaletteOpen: false }),
     toggleCommandPalette: () => set(state => ({ commandPaletteOpen: !state.commandPaletteOpen })),
     setDraggingBlock: (blockId) => set({ draggingBlockId: blockId }),
     setSelectedBlock: (instanceId) => set({ selectedBlockId: instanceId }),
-    setHighlightedBlocks: (ids) => set({ highlightedBlockIds: ids })
+    setHighlightedBlocks: (ids) => set({ highlightedBlockIds: ids }),
+    setReadingWires: (ids) => set({ readingWireIds: ids })
 }));

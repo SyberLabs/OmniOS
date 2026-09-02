@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 // localStorage is polyfilled in vitest.setup.ts.
 import {
     buildPersonaSystemPrompt,
@@ -10,6 +10,12 @@ import { useWireStore } from '@/core/stores/wireStore';
 import { useMindStore } from '@/core/stores/mindStore';
 import { createPersonaBlockData } from '@/core/schemas/wire.schema';
 import type { BlockInstance } from '@/core/schemas/block.schema';
+import { runTurnStream } from '@/core/cognition';
+
+vi.mock('@/core/cognition', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@/core/cognition')>();
+    return { ...actual, runTurnStream: vi.fn(actual.runTurnStream) };
+});
 
 function makeBlock(id: string, blockId: string, data: unknown): BlockInstance {
     return {
@@ -152,5 +158,60 @@ describe('streamPersonaTurn — fails closed', () => {
         const result = r.value as { success: boolean; error?: string };
         expect(result.success).toBe(false);
         expect(result.error).toMatch(/Ollama|not available/i);
+    });
+});
+
+describe('streamPersonaTurn — onPrepared before first token', () => {
+    const originalStream = vi.mocked(runTurnStream).getMockImplementation();
+
+    beforeEach(() => {
+        useBlockStore.setState({
+            blocks: [
+                makeBlock('news_1', 'newsapi_feed', {
+                    articles: [{ title: 'Rates held steady', source: 'Reuters', publishedAt: new Date().toISOString() }]
+                }),
+                makeBlock('p', 'persona_analyst', createPersonaBlockData('analyst'))
+            ],
+            activeShellId: 'root'
+        });
+        useWireStore.setState({ wires: [] } as never);
+        useWireStore.getState().addWire('news_1', 'p');
+    });
+
+    afterEach(() => {
+        if (originalStream) vi.mocked(runTurnStream).mockImplementation(originalStream);
+        else vi.mocked(runTurnStream).mockReset();
+    });
+
+    it('fires onPrepared before the first yielded token, with the turn\'s sources', async () => {
+        // The pulse must start before any token so the user sees the read,
+        // and it must name the same sources the answer will cite.
+        const order: string[] = [];
+        const onPrepared = vi.fn((sources: Array<{ id: string }>) => {
+            order.push('prepared');
+            expect(sources.some(s => s.id === 'news_1')).toBe(true);
+        });
+
+        vi.mocked(runTurnStream).mockImplementation(async function* () {
+            order.push('token');
+            yield 'hello';
+            return { success: true, content: 'hello' };
+        });
+
+        const gen = streamPersonaTurn({
+            instanceId: 'p',
+            personaType: 'analyst',
+            onPrepared
+        });
+        const first = await gen.next();
+        expect(first.done).toBe(false);
+        expect(first.value).toBe('hello');
+        expect(onPrepared).toHaveBeenCalledTimes(1);
+        expect(order).toEqual(['prepared', 'token']);
+
+        const last = await gen.next();
+        expect(last.done).toBe(true);
+        const result = last.value as { sources: Array<{ id: string }> };
+        expect(onPrepared.mock.calls[0][0]).toEqual(result.sources);
     });
 });

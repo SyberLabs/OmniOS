@@ -8,6 +8,7 @@
 import { useMemo, useState, useCallback } from 'react';
 import { useWireStore } from '@/core/stores/wireStore';
 import { useBlockStore } from '@/core/stores';
+import { useUIStore } from '@/core/stores/uiStore';
 import { DataWire, WireType } from '@/core/schemas/wire.schema';
 
 interface WireRendererProps {
@@ -35,6 +36,7 @@ export function WireRenderer({ activeDragId, dragDelta, shellId }: WireRendererP
     const removeWire = useWireStore(state => state.removeWire);
     const blocks = useBlockStore(state => state.blocks);
     const activeShellId = useBlockStore(state => state.activeShellId);
+    const readingWireIds = useUIStore(state => state.readingWireIds);
 
     const [hoveredWireId, setHoveredWireId] = useState<string | null>(null);
 
@@ -124,10 +126,17 @@ export function WireRenderer({ activeDragId, dragDelta, shellId }: WireRendererP
         >
             {wirePaths.map(({ wire, path, targetX, targetY, midX, midY, sourceName, targetName }) => {
                 const isHovered = hoveredWireId === wire.id;
+                const isReading = readingWireIds.includes(wire.id);
                 const color = getWireColor(wire);
 
                 return (
-                    <g key={wire.id} data-testid="wire" data-wire-status={wire.status}>
+                    <g
+                        key={wire.id}
+                        data-testid="wire"
+                        data-wire-status={wire.status}
+                        data-wire-id={wire.id}
+                        data-reading={isReading ? 'true' : undefined}
+                    >
                         {/* Hover area - wider invisible path */}
                         <path
                             d={path}
@@ -145,8 +154,9 @@ export function WireRenderer({ activeDragId, dragDelta, shellId }: WireRendererP
                             d={path}
                             fill="none"
                             stroke={color}
-                            strokeWidth={isHovered ? 3 : 2}
+                            strokeWidth={isHovered || isReading ? 3 : 2}
                             strokeLinecap="round"
+                            className={isReading ? 'wire-reading' : undefined}
                             style={{ transition: 'stroke-width 0.15s ease' }}
                         />
 
