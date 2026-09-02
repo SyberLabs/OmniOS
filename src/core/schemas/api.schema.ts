@@ -184,13 +184,6 @@ export interface ApiProvider {
  */
 export interface ApiConfig {
     providerId: string;
-
-    /**
-     * Key for a user-added custom provider, stored in the clear.
-     * Shipped keyed providers never populate this — their keys live in
-     * process.env and are applied by /api/data.
-     */
-    apiKey?: string;
     status: ApiStatus;
     lastTested?: number;
     requestCount: number;

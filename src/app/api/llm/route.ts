@@ -184,9 +184,9 @@ export async function POST(request: NextRequest) {
         }
         const result = await runComplete(req);
         return NextResponse.json(result);
-    } catch (err) {
-        // Never reflect raw upstream errors (may contain keys/PII). Log server-side.
-        console.error('[api/llm] provider call failed:', err);
+    } catch {
+        // Never reflect raw upstream errors (may contain keys/PII).
+        console.error('[api/llm] provider call failed');
         return NextResponse.json(
             { error: 'LLM provider request failed. Check server logs.' },
             { status: 502 }

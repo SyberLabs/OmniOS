@@ -130,7 +130,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                                         System Settings
                                     </h2>
                                     <p className="text-xs text-[var(--text-muted)]">
-                                        Configure API keys and data sources
+                                        Data sources and canvas behaviour
                                     </p>
                                 </div>
                             </div>

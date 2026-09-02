@@ -11,14 +11,11 @@ import {
     X,
     Search,
     Key,
-    Eye,
-    EyeOff,
     CheckCircle,
     XCircle,
     Circle,
     CircleDashed,
     Loader2,
-    Copy,
     Check,
     Trash2,
     ExternalLink,
@@ -256,33 +253,15 @@ interface ApiConfigCardProps {
 }
 
 function ApiConfigCard({ config, isExpanded, onToggle }: ApiConfigCardProps) {
-    const { setApiKey, getApiKey, testConnection, uninstallApi, updateStatus } = useApiStore();
-    const [showKey, setShowKey] = useState(false);
-    const [keyInput, setKeyInput] = useState('');
-    const [copied, setCopied] = useState(false);
+    const { testConnection, uninstallApi } = useApiStore();
     const [isTesting, setIsTesting] = useState(false);
 
-    const currentKey = getApiKey(config.providerId);
     const categoryConfig = CATEGORY_CONFIG[config.provider.category];
-
-    const handleSaveKey = () => {
-        setApiKey(config.providerId, keyInput);
-        setKeyInput('');
-        updateStatus(config.providerId, 'idle');
-    };
 
     const handleTest = async () => {
         setIsTesting(true);
         await testConnection(config.providerId);
         setIsTesting(false);
-    };
-
-    const handleCopy = async () => {
-        if (currentKey) {
-            await navigator.clipboard.writeText(currentKey);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 2000);
-        }
     };
 
     const StatusIcon = config.status === 'connected' ? CheckCircle
@@ -337,48 +316,8 @@ function ApiConfigCard({ config, isExpanded, onToggle }: ApiConfigCardProps) {
                                         Key configured server-side
                                     </p>
                                     <p className="text-xs text-[var(--text-muted)] mt-1">
-                                        Set it in <code>.env</code> and restart. It is never sent to the browser.
+                                        Set {config.provider.envVar ?? 'the env var'} in <code>.env</code> and restart. It is never sent to the browser.
                                     </p>
-                                </div>
-                            )}
-
-                            {/* API Key Input */}
-                            {config.provider.requiresAuth && !config.provider.serverKeyed && (
-                                <div className="space-y-2">
-                                    <label className="text-xs font-medium text-[var(--text-secondary)]">API Key</label>
-                                    <div className="flex gap-2">
-                                        <div className="relative flex-1">
-                                            <input
-                                                type={showKey ? 'text' : 'password'}
-                                                value={keyInput || (showKey ? currentKey : currentKey ? 'â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢' : '')}
-                                                onChange={(e) => setKeyInput(e.target.value)}
-                                                placeholder={currentKey ? 'Enter new key to update...' : 'Enter API key...'}
-                                                className="w-full px-3 py-2 pr-10 bg-[var(--citadel-bg)] border border-[var(--citadel-border)] rounded-lg text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--citadel-primary)]"
-                                            />
-                                            <button
-                                                onClick={() => setShowKey(!showKey)}
-                                                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-                                            >
-                                                {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                            </button>
-                                        </div>
-                                        {keyInput && (
-                                            <button
-                                                onClick={handleSaveKey}
-                                                className="px-3 py-2 bg-[var(--citadel-primary)] text-white rounded-lg text-sm font-medium"
-                                            >
-                                                Save
-                                            </button>
-                                        )}
-                                        {currentKey && !keyInput && (
-                                            <button
-                                                onClick={handleCopy}
-                                                className="p-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] bg-[var(--citadel-bg)] border border-[var(--citadel-border)] rounded-lg"
-                                            >
-                                                {copied ? <Check className="w-4 h-4 text-[var(--truth-green)]" /> : <Copy className="w-4 h-4" />}
-                                            </button>
-                                        )}
-                                    </div>
                                 </div>
                             )}
 

@@ -191,12 +191,9 @@ export async function fetchKeyedProvider(
             return { status: 502, body: { error: `${id} returned a non-JSON response` } };
         }
         return { status: 200, body };
-    } catch (error) {
-        return {
-            status: 502,
-            body: {
-                error: error instanceof Error ? error.message : `${id} request failed`
-            }
-        };
+    } catch {
+        // Do not echo error.message: undici/node may include the request URL,
+        // and FRED/Alpha Vantage put the key in that URL.
+        return { status: 502, body: { error: `${id} request failed` } };
     }
 }

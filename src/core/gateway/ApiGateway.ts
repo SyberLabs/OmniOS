@@ -100,21 +100,6 @@ class ApiGatewayService {
     private cache: Map<string, CacheEntry> = new Map();
     private rateLimitTimers: Map<string, number> = new Map();
     private subscriptions: GatewaySubscription[] = [];
-    private apiKeys: Map<string, string> = new Map();
-
-    /**
-     * Register an API key
-     */
-    setApiKey(apiId: string, key: string): void {
-        this.apiKeys.set(apiId, key);
-    }
-
-    /**
-     * Get an API key
-     */
-    getApiKey(apiId: string): string | undefined {
-        return this.apiKeys.get(apiId);
-    }
 
     /**
      * Register a custom API type
@@ -210,17 +195,14 @@ class ApiGatewayService {
             return error;
         }
 
-        // 3. Get API key
-        const apiKey = this.apiKeys.get(apiId) || '';
-
-        // 4. Wait for rate limit
+        // 3. Wait for rate limit. FetchFn still takes an apiKey argument from
+        //    when the client held keys; shipped keyed providers ignore it and
+        //    go through /api/data. Pass empty so nothing client-side can inject.
         await this.waitForRateLimit(apiId);
 
         try {
-            // 5. Fetch raw data
-            const raw = await typeDef.fetchFn(apiKey, effectiveParams);
+            const raw = await typeDef.fetchFn('', effectiveParams);
 
-            // 6. Normalize to OmniData
             const normalized = typeDef.normalizeFn(raw);
             const normalizedWithSource = normalized.source
                 ? {
@@ -233,12 +215,10 @@ class ApiGatewayService {
                 }
                 : normalized;
 
-            // 7. Cache result
             if (!normalizedWithSource.error) {
                 this.setCache(apiId, normalizedWithSource, effectiveParams);
             }
 
-            // 8. Notify subscribers
             this.notifySubscribers(apiId, normalizedWithSource);
 
             return normalizedWithSource;

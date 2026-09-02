@@ -17,3 +17,24 @@ Where: `src/core/services/mind.engine.ts` `think()` / `thinkStream()` via `captu
 Why it matters: persona turns are wire-only. The Mind panel's Think is a second path that feeds the LLM a snapshot of every block, including ones with no wire. That is a different surface than a persona, but it is still context you cannot point at on the canvas.
 What I would do: either retire Mind-panel Think in favour of persona turns, or make it consume only wired/pinned blocks so the two paths cannot diverge.
 
+## Unused ApiConfig on the block schema
+Where: `src/core/schemas/block.schema.ts` ~190. A separate `ApiConfig` with an `apiKey` field. Nothing imports it.
+Why it matters: a second type named ApiConfig next to `api.schema.ts`'s is how a key field reappears by accident.
+What I would do: delete the unused interface.
+
+## Unused store lookups
+Where: `PersonaBlock.tsx` ~48 `getBlock`, `WireHandle.tsx` ~61 `getBlock`, `MindPanel.tsx` ~9 `useBlockStore`.
+Why it matters: lint warnings only, but they are leftovers from earlier edits.
+What I would do: drop the unused bindings.
+
+## FRED / Alpha Vantage must put the key in the upstream query string
+Where: `src/core/services/server/data.providers.ts` FRED and Alpha Vantage `buildRequest`. Those APIs have no header auth.
+Why it matters: the key is in a URL we send to the provider (allowed) and could appear in an undici error message (now stripped from the 502 body). Access logs on their side are theirs.
+What I would do: nothing further unless a provider adds header auth.
+
+## Turbopack compile cache can hold inlined env values
+Where: `.next/cache/turbopack/**/*.sst` after `next build`. Not the client bundle (`.next/static` was clean).
+Why it matters: a machine-local cache is inside the security boundary, but copying `.next` off the machine would copy it.
+What I would do: keep `.next` gitignored (it is). Do not treat cache hits as a client leak.
+
+

@@ -110,7 +110,7 @@ export function createRestListAdapter(
                 return {
                     error: {
                         code: 'NO_API_KEY',
-                        message: `${provider.name} requires an API key. Add one in the API Dashboard.`
+                        message: `${provider.name} requires an API key.`
                     }
                 };
             }

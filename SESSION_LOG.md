@@ -59,11 +59,23 @@ Gate: tsc / lint (0 errors) / tests (207) / build / e2e (6) — all green
 Notes: Investor stays first in the Store. E2e spawn locators now name the Investor card so two "Use this shell" buttons do not collide. OpenAlex template `params.search` is a real fetch knob and seeds the input without requiring Apply.
 
 ## ITEM 9 — SKIPPED
-Commit: (this commit)
+Commit: 40ac539
 What: Left the four `<img>` warnings in place.
 Why: next/image is the wrong tool here. MediaBlock renders user-chosen URLs and blob: thumbnails (no remotePatterns set can cover that). CryptoView and NewsView are 32–64px remote thumbs from CoinGecko and arbitrary publishers — an allowlist per host is the cost, and there is no LCP win on a canvas card. The warning is real for marketing sites; it is not a defect in these surfaces.
 Gate: n/a (no code change)
 Notes: Unused-var warnings in PersonaBlock, WireHandle, and MindPanel are leftover from earlier work; not this item.
+
+## AUDIT — SHIPPED
+Commit: (this commit)
+What: Removed the client `apiKey` path (apiStore, settings leftovers, dashboard input, gateway injection). 502s from keyed providers no longer echo `error.message`. Every keyed provider has a test that the browser-facing body does not contain the key. Client bundle scan of `.next/static` for env values: PASS.
+Why: The dashboard still offered a key field for a custom-provider path nothing shipped uses, and stored it in localStorage in the clear. That is an affordance that cannot be honoured honestly. Encrypting it would have been XOR theatre again.
+Gate: tsc / lint (0 errors) / tests (215) / build / e2e (6) — all green
+Notes: FRED and Alpha Vantage still put the key in the *upstream* URL because those APIs have no header auth. Turbopack's local compile cache can inline an env value; that is not the client bundle. Settings store gained `version: 1` so the dead `apiKeys` bag is dropped on migrate.
+
+## SUMMARY
+Shipped: items 1–8, item 9 skipped (img), security audit a–d.
+Blocked: none.
+Next: the empty-array `'(No data)'` citation in `wire.service.ts` is the remaining honesty bug — a connected-but-empty source still pulses and still gets a chip. After that, stop treating the whole-shell Mind snapshot as a second context path.
 
 
 

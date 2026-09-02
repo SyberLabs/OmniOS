@@ -153,16 +153,6 @@ export interface OmniSettings {
     /** Use mock data for APIs */
     useMockData: boolean;
 
-    /** API configuration placeholders */
-    apiKeys: {
-        polymarket?: string;
-        newsapi?: string;
-        tradingview?: string;
-        flightaware?: string;
-        marinetraffic?: string;
-        gdelt?: string;
-    };
-
     /** Currently active shell ID */
     activeShellId: string | null;
 

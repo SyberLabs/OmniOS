@@ -127,11 +127,27 @@ describe('the key reaches the provider, never the caller', () => {
         process.env.ALPHA_VANTAGE_API_KEY = 'secret-av';
         const calls = captureFetch({ 'Global Quote': {} });
 
-        await fetchKeyedProvider('alpha_vantage', { symbol: 'MSFT' });
+        const { body } = await fetchKeyedProvider('alpha_vantage', { symbol: 'MSFT' });
 
         expect(calls[0].url).toContain('symbol=MSFT');
         expect(calls[0].url).toContain('function=GLOBAL_QUOTE');
         expect(calls[0].url).toContain('apikey=secret-av');
+        expect(JSON.stringify(body)).not.toContain('secret-av');
+    });
+});
+
+describe('the browser-facing body never contains the key', () => {
+    it.each([
+        ['fred', 'FRED_API_KEY', 'secret-fred'],
+        ['bls', 'BLS_API_KEY', 'secret-bls'],
+        ['alpha_vantage', 'ALPHA_VANTAGE_API_KEY', 'secret-av'],
+        ['newsapi', 'NEWSAPI_KEY', 'secret-news'],
+        ['metaculus', 'METACULUS_API_KEY', 'secret-metaculus']
+    ] as const)('%s', async (id, env, secret) => {
+        process.env[env] = secret;
+        captureFetch({ ok: true, results: [], articles: [], observations: [] });
+        const { body } = await fetchKeyedProvider(id, {});
+        expect(JSON.stringify(body)).not.toContain(secret);
     });
 });
 
@@ -142,7 +158,7 @@ describe('failure handling', () => {
 
         const { status, body } = await fetchKeyedProvider('fred', {});
         expect(status).toBe(502);
-        expect(String((body as { error: string }).error)).toContain('ECONNREFUSED');
+        expect(String((body as { error: string }).error)).toBe('fred request failed');
     });
 
     it('a non-JSON upstream response becomes a 502', async () => {
@@ -157,7 +173,7 @@ describe('failure handling', () => {
 
     it('never leaks the key into an error body', async () => {
         process.env.ALPHA_VANTAGE_API_KEY = 'top-secret';
-        vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('boom'); }));
+        vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('fetch failed apikey=top-secret'); }));
 
         const { body } = await fetchKeyedProvider('alpha_vantage', {});
         expect(JSON.stringify(body)).not.toContain('top-secret');

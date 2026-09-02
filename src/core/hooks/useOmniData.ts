@@ -5,7 +5,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { apiGateway, OmniData, OmniItem } from '../gateway';
-import { useApiStore } from '../stores/apiStore';
 import { debug } from '../debug';
 
 interface UseOmniDataOptions {
@@ -56,21 +55,11 @@ export function useOmniData(
     const [data, setData] = useState<OmniData | null>(null);
     const [isLoading, setIsLoading] = useState(false);
 
-    // Get API key from apiStore
-    const getApiKey = useApiStore(state => state.getApiKey);
-
     debug('[useOmniData] 🎣 Hook called', { apiId, blockId, immediate, hasParams: !!params });
 
     const refresh = useCallback(async () => {
         debug('[useOmniData] 🔄 Refresh triggered for', apiId);
         setIsLoading(true);
-
-        // Ensure API key is set in gateway
-        const apiKey = getApiKey(apiId);
-        debug('[useOmniData] 🔑 API key lookup:', { apiId, hasKey: !!apiKey });
-        if (apiKey) {
-            apiGateway.setApiKey(apiId, apiKey);
-        }
 
         try {
             debug('[useOmniData] 📡 Calling apiGateway.fetch...');
@@ -87,7 +76,7 @@ export function useOmniData(
         } finally {
             setIsLoading(false);
         }
-    }, [apiId, params, getApiKey]);
+    }, [apiId, params]);
 
     // Subscribe to updates
     useEffect(() => {

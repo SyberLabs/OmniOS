@@ -1,11 +1,11 @@
 // ============================================
 // PROJECT OMNI: API STORE
-// Per-provider install state, status and (for custom providers only) keys.
+// Per-provider install state and status.
 //
-// Every keyed provider OmniOS ships is now proxied through /api/data with the
-// key read from process.env, so nothing here holds a shipped secret. What is
-// stored is stored in the clear: the previous XOR-with-a-constant was
-// obfuscation that read as encryption, which is worse than neither.
+// Shipped keyed providers are proxied through /api/data with the key read
+// from process.env. This store must not hold a secret — a custom-provider
+// field that stored keys in the clear was removed rather than dressed up
+// as encryption.
 // ============================================
 
 import { create } from 'zustand';
@@ -31,14 +31,6 @@ interface ApiStoreState {
 
     /** Installed API provider IDs */
     installedApis: string[];
-
-    /** Set API key for a provider */
-    setApiKey: (providerId: string, key: string) => void;
-
-    /** Get decrypted API key */
-    getApiKey: (providerId: string) => string;
-
-    /** Install an API (add to dashboard) */
     installApi: (providerId: string) => void;
 
     /** Uninstall an API */
@@ -62,9 +54,6 @@ interface ApiStoreState {
     /** Get config for a provider */
     getConfig: (providerId: string) => ApiConfig | undefined;
 
-    /** Clear all API keys */
-    clearAllKeys: () => void;
-
     /** Initialize default APIs if store is empty */
     initializeDefaults: () => void;
 }
@@ -77,6 +66,21 @@ interface ApiStoreState {
 const DEFAULT_INSTALLED_APIS = getSupportedApis()
     .filter(provider => !provider.requiresAuth)
     .map(provider => provider.id);
+
+/** Drop leftover client keys from older persisted vaults. Mutates configs in place. */
+export function dropClientApiKeys(persisted: unknown): unknown {
+    if (!persisted || typeof persisted !== 'object') return persisted;
+    const state = persisted as { configs?: Record<string, Record<string, unknown>> };
+    if (!state.configs) return persisted;
+    for (const cfg of Object.values(state.configs)) {
+        if ('encryptedKey' in cfg) {
+            delete cfg.encryptedKey;
+            cfg.status = 'not_configured';
+        }
+        delete cfg.apiKey;
+    }
+    return persisted;
+}
 
 export const useApiStore = create<ApiStoreState>()(
     persist(
@@ -100,26 +104,6 @@ export const useApiStore = create<ApiStoreState>()(
                         }), {})
                     });
                 }
-            },
-
-            setApiKey: (providerId, key) => {
-                set(state => ({
-                    configs: {
-                        ...state.configs,
-                        [providerId]: {
-                            ...state.configs[providerId],
-                            providerId,
-                            apiKey: key,
-                            status: key ? 'idle' : 'not_configured',
-                            requestCount: state.configs[providerId]?.requestCount || 0
-                        }
-                    }
-                }));
-            },
-
-            getApiKey: (providerId) => {
-                const config = get().configs[providerId];
-                return config?.apiKey || '';
             },
 
             installApi: (providerId) => {
@@ -203,11 +187,6 @@ export const useApiStore = create<ApiStoreState>()(
                         return false;
                     }
 
-                    const apiKey = get().getApiKey(providerId);
-                    if (apiKey) {
-                        apiGateway.setApiKey(providerId, apiKey);
-                    }
-
                     const testParams = provider.integration?.testParams
                         || (provider.integration?.gateway?.type === 'normalizer'
                             ? provider.integration.gateway.defaultParams
@@ -245,37 +224,15 @@ export const useApiStore = create<ApiStoreState>()(
 
             getConfig: (providerId) => {
                 return get().configs[providerId];
-            },
-
-            clearAllKeys: () => {
-                set(state => ({
-                    configs: Object.fromEntries(
-                        Object.entries(state.configs).map(([id, config]) => [
-                            id,
-                            { ...config, apiKey: undefined, status: 'not_configured' as ApiStatus }
-                        ])
-                    )
-                }));
             }
         }),
         {
             name: 'omni-api-vault',
-            version: 1,
-            // v0 stored `encryptedKey`: XOR-obfuscated, not encrypted. Those
-            // bytes are not a usable plaintext key, so they are dropped rather
-            // than mis-carried. Shipped providers need no client key at all now;
-            // a custom provider's key is simply re-entered.
-            migrate: (persisted: unknown) => {
-                const state = persisted as { configs?: Record<string, Record<string, unknown>> };
-                if (!state?.configs) return state;
-                for (const cfg of Object.values(state.configs)) {
-                    if ('encryptedKey' in cfg) {
-                        delete cfg.encryptedKey;
-                        cfg.status = 'not_configured';
-                    }
-                }
-                return state;
-            },
+            version: 2,
+            // v0 stored `encryptedKey` (XOR theatre). v1 stored a plaintext
+            // `apiKey` for a custom-provider path nothing shipped used. Both
+            // are dropped; keys live in process.env.
+            migrate: (persisted: unknown) => dropClientApiKeys(persisted),
             storage: createJSONStorage(() => localStorage),
             partialize: (state) => ({
                 configs: state.configs,
