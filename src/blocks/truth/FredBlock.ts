@@ -70,7 +70,8 @@ export function useFredBlock(instanceId: string, params?: FredBlockParams) {
         status: block?.status || (isLoading ? 'connecting' : 'connected'),
         lastUpdated: block?.last_updated,
         fromCache,
-        refresh
+        refresh,
+        error
     };
 }
 

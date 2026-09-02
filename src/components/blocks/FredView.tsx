@@ -7,6 +7,7 @@
 import { RefreshCw, TrendingUp, TrendingDown, Circle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { OmniItem, OmniMetrics } from '@/core/gateway';
+import { BlockBodyState } from './BlockSetupCard';
 
 interface FredViewProps {
     items: OmniItem[];
@@ -17,6 +18,7 @@ interface FredViewProps {
     onSeriesInputChange: (value: string) => void;
     onApplySeries: () => void;
     onRefresh?: () => void;
+    error?: string | null;
 }
 
 export function FredView({
@@ -27,7 +29,8 @@ export function FredView({
     seriesInput,
     onSeriesInputChange,
     onApplySeries,
-    onRefresh
+    onRefresh,
+    error
 }: FredViewProps) {
     const latest = metrics?.values?.latest ?? null;
     const change = metrics?.values?.change ?? 0;
@@ -87,41 +90,41 @@ export function FredView({
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                {metrics && latest !== null ? (
-                    <div className="p-3 rounded-md bg-[var(--citadel-surface)]/60 border border-[var(--citadel-border)]">
-                        <div className="text-[10px] text-[var(--text-muted)]">Latest</div>
-                        <div className="flex items-baseline gap-2">
-                            <div className="text-lg font-semibold text-[var(--text-primary)]">
-                                {formatValue(latest)}
-                            </div>
-                            <div className={cn(
-                                "text-xs flex items-center gap-1",
-                                trend === 'up' && "text-[var(--truth-green)]",
-                                trend === 'down' && "text-[var(--truth-red)]",
-                                trend === 'neutral' && "text-[var(--text-muted)]"
-                            )}>
-                                {trend === 'up' && <TrendingUp className="w-3 h-3" />}
-                                {trend === 'down' && <TrendingDown className="w-3 h-3" />}
-                                {trend === 'neutral' && <Circle className="w-2 h-2" />}
-                                {formatValue(change)} ({changePercent.toFixed(2)}%)
+                <BlockBodyState
+                    error={error}
+                    isLoading={status === 'connecting'}
+                    isEmpty={items.length === 0 && !(metrics && latest !== null)}
+                    loadingLabel="Loading observations..."
+                >
+                    {metrics && latest !== null && (
+                        <div className="p-3 rounded-md bg-[var(--citadel-surface)]/60 border border-[var(--citadel-border)]">
+                            <div className="text-[10px] text-[var(--text-muted)]">Latest</div>
+                            <div className="flex items-baseline gap-2">
+                                <div className="text-lg font-semibold text-[var(--text-primary)]">
+                                    {formatValue(latest)}
+                                </div>
+                                <div className={cn(
+                                    "text-xs flex items-center gap-1",
+                                    trend === 'up' && "text-[var(--truth-green)]",
+                                    trend === 'down' && "text-[var(--truth-red)]",
+                                    trend === 'neutral' && "text-[var(--text-muted)]"
+                                )}>
+                                    {trend === 'up' && <TrendingUp className="w-3 h-3" />}
+                                    {trend === 'down' && <TrendingDown className="w-3 h-3" />}
+                                    {trend === 'neutral' && <Circle className="w-2 h-2" />}
+                                    {formatValue(change)} ({changePercent.toFixed(2)}%)
+                                </div>
                             </div>
                         </div>
-                    </div>
-                ) : (
-                    <div className="text-xs text-[var(--text-muted)]">Loading series metrics...</div>
-                )}
-
-                {items.length === 0 ? (
-                    <div className="text-center text-[var(--text-muted)] py-6 text-xs">
-                        Loading observations...
-                    </div>
-                ) : (
-                    <div className="space-y-2">
-                        {items.map(item => (
-                            <SeriesRow key={item.id} item={item} />
-                        ))}
-                    </div>
-                )}
+                    )}
+                    {items.length > 0 && (
+                        <div className="space-y-2">
+                            {items.map(item => (
+                                <SeriesRow key={item.id} item={item} />
+                            ))}
+                        </div>
+                    )}
+                </BlockBodyState>
             </div>
 
             {lastUpdated && (

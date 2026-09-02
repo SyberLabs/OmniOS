@@ -114,7 +114,8 @@ export function useHackerNewsBlock(instanceId: string) {
         fromCache,
         refresh,
         pause: () => { },
-        resume: refresh
+        resume: refresh,
+        error
     };
 }
 

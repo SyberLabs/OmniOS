@@ -99,7 +99,8 @@ export function useNewsBlock(instanceId: string, query?: string, category?: stri
         fromCache,
         refresh,
         pause: () => { }, // Polling handled by useOmniData
-        resume: refresh
+        resume: refresh,
+        error
     };
 }
 

@@ -9,25 +9,23 @@ import {
     Target,
     RefreshCw,
     Clock,
-    Users,
-    AlertCircle
+    Users
 } from 'lucide-react';
 import type { OmniItem } from '@/core/gateway';
 import type { ConnectionStatus } from '@/core/schemas/block.schema';
 import { cn } from '@/lib/utils';
 import { PortBadge } from './PortBadge';
+import { BlockBodyState } from './BlockSetupCard';
 
 interface MetaculusViewProps {
     questions: OmniItem[];
     status: ConnectionStatus;
     lastUpdated: number | null;
     onRefresh: () => void;
+    error?: string | null;
 }
 
-export function MetaculusView({ questions, status, lastUpdated, onRefresh }: MetaculusViewProps) {
-    const isLoading = status === 'connecting' && questions.length === 0;
-    const isError = status === 'error';
-
+export function MetaculusView({ questions, status, lastUpdated, onRefresh, error }: MetaculusViewProps) {
     return (
         <div className="flex flex-col h-full bg-[var(--citadel-surface)]">
             {/* Header */}
@@ -77,33 +75,18 @@ export function MetaculusView({ questions, status, lastUpdated, onRefresh }: Met
 
             {/* Content */}
             <div className="flex-1 overflow-y-auto p-3 space-y-3 custom-scrollbar">
-                {isLoading ? (
-                    <div className="flex flex-col items-center justify-center py-10 text-[var(--text-muted)]">
-                        <RefreshCw className="w-8 h-8 animate-spin mb-2 opacity-50" />
-                        <span className="text-xs">Fetching forecasts...</span>
-                    </div>
-                ) : isError ? (
-                    <div className="flex flex-col items-center justify-center py-10 text-[var(--truth-red)]">
-                        <AlertCircle className="w-8 h-8 mb-2 opacity-50" />
-                        <span className="text-xs">Connection failed</span>
-                        <button
-                            onClick={onRefresh}
-                            className="mt-2 px-3 py-1 bg-[var(--truth-red)]/10 rounded-full text-xs hover:bg-[var(--truth-red)]/20 transition-colors"
-                        >
-                            Retry
-                        </button>
-                    </div>
-                ) : questions.length === 0 ? (
-                    <div className="text-center py-10 text-[var(--text-muted)] text-xs">
-                        No questions available
-                    </div>
-                ) : (
+                <BlockBodyState
+                    error={error}
+                    isLoading={status === 'connecting'}
+                    isEmpty={questions.length === 0}
+                    loadingLabel="Fetching forecasts..."
+                >
                     <div className="flex flex-col gap-3">
                         {questions.map((question) => (
                             <ForecastCard key={question.id} question={question} />
                         ))}
                     </div>
-                )}
+                </BlockBodyState>
             </div>
 
             {/* Footer */}

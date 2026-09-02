@@ -203,17 +203,36 @@ export function PersonaBlockView({ instanceId }: PersonaBlockViewProps) {
             {/* Messages - maximized */}
             <div className="flex-1 overflow-auto p-2 space-y-2">
                 {personaData.messages.length === 0 ? (
+                    // Wires and messages are independent: a wired persona
+                    // with no chat is ready to think, not missing context.
                     <div className="flex flex-col items-center justify-center h-full text-center py-6">
-                        <MessageSquare
-                            className="w-8 h-8 mb-2 opacity-50"
-                            style={{ color: config.color }}
-                        />
-                        <p className="text-sm text-[var(--text-muted)]">
-                            Wire data blocks to me for context
-                        </p>
-                        <p className="text-xs text-[var(--text-muted)]/70 mt-1">
-                            Drag from block edge → drop here
-                        </p>
+                        {connectedWires.length === 0 ? (
+                            <>
+                                <MessageSquare
+                                    className="w-8 h-8 mb-2 opacity-50"
+                                    style={{ color: config.color }}
+                                />
+                                <p className="text-sm text-[var(--text-muted)]">
+                                    Wire data blocks to me for context
+                                </p>
+                                <p className="text-xs text-[var(--text-muted)]/70 mt-1">
+                                    Drag from block edge → drop here
+                                </p>
+                            </>
+                        ) : (
+                            <>
+                                <Zap
+                                    className="w-8 h-8 mb-2 opacity-50"
+                                    style={{ color: config.color }}
+                                />
+                                <p className="text-sm text-[var(--text-muted)]">
+                                    {connectedWires.length} {connectedWires.length === 1 ? 'source' : 'sources'} connected
+                                </p>
+                                <p className="text-xs text-[var(--text-muted)]/70 mt-1">
+                                    Ready — Think, or ask a question
+                                </p>
+                            </>
+                        )}
                     </div>
                 ) : (
                     personaData.messages.map(msg => (

@@ -35,7 +35,7 @@ import { MemoryBlockView } from '@/components/blocks/MemoryBlock';
 // ============================================
 
 function PolymarketBlockContent({ instanceId }: { instanceId: string }) {
-    const { markets, status, lastUpdated, refresh, pause, resume } = usePolymarketBlock(instanceId);
+    const { markets, status, lastUpdated, refresh, pause, resume, error } = usePolymarketBlock(instanceId);
     const [isPaused, setIsPaused] = useState(false);
 
     const handlePause = () => {
@@ -57,12 +57,13 @@ function PolymarketBlockContent({ instanceId }: { instanceId: string }) {
             onPause={handlePause}
             onResume={handleResume}
             isPaused={isPaused}
+            error={error}
         />
     );
 }
 
 function NewsBlockContent({ instanceId }: { instanceId: string }) {
-    const { articles, status, lastUpdated, refresh } = useNewsBlock(instanceId);
+    const { articles, status, lastUpdated, refresh, error } = useNewsBlock(instanceId);
 
     return (
         <NewsView
@@ -70,12 +71,13 @@ function NewsBlockContent({ instanceId }: { instanceId: string }) {
             status={status}
             lastUpdated={lastUpdated ?? null}
             onRefresh={refresh}
+            error={error}
         />
     );
 }
 
 function CryptoBlockContent({ instanceId }: { instanceId: string }) {
-    const { assets, status, lastUpdated, refresh } = useCoinGeckoBlock(instanceId);
+    const { assets, status, lastUpdated, refresh, error } = useCoinGeckoBlock(instanceId);
 
     return (
         <CryptoView
@@ -83,12 +85,13 @@ function CryptoBlockContent({ instanceId }: { instanceId: string }) {
             status={status}
             lastUpdated={lastUpdated ?? null}
             onRefresh={refresh}
+            error={error}
         />
     );
 }
 
 function HNBlockContent({ instanceId }: { instanceId: string }) {
-    const { stories, status, lastUpdated, refresh } = useHackerNewsBlock(instanceId);
+    const { stories, status, lastUpdated, refresh, error } = useHackerNewsBlock(instanceId);
 
     return (
         <HNView
@@ -96,12 +99,13 @@ function HNBlockContent({ instanceId }: { instanceId: string }) {
             status={status}
             lastUpdated={lastUpdated ?? null}
             onRefresh={refresh}
+            error={error}
         />
     );
 }
 
 function MetaculusBlockContent({ instanceId }: { instanceId: string }) {
-    const { questions, status, lastUpdated, refresh } = useMetaculusBlock(instanceId);
+    const { questions, status, lastUpdated, refresh, error } = useMetaculusBlock(instanceId);
 
     return (
         <MetaculusView
@@ -109,6 +113,7 @@ function MetaculusBlockContent({ instanceId }: { instanceId: string }) {
             status={status}
             lastUpdated={lastUpdated ?? null}
             onRefresh={refresh}
+            error={error}
         />
     );
 }
@@ -117,7 +122,7 @@ function AlphaVantageBlockContent({ instanceId }: { instanceId: string }) {
     const defaultSymbol = 'AAPL';
     const [symbolInput, setSymbolInput] = useState(defaultSymbol);
     const [params, setParams] = useState<{ symbol: string }>({ symbol: defaultSymbol });
-    const { items, metrics, status, lastUpdated, refresh } = useAlphaVantageBlock(instanceId, params);
+    const { items, metrics, status, lastUpdated, refresh, error } = useAlphaVantageBlock(instanceId, params);
 
     const handleApplySymbol = () => {
         const nextSymbol = symbolInput.trim().toUpperCase();
@@ -135,6 +140,7 @@ function AlphaVantageBlockContent({ instanceId }: { instanceId: string }) {
             symbolInput={symbolInput}
             onSymbolInputChange={setSymbolInput}
             onApplySymbol={handleApplySymbol}
+            error={error}
         />
     );
 }
@@ -146,7 +152,7 @@ function OpenAlexBlockContent({ instanceId }: { instanceId: string }) {
         year: ''
     });
     const [params, setParams] = useState<Record<string, unknown>>({});
-    const { items, status, lastUpdated, refresh } = useOpenAlexBlock(instanceId, params);
+    const { items, status, lastUpdated, refresh, error } = useOpenAlexBlock(instanceId, params);
 
     const handleApplyFilters = () => {
         const filters: string[] = [];
@@ -192,6 +198,7 @@ function OpenAlexBlockContent({ instanceId }: { instanceId: string }) {
             onTopicInputChange={(value) => setDraft(prev => ({ ...prev, topic: value }))}
             onYearInputChange={(value) => setDraft(prev => ({ ...prev, year: value }))}
             onApplyFilters={handleApplyFilters}
+            error={error}
         />
     );
 }
@@ -204,7 +211,7 @@ function FredBlockContent({ instanceId }: { instanceId: string }) {
         limit: 24,
         sort_order: 'desc'
     });
-    const { items, metrics, status, lastUpdated, refresh } = useFredBlock(instanceId, params);
+    const { items, metrics, status, lastUpdated, refresh, error } = useFredBlock(instanceId, params);
 
     const handleApplySeries = () => {
         const nextSeries = seriesInput.trim().toUpperCase();
@@ -224,6 +231,7 @@ function FredBlockContent({ instanceId }: { instanceId: string }) {
             seriesInput={seriesInput}
             onSeriesInputChange={setSeriesInput}
             onApplySeries={handleApplySeries}
+            error={error}
         />
     );
 }
@@ -242,7 +250,7 @@ function BlsBlockContent({ instanceId }: { instanceId: string }) {
         startYear: defaultStart,
         endYear: defaultEnd
     });
-    const { items, metrics, status, lastUpdated, refresh } = useBlsBlock(instanceId, params);
+    const { items, metrics, status, lastUpdated, refresh, error } = useBlsBlock(instanceId, params);
 
     const normalizeYear = (value: string, fallback: string) => {
         const trimmed = value.trim();
@@ -273,6 +281,7 @@ function BlsBlockContent({ instanceId }: { instanceId: string }) {
             onStartYearInputChange={(value) => setDraft(prev => ({ ...prev, startYear: value }))}
             onEndYearInputChange={(value) => setDraft(prev => ({ ...prev, endYear: value }))}
             onApplySeries={handleApplySeries}
+            error={error}
         />
     );
 }
@@ -297,7 +306,7 @@ function WorldBankBlockContent({ instanceId }: { instanceId: string }) {
         country: 'USA',
         per_page: 60
     });
-    const { items, metrics, status, lastUpdated, refresh } = useWorldBankBlock(instanceId, params);
+    const { items, metrics, status, lastUpdated, refresh, error } = useWorldBankBlock(instanceId, params);
 
     const normalizeYear = (value: string) => {
         const trimmed = value.trim();
@@ -340,6 +349,7 @@ function WorldBankBlockContent({ instanceId }: { instanceId: string }) {
             onStartYearInputChange={(value) => setDraft(prev => ({ ...prev, startYear: value }))}
             onEndYearInputChange={(value) => setDraft(prev => ({ ...prev, endYear: value }))}
             onApplyIndicator={handleApplyIndicator}
+            error={error}
         />
     );
 }

@@ -68,7 +68,8 @@ export function useBlsBlock(instanceId: string, params?: BlsBlockParams) {
         status: block?.status || (isLoading ? 'connecting' : 'connected'),
         lastUpdated: block?.last_updated,
         fromCache,
-        refresh
+        refresh,
+        error
     };
 }
 

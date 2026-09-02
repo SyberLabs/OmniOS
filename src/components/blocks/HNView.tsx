@@ -7,6 +7,7 @@
 import { motion } from 'framer-motion';
 import { Zap, MessageCircle, ArrowUp, RefreshCw, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { BlockBodyState } from './BlockSetupCard';
 
 /**
  * HN story data for display
@@ -31,9 +32,10 @@ interface HNViewProps {
     status: string;
     lastUpdated?: number | null;
     onRefresh?: () => void;
+    error?: string | null;
 }
 
-export function HNView({ stories, status, onRefresh }: HNViewProps) {
+export function HNView({ stories, status, onRefresh, error }: HNViewProps) {
     return (
         <div className="h-full flex flex-col">
             {/* Header Controls */}
@@ -58,16 +60,16 @@ export function HNView({ stories, status, onRefresh }: HNViewProps) {
 
             {/* Stories List */}
             <div className="flex-1 overflow-y-auto">
-                {stories.length === 0 ? (
-                    <div className="text-center text-[var(--text-muted)] py-8">
-                        <Zap className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                        Loading Hacker News...
-                    </div>
-                ) : (
-                    stories.map((story, index) => (
+                <BlockBodyState
+                    error={error}
+                    isLoading={status === 'connecting'}
+                    isEmpty={stories.length === 0}
+                    loadingLabel="Loading Hacker News..."
+                >
+                    {stories.map((story, index) => (
                         <HNStoryCard key={story.id} story={story} index={index} />
-                    ))
-                )}
+                    ))}
+                </BlockBodyState>
             </div>
         </div>
     );

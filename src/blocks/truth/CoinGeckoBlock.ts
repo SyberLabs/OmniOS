@@ -125,7 +125,8 @@ export function useCoinGeckoBlock(instanceId: string) {
         fromCache,
         refresh,
         pause: () => { },
-        resume: refresh
+        resume: refresh,
+        error
     };
 }
 

@@ -8,6 +8,7 @@ import { motion } from 'framer-motion';
 import { BookOpen, ExternalLink, RefreshCw, Clock } from 'lucide-react';
 import { cn, formatRelativeTime } from '@/lib/utils';
 import type { OmniItem } from '@/core/gateway';
+import { BlockBodyState } from './BlockSetupCard';
 
 interface OpenAlexViewProps {
     items: OmniItem[];
@@ -21,6 +22,7 @@ interface OpenAlexViewProps {
     onYearInputChange: (value: string) => void;
     onApplyFilters: () => void;
     onRefresh?: () => void;
+    error?: string | null;
 }
 
 export function OpenAlexView({
@@ -34,7 +36,8 @@ export function OpenAlexView({
     onTopicInputChange,
     onYearInputChange,
     onApplyFilters,
-    onRefresh
+    onRefresh,
+    error
 }: OpenAlexViewProps) {
     return (
         <div className="h-full flex flex-col">
@@ -103,15 +106,16 @@ export function OpenAlexView({
             </div>
 
             <div className="flex-1 overflow-y-auto">
-                {items.length === 0 ? (
-                    <div className="text-center text-[var(--text-muted)] py-8">
-                        Loading works...
-                    </div>
-                ) : (
-                    items.map((item, index) => (
+                <BlockBodyState
+                    error={error}
+                    isLoading={status === 'connecting'}
+                    isEmpty={items.length === 0}
+                    loadingLabel="Loading works..."
+                >
+                    {items.map((item, index) => (
                         <WorkCard key={item.id} item={item} index={index} />
-                    ))
-                )}
+                    ))}
+                </BlockBodyState>
             </div>
 
             {lastUpdated && (

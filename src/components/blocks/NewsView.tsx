@@ -8,15 +8,17 @@ import { motion } from 'framer-motion';
 import { ExternalLink, RefreshCw, Clock } from 'lucide-react';
 import { NewsArticle } from '@/core/schemas/block.schema';
 import { formatRelativeTime, cn } from '@/lib/utils';
+import { BlockBodyState } from './BlockSetupCard';
 
 interface NewsViewProps {
     articles: NewsArticle[];
     status: string;
     lastUpdated: number | null;
     onRefresh?: () => void;
+    error?: string | null;
 }
 
-export function NewsView({ articles, status, onRefresh }: NewsViewProps) {
+export function NewsView({ articles, status, onRefresh, error }: NewsViewProps) {
     return (
         <div className="h-full flex flex-col">
             {/* Header Controls */}
@@ -40,15 +42,16 @@ export function NewsView({ articles, status, onRefresh }: NewsViewProps) {
 
             {/* Articles List */}
             <div className="flex-1 overflow-y-auto">
-                {articles.length === 0 ? (
-                    <div className="text-center text-[var(--text-muted)] py-8">
-                        Loading news...
-                    </div>
-                ) : (
-                    articles.map((article, index) => (
+                <BlockBodyState
+                    error={error}
+                    isLoading={status === 'connecting'}
+                    isEmpty={articles.length === 0}
+                    loadingLabel="Loading news..."
+                >
+                    {articles.map((article, index) => (
                         <ArticleCard key={article.id} article={article} index={index} />
-                    ))
-                )}
+                    ))}
+                </BlockBodyState>
             </div>
         </div>
     );

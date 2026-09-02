@@ -5,7 +5,8 @@ import { PersonaBlockView } from './PersonaBlock';
 import { useBlockStore } from '@/core/stores';
 import { useWireStore } from '@/core/stores/wireStore';
 import { useUIStore } from '@/core/stores';
-import { createPersonaBlockData } from '@/core/schemas/wire.schema';
+import { createPersonaBlockData, DEFAULT_WIRE_FILTERS } from '@/core/schemas/wire.schema';
+import type { DataWire } from '@/core/schemas/wire.schema';
 import type { BlockInstance } from '@/core/schemas/block.schema';
 import type { PersonaTurnResult } from '@/core/services/persona.engine';
 
@@ -226,5 +227,51 @@ describe('PersonaBlockView — answer rendering', () => {
 
         // A user typing asterisks meant asterisks.
         expect(await screen.findByText('what about **this**?')).toBeTruthy();
+    });
+});
+
+describe('PersonaBlockView — empty states', () => {
+    beforeEach(() => {
+        seedPersonaBlock();
+        useWireStore.setState({ wires: [] });
+        vi.mocked(streamPersonaTurn).mockReset();
+    });
+
+    it('with no wires and no messages, invites wiring', () => {
+        render(<PersonaBlockView instanceId={PERSONA_ID} />);
+
+        expect(screen.getByText(/Wire data blocks to me/i)).toBeTruthy();
+        expect(screen.getByText(/Drag from block edge/i)).toBeTruthy();
+    });
+
+    it('with wires and no messages, does not ask to wire data blocks', () => {
+        const wires: DataWire[] = [
+            {
+                id: 'w1',
+                sourceBlockId: 'src-fred',
+                targetBlockId: PERSONA_ID,
+                wireType: 'push',
+                filters: { ...DEFAULT_WIRE_FILTERS },
+                status: 'active',
+                shellId: 'root'
+            },
+            {
+                id: 'w2',
+                sourceBlockId: 'src-news',
+                targetBlockId: PERSONA_ID,
+                wireType: 'push',
+                filters: { ...DEFAULT_WIRE_FILTERS },
+                status: 'active',
+                shellId: 'root'
+            }
+        ];
+        useWireStore.setState({ wires });
+
+        render(<PersonaBlockView instanceId={PERSONA_ID} />);
+
+        expect(screen.queryByText(/Wire data blocks to me/i)).toBeNull();
+        expect(screen.queryByText(/Drag from block edge/i)).toBeNull();
+        expect(screen.getByText(/2 sources connected/i)).toBeTruthy();
+        expect(screen.getByText(/Think, or ask a question/i)).toBeTruthy();
     });
 });

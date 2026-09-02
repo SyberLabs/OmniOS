@@ -67,7 +67,8 @@ export function useAlphaVantageBlock(instanceId: string, params?: AlphaVantageBl
         status: block?.status || (isLoading ? 'connecting' : 'connected'),
         lastUpdated: block?.last_updated,
         fromCache,
-        refresh
+        refresh,
+        error
     };
 }
 

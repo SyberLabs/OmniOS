@@ -124,7 +124,8 @@ export function usePolymarketBlock(instanceId: string) {
         fromCache,
         refresh,
         pause: () => { }, // Polling handled by useOmniData
-        resume: refresh
+        resume: refresh,
+        error
     };
 }
 

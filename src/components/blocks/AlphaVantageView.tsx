@@ -7,6 +7,7 @@
 import { RefreshCw, TrendingUp, TrendingDown, Circle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { OmniItem, OmniMetrics } from '@/core/gateway';
+import { BlockBodyState } from './BlockSetupCard';
 
 interface AlphaVantageViewProps {
     items: OmniItem[];
@@ -17,6 +18,7 @@ interface AlphaVantageViewProps {
     onSymbolInputChange: (value: string) => void;
     onApplySymbol: () => void;
     onRefresh?: () => void;
+    error?: string | null;
 }
 
 export function AlphaVantageView({
@@ -27,7 +29,8 @@ export function AlphaVantageView({
     symbolInput,
     onSymbolInputChange,
     onApplySymbol,
-    onRefresh
+    onRefresh,
+    error
 }: AlphaVantageViewProps) {
     const symbol = (items[0]?.metadata?.symbol as string) || 'IBM';
     const price = metrics?.values?.price ?? 0;
@@ -91,49 +94,52 @@ export function AlphaVantageView({
             </div>
 
             <div className="flex-1 p-4 space-y-4">
-                {!metrics ? (
-                    <div className="text-center text-[var(--text-muted)] py-8">
-                        Loading quote...
-                    </div>
-                ) : (
-                    <>
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <div className="text-xs text-[var(--text-muted)]">Symbol</div>
-                                <div className="text-lg font-semibold text-[var(--text-primary)]">{symbol}</div>
-                            </div>
-                            <div className="text-right">
-                                <div className="text-xs text-[var(--text-muted)]">Price</div>
-                                <div className="text-lg font-semibold text-[var(--text-primary)]">${price.toFixed(2)}</div>
-                                <div className={cn(
-                                    "text-xs flex items-center justify-end gap-1",
-                                    trend === 'up' && "text-[var(--truth-green)]",
-                                    trend === 'down' && "text-[var(--truth-red)]",
-                                    trend === 'neutral' && "text-[var(--text-muted)]"
-                                )}>
-                                    {trend === 'up' && <TrendingUp className="w-3 h-3" />}
-                                    {trend === 'down' && <TrendingDown className="w-3 h-3" />}
-                                    {trend === 'neutral' && <Circle className="w-2 h-2" />}
-                                    {change.toFixed(2)} ({changePercent.toFixed(2)}%)
+                <BlockBodyState
+                    error={error}
+                    isLoading={status === 'connecting'}
+                    isEmpty={!metrics}
+                    loadingLabel="Loading quote..."
+                >
+                    {metrics && (
+                        <>
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <div className="text-xs text-[var(--text-muted)]">Symbol</div>
+                                    <div className="text-lg font-semibold text-[var(--text-primary)]">{symbol}</div>
+                                </div>
+                                <div className="text-right">
+                                    <div className="text-xs text-[var(--text-muted)]">Price</div>
+                                    <div className="text-lg font-semibold text-[var(--text-primary)]">${price.toFixed(2)}</div>
+                                    <div className={cn(
+                                        "text-xs flex items-center justify-end gap-1",
+                                        trend === 'up' && "text-[var(--truth-green)]",
+                                        trend === 'down' && "text-[var(--truth-red)]",
+                                        trend === 'neutral' && "text-[var(--text-muted)]"
+                                    )}>
+                                        {trend === 'up' && <TrendingUp className="w-3 h-3" />}
+                                        {trend === 'down' && <TrendingDown className="w-3 h-3" />}
+                                        {trend === 'neutral' && <Circle className="w-2 h-2" />}
+                                        {change.toFixed(2)} ({changePercent.toFixed(2)}%)
+                                    </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <div className="grid grid-cols-2 gap-3 text-xs">
-                            <Metric label="Open" value={metrics.values.open} />
-                            <Metric label="High" value={metrics.values.high} />
-                            <Metric label="Low" value={metrics.values.low} />
-                            <Metric label="Prev Close" value={metrics.values.previousClose} />
-                            <Metric label="Volume" value={metrics.values.volume} format="int" />
-                        </div>
-
-                        {lastUpdated && (
-                            <div className="text-[10px] text-[var(--text-muted)]">
-                                Updated {new Date(lastUpdated).toLocaleString()}
+                            <div className="grid grid-cols-2 gap-3 text-xs">
+                                <Metric label="Open" value={metrics.values.open} />
+                                <Metric label="High" value={metrics.values.high} />
+                                <Metric label="Low" value={metrics.values.low} />
+                                <Metric label="Prev Close" value={metrics.values.previousClose} />
+                                <Metric label="Volume" value={metrics.values.volume} format="int" />
                             </div>
-                        )}
-                    </>
-                )}
+
+                            {lastUpdated && (
+                                <div className="text-[10px] text-[var(--text-muted)]">
+                                    Updated {new Date(lastUpdated).toLocaleString()}
+                                </div>
+                            )}
+                        </>
+                    )}
+                </BlockBodyState>
             </div>
         </div>
     );

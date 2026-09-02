@@ -58,7 +58,8 @@ export function useOpenAlexBlock(instanceId: string, params?: OpenAlexBlockParam
         status: block?.status || (isLoading ? 'connecting' : 'connected'),
         lastUpdated: block?.last_updated,
         fromCache,
-        refresh
+        refresh,
+        error
     };
 }
 
