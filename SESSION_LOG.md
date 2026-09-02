@@ -52,11 +52,18 @@ Gate: tsc / lint (0 errors) / tests (205) / build / e2e (6) — all green
 Notes: AbortSignal is a fetch option, never JSON. Empty abort (no tokens) drops the draft rather than leaving a blank bubble. Cascade's loop breaks on `stopped`.
 
 ## ITEM 8 — SHIPPED
-Commit: (this commit)
+Commit: a8734bf
 What: Added a Researcher shell template (OpenAlex aimed at foundation models, Hacker News, Polymarket, Memory, Researcher persona). Every shipped template must resolve to zero keyed providers.
 Why: One template cannot prove the format generalises. A second, non-markets shell is the test. Memory is on the canvas and wired in — recollection stays a wire, not a hidden path.
 Gate: tsc / lint (0 errors) / tests (207) / build / e2e (6) — all green
 Notes: Investor stays first in the Store. E2e spawn locators now name the Investor card so two "Use this shell" buttons do not collide. OpenAlex template `params.search` is a real fetch knob and seeds the input without requiring Apply.
+
+## ITEM 9 — SKIPPED
+Commit: (this commit)
+What: Left the four `<img>` warnings in place.
+Why: next/image is the wrong tool here. MediaBlock renders user-chosen URLs and blob: thumbnails (no remotePatterns set can cover that). CryptoView and NewsView are 32–64px remote thumbs from CoinGecko and arbitrary publishers — an allowlist per host is the cost, and there is no LCP win on a canvas card. The warning is real for marketing sites; it is not a defect in these surfaces.
+Gate: n/a (no code change)
+Notes: Unused-var warnings in PersonaBlock, WireHandle, and MindPanel are leftover from earlier work; not this item.
 
 
 
