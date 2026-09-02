@@ -47,6 +47,8 @@ export interface PersonaTurnInput {
     userMessage?: string;
     /** Fired once after context is assembled, before any token. */
     onPrepared?: (sources: ContextSource[]) => void;
+    /** Halt the in-flight stream. Partial tokens are kept. */
+    abortSignal?: AbortSignal;
 }
 
 export interface PersonaTurnPrepared {
@@ -101,6 +103,8 @@ export interface PersonaTurnResult {
     /** What actually fed this turn — record this, not the block's wires. */
     sources: ContextSource[];
     error?: string;
+    /** User halted the stream. Partial `content` is kept. */
+    stopped?: boolean;
 }
 
 /**
@@ -115,13 +119,17 @@ export async function* streamPersonaTurn(
 
     // The Cognition Kernel owns the turn lifecycle (availability, registry
     // token floor, streaming, fail-closed errors) — apex A4.
-    const turn = runTurnStream(messages, { maxTokens: MAX_TOKENS });
+    const turn = runTurnStream(messages, { maxTokens: MAX_TOKENS, signal: input.abortSignal });
     let step = await turn.next();
     while (!step.done) {
         yield step.value;
         step = await turn.next();
     }
     const result = step.value;
+
+    if (result.stopped) {
+        return { success: true, content: result.content, sourceIds, sources, stopped: true };
+    }
 
     return result.success
         ? { success: true, content: result.content, sourceIds, sources }

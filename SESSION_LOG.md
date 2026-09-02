@@ -38,10 +38,18 @@ Gate: tsc / lint (0 errors) / tests (200) / build / e2e (6) — all green
 Notes: llm.service tests assert the client body has no `apiKey`. Skin tests assert unknown CSS tokens and non-colours are dropped. MindEngine.think is the Mind panel path, not persona turns.
 
 ## ITEM 6 — SHIPPED
-Commit: (this commit)
+Commit: e25bb9b
 What: Retired the 31 `any`s at JSON boundaries (wire extraction, rest-list adapter, API gateway registry, Polymarket route, wire-store migrate, shell snapshot, mind engine, Canvas drag). Also typed the last suppressed Metaculus `getProb`.
 Why: External JSON is where a wrong assumption becomes a runtime surprise instead of a compile error. `unknown` plus a type guard is the honest type of a response we do not control.
 Gate: tsc / lint (0 errors, 7 warnings left: unused vars + img) / tests (200) / build / e2e (6) — all green
 Notes: Gateway registry erases each normalizer's raw type to `ApiTypeDefinition<unknown>` at insertion — that is a heterogeneous map, not a looser fetch. Did not change extractBlockData's '(No data)' empty-array behaviour (see FINDINGS).
+
+## ITEM 7 — SHIPPED
+Commit: (this commit)
+What: Stop while thinking aborts the fetch, keeps the partial answer, and marks it stopped rather than failed. Regenerate re-runs the last turn's input. Both are block-id addressed so a cascade stops at the current persona.
+Why: Reloading mid-stream was an accident that replaced a draft with an error. Stop is a user action; the partial is still theirs.
+Gate: tsc / lint (0 errors) / tests (205) / build / e2e (6) — all green
+Notes: AbortSignal is a fetch option, never JSON. Empty abort (no tokens) drops the draft rather than leaving a blank bubble. Cascade's loop breaks on `stopped`.
+
 
 

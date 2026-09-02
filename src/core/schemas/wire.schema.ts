@@ -110,6 +110,8 @@ export interface PersonaChatMessage {
      * a connected wire that carried no data is not a source.
      */
     sources?: ContextSource[];
+    /** True when the user halted the stream. Partial content is kept. */
+    stopped?: boolean;
 }
 
 /**

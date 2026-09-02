@@ -110,6 +110,21 @@ describe('LLMService.stream', () => {
         expect(got.join('')).toBe('Hello world');
         expect(postedBody().stream).toBe(true);
         expect(postedBody()).not.toHaveProperty('apiKey');
+        expect(postedBody()).not.toHaveProperty('signal');
+    });
+
+    it('passes AbortSignal to fetch, not the JSON body', async () => {
+        const controller = new AbortController();
+        vi.mocked(globalThis.fetch).mockResolvedValue(
+            new Response('x', { status: 200 })
+        );
+        const llm = createLLMService(LLM_DEFAULTS.local);
+        const gen = llm.stream([{ role: 'user', content: 'Hi' }], { signal: controller.signal });
+        await gen.next();
+
+        const init = vi.mocked(globalThis.fetch).mock.calls[0][1] as RequestInit;
+        expect(init.signal).toBe(controller.signal);
+        expect(JSON.parse(String(init.body))).not.toHaveProperty('signal');
     });
 });
 

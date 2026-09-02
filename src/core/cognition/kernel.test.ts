@@ -122,6 +122,28 @@ describe('runTurnStream', () => {
         expect(step.value.error).toBe('connection reset');
     });
 
+    it('keeps the partial and marks the turn stopped on abort', async () => {
+        setConfig({});
+        mockService.isAvailable.mockResolvedValue(true);
+        mockService.stream.mockImplementation(async function* () {
+            yield 'kept ';
+            const err = new Error('Aborted');
+            err.name = 'AbortError';
+            throw err;
+        });
+
+        const gen = runTurnStream([{ role: 'user', content: 'q' }]);
+        const chunks: string[] = [];
+        let step = await gen.next();
+        while (!step.done) {
+            chunks.push(step.value);
+            step = await gen.next();
+        }
+
+        expect(chunks).toEqual(['kept ']);
+        expect(step.value).toEqual({ success: true, content: 'kept ', stopped: true });
+    });
+
     it('returns the unavailable message without calling stream', async () => {
         setConfig({ provider: 'anthropic', model: 'claude-haiku-4-5-20251001' });
         mockService.isAvailable.mockResolvedValue(false);

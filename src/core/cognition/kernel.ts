@@ -22,6 +22,7 @@ import type { LLMConfig } from '@/core/schemas/mind.schema';
 export interface TurnOptions {
     temperature?: number;
     maxTokens?: number;
+    signal?: AbortSignal;
 }
 
 export interface TurnResult {
@@ -30,6 +31,8 @@ export interface TurnResult {
     content: string;
     error?: string;
     tokensUsed?: number;
+    /** User halted the stream. Partial `content` is kept. */
+    stopped?: boolean;
 }
 
 /** The one actionable "no LLM" message, everywhere. */
@@ -50,7 +53,8 @@ function effectiveOptions(config: LLMConfig, options?: TurnOptions): LLMOptions 
         maxTokens: Math.max(
             options?.maxTokens ?? config.maxTokens,
             minOutputTokensFor(config.model)
-        )
+        ),
+        signal: options?.signal
     };
 }
 
@@ -102,19 +106,26 @@ export async function* runTurnStream(
     const avail = await checkLLMAvailable();
     if (!avail.ok) return { success: false, content: '', error: avail.error };
 
+    const llm = getLLMService(avail.config);
+    let full = '';
     try {
-        const llm = getLLMService(avail.config);
-        let full = '';
         for await (const chunk of llm.stream(messages, effectiveOptions(avail.config, options))) {
             full += chunk;
             yield chunk;
         }
         return { success: true, content: full };
     } catch (err) {
+        if (isAbortError(err)) {
+            return { success: true, content: full, stopped: true };
+        }
         return {
             success: false,
             content: '',
             error: err instanceof Error ? err.message : 'LLM request failed.'
         };
     }
+}
+
+function isAbortError(err: unknown): boolean {
+    return err instanceof Error && err.name === 'AbortError';
 }

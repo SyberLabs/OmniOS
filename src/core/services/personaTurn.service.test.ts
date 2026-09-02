@@ -19,7 +19,7 @@ vi.mock('./persona.engine', () => ({
     streamPersonaTurn: vi.fn()
 }));
 import { streamPersonaTurn } from './persona.engine';
-import { runPersonaTurn, STREAM_COMMIT_MS } from './personaTurn.service';
+import { runPersonaTurn, STREAM_COMMIT_MS, stopPersonaTurn, regeneratePersonaTurn } from './personaTurn.service';
 
 const PERSONA = 'persona_1';
 
@@ -255,5 +255,72 @@ describe('runPersonaTurn — reading wires are the contributing ones', () => {
         });
         await runPersonaTurn(PERSONA);
         expect(useUIStore.getState().readingWireIds).toEqual([]);
+    });
+});
+
+describe('runPersonaTurn — stop keeps the partial', () => {
+    it('keeps streamed tokens and marks the message stopped, not failed', async () => {
+        vi.mocked(streamPersonaTurn).mockImplementation(async function* (input: PersonaTurnInput) {
+            input.onPrepared?.([]);
+            yield 'Partial insight';
+            await new Promise<void>((resolve) => {
+                if (input.abortSignal?.aborted) {
+                    resolve();
+                    return;
+                }
+                input.abortSignal?.addEventListener('abort', () => resolve());
+            });
+            return {
+                success: true,
+                content: 'Partial insight',
+                sourceIds: [],
+                sources: [],
+                stopped: true
+            };
+        });
+
+        const turn = runPersonaTurn(PERSONA);
+        await vi.waitFor(() => {
+            expect(personaData().isThinking).toBe(true);
+        });
+        expect(stopPersonaTurn(PERSONA)).toBe(true);
+        const outcome = await turn;
+
+        expect(outcome).toMatchObject({ ran: true, success: true, stopped: true });
+        expect(lastAssistant()?.content).toBe('Partial insight');
+        expect(lastAssistant()?.stopped).toBe(true);
+        expect(lastAssistant()?.content.startsWith('⚠️')).toBe(false);
+        expect(personaData().isThinking).toBe(false);
+        expect(useUIStore.getState().readingWireIds).toEqual([]);
+    });
+});
+
+describe('regeneratePersonaTurn', () => {
+    it('drops the last assistant message and re-runs the same Think', async () => {
+        mockStream({ sources: [], chunks: ['First.'] });
+        await runPersonaTurn(PERSONA);
+        expect(lastAssistant()?.content).toBe('First.');
+
+        mockStream({ sources: [], chunks: ['Second.'] });
+        const outcome = await regeneratePersonaTurn(PERSONA);
+
+        expect(outcome.success).toBe(true);
+        const assistants = personaData().messages.filter(m => m.role === 'assistant');
+        expect(assistants).toHaveLength(1);
+        expect(assistants[0].content).toBe('Second.');
+    });
+
+    it('re-runs a chat turn without duplicating the user message', async () => {
+        mockStream({ sources: [], chunks: ['Reply one.'] });
+        await runPersonaTurn(PERSONA, 'What do you see?');
+        expect(personaData().messages.filter(m => m.role === 'user')).toHaveLength(1);
+
+        mockStream({ sources: [], chunks: ['Reply two.'] });
+        await regeneratePersonaTurn(PERSONA);
+
+        const users = personaData().messages.filter(m => m.role === 'user');
+        expect(users).toHaveLength(1);
+        expect(users[0].content).toBe('What do you see?');
+        expect(lastAssistant()?.content).toBe('Reply two.');
     });
 });

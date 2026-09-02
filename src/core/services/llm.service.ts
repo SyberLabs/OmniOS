@@ -20,6 +20,8 @@ export interface LLMOptions {
     temperature?: number;
     maxTokens?: number;
     stream?: boolean;
+    /** Abort the in-flight fetch. Never serialized onto the request body. */
+    signal?: AbortSignal;
 }
 
 export interface LLMResponse {
@@ -29,6 +31,12 @@ export interface LLMResponse {
 }
 
 const LLM_ENDPOINT = '/api/llm';
+
+function abortError(): Error {
+    const err = new Error('Aborted');
+    err.name = 'AbortError';
+    return err;
+}
 
 // ============================================
 // LLM SERVICE
@@ -94,17 +102,19 @@ export class LLMService {
     }
 
     async *stream(messages: LLMMessage[], options?: LLMOptions): AsyncGenerator<string> {
+        const { signal, ...llmOptions } = options ?? {};
         const res = await fetch(LLM_ENDPOINT, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+            signal,
             body: JSON.stringify({
                 provider: this.config.provider,
                 model: this.config.model,
                 baseUrl: this.config.baseUrl,
                 messages,
                 options: {
-                    temperature: options?.temperature ?? this.config.temperature,
-                    maxTokens: options?.maxTokens ?? this.config.maxTokens
+                    temperature: llmOptions.temperature ?? this.config.temperature,
+                    maxTokens: llmOptions.maxTokens ?? this.config.maxTokens
                 },
                 stream: true
             })
@@ -117,11 +127,23 @@ export class LLMService {
 
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            const chunk = decoder.decode(value, { stream: true });
-            if (chunk) yield chunk;
+        try {
+            while (true) {
+                if (signal?.aborted) {
+                    await reader.cancel();
+                    throw abortError();
+                }
+                const { done, value } = await reader.read();
+                if (done) break;
+                const chunk = decoder.decode(value, { stream: true });
+                if (chunk) yield chunk;
+            }
+        } finally {
+            try {
+                reader.releaseLock();
+            } catch {
+                // Already released by cancel() or a completed read.
+            }
         }
     }
 }

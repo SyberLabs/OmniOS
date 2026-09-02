@@ -15,12 +15,14 @@ import {
     Plug,
     MessageSquare,
     Gem,
-    Workflow
+    Workflow,
+    Square,
+    RotateCcw
 } from 'lucide-react';
 import { useBlockStore, useUIStore } from '@/core/stores';
 import { useWireStore } from '@/core/stores/wireStore';
 import { aggregateWireContext } from '@/core/services/wire.service';
-import { runPersonaTurn } from '@/core/services/personaTurn.service';
+import { runPersonaTurn, stopPersonaTurn, regeneratePersonaTurn } from '@/core/services/personaTurn.service';
 import { planCascade, hasUpstreamPersonas } from '@/core/services/cascade.service';
 import { PersonaType } from '@/core/schemas/shell.schema';
 import {
@@ -92,7 +94,8 @@ export function PersonaBlockView({ instanceId }: PersonaBlockViewProps) {
         // Upstream first, sequentially: each persona must see the previous
         // one's finished answer, not a half-streamed draft.
         for (const id of order) {
-            await runPersonaTurn(id);
+            const outcome = await runPersonaTurn(id);
+            if (outcome.stopped) break;
         }
     }, [instanceId]);
 
@@ -123,6 +126,8 @@ export function PersonaBlockView({ instanceId }: PersonaBlockViewProps) {
         // "analyze the wired data" task.
         void runTurn();
     };
+
+    const lastAssistantId = [...personaData.messages].reverse().find(m => m.role === 'assistant')?.id;
 
     const toggleCollapsed = useCallback((e?: React.MouseEvent) => {
         if (e) {
@@ -264,11 +269,25 @@ export function PersonaBlockView({ instanceId }: PersonaBlockViewProps) {
                                     message={msg}
                                     show={msg.role === 'assistant'}
                                 />
+                                {msg.stopped && (
+                                    <p className="mt-1 text-[10px] text-[var(--text-muted)]">Stopped</p>
+                                )}
                                 {msg.role === 'assistant' && !msg.content.startsWith('⚠️') && (
                                     <CrystallizeButton
                                         content={msg.content}
                                         personaId={instanceId}
                                     />
+                                )}
+                                {msg.role === 'assistant' && msg.id === lastAssistantId && !personaData.isThinking && (
+                                    <button
+                                        type="button"
+                                        onClick={() => { void regeneratePersonaTurn(instanceId); }}
+                                        className="mt-1.5 flex items-center gap-1 text-[10px] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+                                        title="Regenerate this answer"
+                                    >
+                                        <RotateCcw className="w-3 h-3" />
+                                        Regenerate
+                                    </button>
                                 )}
                             </div>
                         </div>
@@ -308,15 +327,25 @@ export function PersonaBlockView({ instanceId }: PersonaBlockViewProps) {
                             <Workflow className="w-3 h-3" />
                         </button>
                     )}
-                    <button
-                        onClick={handleThink}
-                        disabled={personaData.isThinking}
-                        className="p-1 rounded transition-colors disabled:opacity-50"
-                        style={{ backgroundColor: `${config.color}20`, color: config.color }}
-                        title="Think"
-                    >
-                        <Zap className="w-3 h-3" />
-                    </button>
+                    {personaData.isThinking ? (
+                        <button
+                            onClick={() => { stopPersonaTurn(instanceId); }}
+                            className="p-1 rounded transition-colors"
+                            style={{ backgroundColor: `${config.color}20`, color: config.color }}
+                            title="Stop"
+                        >
+                            <Square className="w-3 h-3" />
+                        </button>
+                    ) : (
+                        <button
+                            onClick={handleThink}
+                            className="p-1 rounded transition-colors"
+                            style={{ backgroundColor: `${config.color}20`, color: config.color }}
+                            title="Think"
+                        >
+                            <Zap className="w-3 h-3" />
+                        </button>
+                    )}
                     <button
                         onClick={handleSendMessage}
                         disabled={!input.trim() || personaData.isThinking}
