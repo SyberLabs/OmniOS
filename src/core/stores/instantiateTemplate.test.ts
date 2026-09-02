@@ -134,4 +134,20 @@ describe('instantiateTemplate', () => {
             .find(b => b.schema.block_id === 'worldbank_indicator');
         expect(wb?.params).toEqual({ indicator: 'NY.GDP.MKTP.KD.ZG', country: 'USA' });
     });
+
+    it('the Researcher template aims OpenAlex and wires Memory into the persona', () => {
+        const researcher = getShellTemplate('tmpl_researcher')!;
+        const shellId = useShellStore.getState().instantiateTemplate(researcher)!;
+        const blocks = useBlockStore.getState().getBlocksByShell(shellId);
+        const openalex = blocks.find(b => b.schema.block_id === 'openalex_works');
+        const memory = blocks.find(b => b.schema.block_id === 'memory_pool');
+        const persona = blocks.find(b => b.schema.block_id === 'persona_researcher');
+        expect(openalex?.params).toEqual({ search: 'foundation models' });
+        expect(memory).toBeTruthy();
+        expect(persona).toBeTruthy();
+
+        const wires = useWireStore.getState().getWiresByShell(shellId);
+        expect(wires.some(w => w.sourceBlockId === memory!.instance_id && w.targetBlockId === persona!.instance_id)).toBe(true);
+        expect(wires.some(w => w.sourceBlockId === openalex!.instance_id && w.targetBlockId === persona!.instance_id)).toBe(true);
+    });
 });

@@ -45,11 +45,18 @@ Gate: tsc / lint (0 errors, 7 warnings left: unused vars + img) / tests (200) / 
 Notes: Gateway registry erases each normalizer's raw type to `ApiTypeDefinition<unknown>` at insertion — that is a heterogeneous map, not a looser fetch. Did not change extractBlockData's '(No data)' empty-array behaviour (see FINDINGS).
 
 ## ITEM 7 — SHIPPED
-Commit: (this commit)
+Commit: 8b006c5
 What: Stop while thinking aborts the fetch, keeps the partial answer, and marks it stopped rather than failed. Regenerate re-runs the last turn's input. Both are block-id addressed so a cascade stops at the current persona.
 Why: Reloading mid-stream was an accident that replaced a draft with an error. Stop is a user action; the partial is still theirs.
 Gate: tsc / lint (0 errors) / tests (205) / build / e2e (6) — all green
 Notes: AbortSignal is a fetch option, never JSON. Empty abort (no tokens) drops the draft rather than leaving a blank bubble. Cascade's loop breaks on `stopped`.
+
+## ITEM 8 — SHIPPED
+Commit: (this commit)
+What: Added a Researcher shell template (OpenAlex aimed at foundation models, Hacker News, Polymarket, Memory, Researcher persona). Every shipped template must resolve to zero keyed providers.
+Why: One template cannot prove the format generalises. A second, non-markets shell is the test. Memory is on the canvas and wired in — recollection stays a wire, not a hidden path.
+Gate: tsc / lint (0 errors) / tests (207) / build / e2e (6) — all green
+Notes: Investor stays first in the Store. E2e spawn locators now name the Investor card so two "Use this shell" buttons do not collide. OpenAlex template `params.search` is a real fetch knob and seeds the input without requiring Apply.
 
 
 

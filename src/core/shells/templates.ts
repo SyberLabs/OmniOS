@@ -80,12 +80,44 @@ const INVESTOR_SHELL: ShellTemplate = {
 };
 
 // ============================================
+// RESEARCHER SHELL
+// Keyless papers + tech signal + prediction markets into a Researcher,
+// with Memory on the canvas so recollection is a wire, not a hidden toggle.
+// ============================================
+
+const RESEARCHER_SHELL: ShellTemplate = {
+    id: 'tmpl_researcher',
+    name: 'Researcher Shell',
+    description:
+        'OpenAlex papers on foundation models, Hacker News, and live prediction markets ' +
+        'wired into a Researcher with Memory — works without API keys.',
+    icon: 'BookOpen',
+    tags: ['research', 'papers', 'tech'],
+    persona: 'researcher',
+    aesthetic: 'journal',
+    blocks: [
+        { ref: 'openalex', blockId: 'openalex_works', position: { x: 40, y: 40 }, params: { search: 'foundation models' } },
+        { ref: 'hn', blockId: 'hackernews_feed', position: { x: 40, y: 320 } },
+        { ref: 'polymarket', blockId: 'polymarket_live_odds', position: { x: 420, y: 40 } },
+        { ref: 'memory', blockId: 'memory_pool', position: { x: 420, y: 320 } },
+        { ref: 'researcher', blockId: 'persona_researcher', position: { x: 800, y: 180 } },
+    ],
+    connections: [
+        { sourceRef: 'openalex', sourcePort: 'out', targetRef: 'researcher', targetPort: 'in' },
+        { sourceRef: 'hn', sourcePort: 'out', targetRef: 'researcher', targetPort: 'in' },
+        { sourceRef: 'polymarket', sourcePort: 'out', targetRef: 'researcher', targetPort: 'in' },
+        { sourceRef: 'memory', sourcePort: 'out', targetRef: 'researcher', targetPort: 'in' },
+    ],
+};
+
+// ============================================
 // REGISTRY
 // ============================================
 
 /** All built-in shell templates, in display order. */
 export const SHELL_TEMPLATES: ShellTemplate[] = [
     INVESTOR_SHELL,
+    RESEARCHER_SHELL,
 ];
 
 /** Look up a template by id. */

@@ -32,7 +32,7 @@ test('golden path: spawn Investor → live wires → Think streams → persists'
 
     // 1 · Open the Shell Manager and spawn the Investor shell from the Store.
     await page.getByTitle('Shell Manager').click();
-    await page.getByRole('button', { name: 'Use this shell' }).click();
+    await page.locator('.group').filter({ hasText: 'Investor Shell' }).getByRole('button', { name: 'Use this shell' }).click();
     await expect(page.getByText('Shell Store')).toBeHidden();
 
     // 2 · Blocks render on the canvas (data cluster + personas).

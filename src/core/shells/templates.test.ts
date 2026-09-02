@@ -12,9 +12,10 @@ import { blockRegistry } from '@/core/registry/BlockRegistry';
 const isRegistered = (id: string) => blockRegistry.has(id);
 
 describe('SHELL_TEMPLATES integrity (against the real registry)', () => {
-    it('has at least the Investor shell', () => {
-        expect(SHELL_TEMPLATES.length).toBeGreaterThan(0);
+    it('has the Investor and Researcher shells', () => {
+        expect(SHELL_TEMPLATES.map(t => t.id)).toEqual(['tmpl_investor', 'tmpl_researcher']);
         expect(getShellTemplate('tmpl_investor')).toBeDefined();
+        expect(getShellTemplate('tmpl_researcher')).toBeDefined();
     });
 
     it('every template references only registered block_ids and valid refs', () => {
@@ -31,14 +32,8 @@ describe('SHELL_TEMPLATES integrity (against the real registry)', () => {
 });
 
 describe('keyedProvidersForTemplate — what a shell needs before it spawns', () => {
-    it('the Investor template resolves to zero keyed providers', () => {
-        // The demo must work on a fresh clone with no keys in .env.
-        const investor = getShellTemplate('tmpl_investor')!;
-        expect(keyedProvidersForTemplate(investor)).toEqual([]);
-        expect(investor.blocks.some(b =>
-            ['fred_series', 'bls_series', 'alpha_vantage_quote', 'newsapi_feed', 'metaculus_forecast']
-                .includes(b.blockId)
-        )).toBe(false);
+    it.each(SHELL_TEMPLATES.map(t => t.id))('%s needs zero keyed providers', (id) => {
+        expect(keyedProvidersForTemplate(getShellTemplate(id)!)).toEqual([]);
     });
 
     it('a template containing a keyed block reports that provider', () => {

@@ -21,7 +21,7 @@ export async function freshStart(page: Page): Promise<void> {
 
 export async function spawnInvestor(page: Page): Promise<void> {
     await page.getByTitle('Shell Manager').click();
-    await page.getByRole('button', { name: 'Use this shell' }).click();
+    await page.locator('.group').filter({ hasText: 'Investor Shell' }).getByRole('button', { name: 'Use this shell' }).click();
     await expect(page.getByText('Shell Store')).toBeHidden();
     await expect(page.getByText('Analyst').first()).toBeVisible();
 }

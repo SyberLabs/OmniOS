@@ -13,19 +13,20 @@ describe('ShellPanel — Shell Store wiring (real stores)', () => {
         useWireStore.setState({ wires: [] } as never);
     });
 
-    it('shows the Shell Store with the Investor template card', () => {
+    it('shows the Shell Store with the Investor and Researcher template cards', () => {
         render(<ShellPanel isOpen onClose={vi.fn()} />);
         expect(screen.getByText('Shell Store')).toBeTruthy();
         expect(screen.getByText('Investor Shell')).toBeTruthy();
-        expect(screen.getByRole('button', { name: 'Use this shell' })).toBeTruthy();
-        expect(screen.getByText('Works without API keys')).toBeTruthy();
+        expect(screen.getByText('Researcher Shell')).toBeTruthy();
+        expect(screen.getAllByRole('button', { name: 'Use this shell' })).toHaveLength(2);
+        expect(screen.getAllByText('Works without API keys').length).toBeGreaterThanOrEqual(2);
     });
 
     it('"Use this shell" spawns a fully wired shell and closes the panel', () => {
         const onClose = vi.fn();
         render(<ShellPanel isOpen onClose={onClose} />);
 
-        fireEvent.click(screen.getByRole('button', { name: 'Use this shell' }));
+        fireEvent.click(screen.getAllByRole('button', { name: 'Use this shell' })[0]);
 
         // Panel closes; a new shell is registered and ACTIVE on the canvas…
         expect(onClose).toHaveBeenCalled();
