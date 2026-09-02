@@ -24,8 +24,16 @@ Gate: tsc / lint (0 errors, 38 warnings left for items 6/9 and unused vars) / te
 Notes: Canvas memo now filters `blocks` in the function body so `blocks` is a real dependency. Resize effect lists `updatePosition`. Did not suppress anything.
 
 ## ITEM 4 — SHIPPED
-Commit: (this commit)
+Commit: 8d349d8
 What: Added focused e2e specs for Crystallize, Cascade, provenance hover, provider switch, and Memory/params persistence. The golden path remains; these cover the loops shipped after it.
 Why: Every shipped bug this cycle lived in the UI wiring layer unit tests cannot see. Those loops had no end-to-end proof.
 Gate: tsc / lint (0 errors) / tests (172) / build / e2e (6 passed) — all green
 Notes: Provenance hover asserts `data-cited` on the block card, same contract as `data-reading` on wires — not pixels. Cascade uses the Investor Analyst→Strategist wire so it does not depend on live data APIs. Persistence Apply had to be `exact: true` because dnd-kit exposes the whole World Bank card as a button whose accessible name includes "Apply".
+
+## ITEM 5 — SHIPPED
+Commit: (this commit)
+What: Unit tests for personaTurn.service (fail-closed warning, isThinking cleared on throw, throttled stream + final commit, provenance from the turn not the wires), plus the previously untested llm.service, mind.engine, persona.prompts, api.service, and skin.service.
+Why: personaTurn.service is on the path of every answer. A silent failure or a citation of connected-but-empty wires would look like it works.
+Gate: tsc / lint (0 errors) / tests (200) / build / e2e (6) — all green
+Notes: llm.service tests assert the client body has no `apiKey`. Skin tests assert unknown CSS tokens and non-colours are dropped. MindEngine.think is the Mind panel path, not persona turns.
+

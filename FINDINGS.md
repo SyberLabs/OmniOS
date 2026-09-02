@@ -11,3 +11,9 @@ What I would do: stop promoting the card itself to `role="button"` (dnd-kit `rol
 Where: `src/core/services/wire.service.ts` ~85–86. `extractBlockData` returns the string `'(No data)'` for an empty `items` array, and `aggregateWireContext` treats any returned string as a contributing source.
 Why it matters: the invariant is that a source which carried no data is not grounding and must not be cited. A connected-but-empty block would still pulse (item 1) and still get a provenance chip.
 What I would do: return `null` for empty items / empty memory, matching the persona-error path that already returns null rather than propagating noise.
+
+## Mind panel Think still snapshots the whole shell
+Where: `src/core/services/mind.engine.ts` `think()` / `thinkStream()` via `captureShellSnapshot()`.
+Why it matters: persona turns are wire-only. The Mind panel's Think is a second path that feeds the LLM a snapshot of every block, including ones with no wire. That is a different surface than a persona, but it is still context you cannot point at on the canvas.
+What I would do: either retire Mind-panel Think in favour of persona turns, or make it consume only wired/pinned blocks so the two paths cannot diverge.
+

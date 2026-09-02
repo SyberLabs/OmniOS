@@ -6,20 +6,20 @@
 // that provenance is honest, not decorative.
 // ============================================
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { useBlockStore } from '@/core/stores/blockStore';
 import { useWireStore } from '@/core/stores/wireStore';
 import { useUIStore } from '@/core/stores/uiStore';
 import { createPersonaBlockData, DEFAULT_WIRE_FILTERS } from '@/core/schemas/wire.schema';
 import type { BlockInstance } from '@/core/schemas/block.schema';
-import type { DataWire, ContextSource } from '@/core/schemas/wire.schema';
+import type { DataWire, ContextSource, PersonaBlockData } from '@/core/schemas/wire.schema';
 import type { PersonaTurnInput, PersonaTurnResult } from './persona.engine';
 
 vi.mock('./persona.engine', () => ({
     streamPersonaTurn: vi.fn()
 }));
 import { streamPersonaTurn } from './persona.engine';
-import { runPersonaTurn } from './personaTurn.service';
+import { runPersonaTurn, STREAM_COMMIT_MS } from './personaTurn.service';
 
 const PERSONA = 'persona_1';
 
@@ -98,6 +98,123 @@ beforeEach(() => {
         ]
     } as never);
     useUIStore.setState({ readingWireIds: [] });
+});
+
+function personaData(): PersonaBlockData {
+    return useBlockStore.getState().getBlock(PERSONA)!.data as PersonaBlockData;
+}
+
+function lastAssistant() {
+    return personaData().messages.filter(m => m.role === 'assistant').at(-1);
+}
+
+describe('runPersonaTurn — fail-closed conversation', () => {
+    it('commits a failure into the conversation as a visible warning', async () => {
+        mockStream({
+            sources: [],
+            chunks: [],
+            result: { success: false, error: 'No LLM available — start Ollama' }
+        });
+
+        const outcome = await runPersonaTurn(PERSONA);
+
+        expect(outcome).toEqual({
+            ran: true,
+            success: false,
+            error: 'No LLM available — start Ollama'
+        });
+        expect(lastAssistant()?.content).toBe('⚠️ No LLM available — start Ollama');
+        expect(personaData().isThinking).toBe(false);
+    });
+
+    it('clears isThinking when the stream throws', async () => {
+        mockStream({
+            sources: [],
+            throwAfterPrepare: new Error('stream died')
+        });
+
+        const outcome = await runPersonaTurn(PERSONA);
+
+        expect(outcome.success).toBe(false);
+        expect(personaData().isThinking).toBe(false);
+        expect(lastAssistant()?.content).toBe('⚠️ stream died');
+    });
+
+    it('does not throw when the persona is missing', async () => {
+        const outcome = await runPersonaTurn('no-such-block');
+        expect(outcome).toEqual({
+            ran: false,
+            success: false,
+            error: 'Persona block not found.'
+        });
+    });
+});
+
+describe('runPersonaTurn — streaming commits', () => {
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
+
+    it('throttles mid-stream commits and always lands the final answer', async () => {
+        let now = 0;
+        vi.spyOn(Date, 'now').mockImplementation(() => now);
+
+        const drafts: string[] = [];
+        const unsub = useBlockStore.subscribe((state) => {
+            const data = state.getBlock(PERSONA)?.data as PersonaBlockData | undefined;
+            const last = data?.messages.filter(m => m.role === 'assistant').at(-1);
+            if (last) drafts.push(last.content);
+        });
+
+        vi.mocked(streamPersonaTurn).mockImplementation(async function* (input: PersonaTurnInput) {
+            input.onPrepared?.([]);
+            now = 0;
+            yield 'A';
+            now = 40;
+            yield 'B';
+            now = STREAM_COMMIT_MS;
+            yield 'C';
+            now = STREAM_COMMIT_MS + 1;
+            yield 'D';
+            return {
+                success: true,
+                content: 'ABCD',
+                sourceIds: [],
+                sources: []
+            };
+        });
+
+        await runPersonaTurn(PERSONA);
+        unsub();
+
+        expect(drafts).toContain('ABC');
+        expect(drafts.filter(c => c === 'AB')).toHaveLength(0);
+        expect(lastAssistant()?.content).toBe('ABCD');
+        expect(personaData().isThinking).toBe(false);
+    });
+});
+
+describe('runPersonaTurn — provenance is the turn\'s', () => {
+    it('records the turn sources, not every connected wire', async () => {
+        mockStream({
+            sources: [{ id: 'fred', kind: 'wire', label: 'FRED Series' }],
+            chunks: ['Grounded.']
+        });
+
+        await runPersonaTurn(PERSONA);
+
+        const last = lastAssistant();
+        expect(last?.sourcedFrom).toEqual(['fred']);
+        expect(last?.sources).toEqual([{ id: 'fred', kind: 'wire', label: 'FRED Series' }]);
+        expect(last?.sourcedFrom).not.toContain('empty');
+    });
+
+    it('cites nothing when the turn itself had no sources', async () => {
+        mockStream({ sources: [], chunks: ['Ungrounded.'] });
+        await runPersonaTurn(PERSONA);
+        expect(lastAssistant()?.sources).toEqual([]);
+        expect(lastAssistant()?.sourcedFrom).toEqual([]);
+    });
 });
 
 describe('runPersonaTurn — reading wires are the contributing ones', () => {
