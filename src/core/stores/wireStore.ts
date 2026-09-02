@@ -179,17 +179,23 @@ export const useWireStore = create<WireStoreState>()(
             partialize: (state) => ({
                 wires: state.wires
             }),
-            migrate: (persistedState: any, _version: number) => {
-                const wires = persistedState?.wires || [];
+            migrate: (persistedState: unknown, _version: number) => {
+                const persisted = (persistedState || {}) as { wires?: unknown };
+                const wires = Array.isArray(persisted.wires) ? persisted.wires : [];
 
                 // Migration from version 0/1 to version 2
                 // Ensure all wires have shellId and wireType
                 return {
-                    wires: wires.map((wire: any) => ({
-                        ...wire,
-                        shellId: wire.shellId || 'root',
-                        wireType: wire.wireType || 'push'
-                    }))
+                    wires: wires.map((wire: unknown) => {
+                        const rec = (typeof wire === 'object' && wire !== null)
+                            ? wire as DataWire
+                            : {} as DataWire;
+                        return {
+                            ...rec,
+                            shellId: rec.shellId || 'root',
+                            wireType: rec.wireType || 'push'
+                        };
+                    })
                 };
             }
         }

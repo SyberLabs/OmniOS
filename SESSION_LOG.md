@@ -31,9 +31,17 @@ Gate: tsc / lint (0 errors) / tests (172) / build / e2e (6 passed) — all green
 Notes: Provenance hover asserts `data-cited` on the block card, same contract as `data-reading` on wires — not pixels. Cascade uses the Investor Analyst→Strategist wire so it does not depend on live data APIs. Persistence Apply had to be `exact: true` because dnd-kit exposes the whole World Bank card as a button whose accessible name includes "Apply".
 
 ## ITEM 5 — SHIPPED
-Commit: (this commit)
+Commit: 16466bb
 What: Unit tests for personaTurn.service (fail-closed warning, isThinking cleared on throw, throttled stream + final commit, provenance from the turn not the wires), plus the previously untested llm.service, mind.engine, persona.prompts, api.service, and skin.service.
 Why: personaTurn.service is on the path of every answer. A silent failure or a citation of connected-but-empty wires would look like it works.
 Gate: tsc / lint (0 errors) / tests (200) / build / e2e (6) — all green
 Notes: llm.service tests assert the client body has no `apiKey`. Skin tests assert unknown CSS tokens and non-colours are dropped. MindEngine.think is the Mind panel path, not persona turns.
+
+## ITEM 6 — SHIPPED
+Commit: (this commit)
+What: Retired the 31 `any`s at JSON boundaries (wire extraction, rest-list adapter, API gateway registry, Polymarket route, wire-store migrate, shell snapshot, mind engine, Canvas drag). Also typed the last suppressed Metaculus `getProb`.
+Why: External JSON is where a wrong assumption becomes a runtime surprise instead of a compile error. `unknown` plus a type guard is the honest type of a response we do not control.
+Gate: tsc / lint (0 errors, 7 warnings left: unused vars + img) / tests (200) / build / e2e (6) — all green
+Notes: Gateway registry erases each normalizer's raw type to `ApiTypeDefinition<unknown>` at insertion — that is a heterogeneous map, not a looser fetch. Did not change extractBlockData's '(No data)' empty-array behaviour (see FINDINGS).
+
 

@@ -14,13 +14,27 @@ import {
     createOmniError
 } from '../omnidata.schema';
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
 function getValueByPath(obj: unknown, path?: string): unknown {
     if (!path) return undefined;
     const segments = path.split('.');
-    let current: any = obj;
+    let current: unknown = obj;
     for (const segment of segments) {
-        if (current == null) return undefined;
-        current = current[segment];
+        if (isRecord(current) && segment in current) {
+            current = current[segment];
+            continue;
+        }
+        if (Array.isArray(current)) {
+            const index = Number(segment);
+            if (Number.isInteger(index) && index >= 0 && index < current.length) {
+                current = current[index];
+                continue;
+            }
+        }
+        return undefined;
     }
     return current;
 }
@@ -48,11 +62,11 @@ function buildItems(raw: unknown, config: RestListAdapterConfig, providerId: str
     const listSource = config.itemsPath ? getValueByPath(raw, config.itemsPath) : raw;
     const itemsArray = Array.isArray(listSource)
         ? listSource
-        : Array.isArray((listSource as any)?.items)
-            ? (listSource as any).items
+        : isRecord(listSource) && Array.isArray(listSource.items)
+            ? listSource.items
             : [];
 
-    return itemsArray.map((item: any, index: number) => {
+    return itemsArray.map((item: unknown, index: number) => {
         const idValue = getValueByPath(item, config.itemMap.id);
         const titleValue = getValueByPath(item, config.itemMap.title);
         const descriptionValue = getValueByPath(item, config.itemMap.description);
@@ -152,10 +166,11 @@ export function createRestListAdapter(
         },
 
         normalizeFn: (raw) => {
-            if ((raw as any)?.error) {
+            if (isRecord(raw) && raw.error) {
+                const err = isRecord(raw.error) ? raw.error : {};
                 return createOmniError(provider.id, config.category || 'custom', {
-                    code: (raw as any).error?.code || 'API_ERROR',
-                    message: (raw as any).error?.message || 'Unknown error',
+                    code: typeof err.code === 'string' ? err.code : 'API_ERROR',
+                    message: typeof err.message === 'string' ? err.message : 'Unknown error',
                     retryable: true
                 });
             }

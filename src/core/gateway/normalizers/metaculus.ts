@@ -145,18 +145,20 @@ export const metaculusNormalizer: ApiTypeDefinition<MetaculusResponse> = {
 
             // Try to find probability in new API structure (aggregations)
             // It can be on the root object or inside a 'question' property
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const getProb = (obj: any) => {
-                // Check recency_weighted first (usually in 'centers' array which contains the probability)
-                let center = obj?.aggregations?.recency_weighted?.latest?.centers?.[0];
-                if (center !== undefined) return center;
-
-                // Check unweighted as fallback
-                center = obj?.aggregations?.unweighted?.latest?.centers?.[0];
-                if (center !== undefined) return center;
-
-                // Legacy/Other structure check
-                return obj?.aggregations?.recency_weighted?.latest?.center;
+            const getProb = (obj: unknown): number | undefined => {
+                if (!obj || typeof obj !== 'object') return undefined;
+                const aggregations = 'aggregations' in obj
+                    ? (obj as { aggregations?: {
+                        recency_weighted?: { latest?: { centers?: number[]; center?: number } };
+                        unweighted?: { latest?: { centers?: number[]; center?: number } };
+                    } }).aggregations
+                    : undefined;
+                const weighted = aggregations?.recency_weighted?.latest?.centers?.[0];
+                if (typeof weighted === 'number') return weighted;
+                const unweighted = aggregations?.unweighted?.latest?.centers?.[0];
+                if (typeof unweighted === 'number') return unweighted;
+                const center = aggregations?.recency_weighted?.latest?.center;
+                return typeof center === 'number' ? center : undefined;
             };
 
             const probValue = getProb(q) ?? getProb(q.question);

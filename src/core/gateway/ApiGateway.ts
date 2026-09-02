@@ -26,24 +26,24 @@ import { worldbankNormalizer } from './normalizers/worldbank';
 import { createRestListAdapter } from './adapters/restList';
 
 /**
- * API type registry - maps API IDs to their type definitions
- * Using 'any' for the raw type parameter to allow different normalizer types
+ * API type registry. Raw JSON shapes differ per provider; the map stores them
+ * as unknown so a wrong assumption becomes a compile error inside the
+ * normalizer, not a silent `any` at the boundary.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const apiTypeRegistry = new Map<string, ApiTypeDefinition<any>>();
+type RegisteredApi = ApiTypeDefinition<unknown>;
+const apiTypeRegistry = new Map<string, RegisteredApi>();
 const defaultParamsRegistry = new Map<string, Record<string, unknown>>();
 
-// Normalizer registry for catalog-driven wiring
-const normalizerRegistry = new Map<string, ApiTypeDefinition<any>>([
-    ['polymarket', polymarketNormalizer],
-    ['newsapi', newsapiNormalizer],
-    ['coingecko', coingeckoNormalizer],
-    ['hackernews', hackernewsNormalizer],
-    ['metaculus', metaculusNormalizer],
-    ['alpha_vantage', alphavantageNormalizer],
-    ['fred', fredNormalizer],
-    ['bls', blsNormalizer],
-    ['worldbank', worldbankNormalizer]
+const normalizerRegistry = new Map<string, RegisteredApi>([
+    ['polymarket', polymarketNormalizer as RegisteredApi],
+    ['newsapi', newsapiNormalizer as RegisteredApi],
+    ['coingecko', coingeckoNormalizer as RegisteredApi],
+    ['hackernews', hackernewsNormalizer as RegisteredApi],
+    ['metaculus', metaculusNormalizer as RegisteredApi],
+    ['alpha_vantage', alphavantageNormalizer as RegisteredApi],
+    ['fred', fredNormalizer as RegisteredApi],
+    ['bls', blsNormalizer as RegisteredApi],
+    ['worldbank', worldbankNormalizer as RegisteredApi]
 ]);
 
 // Register canonical API types (direct IDs)
@@ -120,7 +120,7 @@ class ApiGatewayService {
      * Register a custom API type
      */
     registerType<TRaw>(apiId: string, definition: ApiTypeDefinition<TRaw>): void {
-        apiTypeRegistry.set(apiId, definition as ApiTypeDefinition);
+        apiTypeRegistry.set(apiId, definition as RegisteredApi);
     }
 
     /**

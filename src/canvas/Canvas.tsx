@@ -9,6 +9,7 @@ import {
     DndContext,
     DragEndEvent,
     DragStartEvent,
+    DragMoveEvent,
     useDraggable,
     PointerSensor,
     useSensor,
@@ -105,7 +106,7 @@ export function Canvas({ hideEmptyState = false, shellId, onBrowseShells }: Canv
         setDragDelta({ x: 0, y: 0 });
     };
 
-    const handleDragMove = (event: any) => {
+    const handleDragMove = (event: DragMoveEvent) => {
         if (event.delta) {
             setDragDelta({ x: event.delta.x, y: event.delta.y });
         }

@@ -8,6 +8,10 @@ import { useWireStore } from '@/core/stores/wireStore';
 import { BlockInstance } from '@/core/schemas/block.schema';
 import { ContextEntry } from '@/core/schemas/mind.schema';
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
 /**
  * Complete snapshot of the Shell's current state
  */
@@ -187,18 +191,22 @@ function summarizeBlockData(block: BlockInstance): string {
         }
 
         case 'tradingview': {
-            const d = data as Record<string, any>;
-            if (d.symbol) {
-                return `Chart: ${d.symbol} - ${d.interval || '1D'} timeframe${d.price ? ` | Price: $${d.price}` : ''}`;
+            const d = isRecord(data) ? data : {};
+            if (typeof d.symbol === 'string') {
+                const interval = typeof d.interval === 'string' ? d.interval : '1D';
+                const price = d.price != null ? ` | Price: $${d.price}` : '';
+                return `Chart: ${d.symbol} - ${interval} timeframe${price}`;
             }
             return 'No symbol configured';
         }
 
         case 'gdelt': {
-            const events = (data as any).events;
-            if (!events || !events.length) return 'No events loaded';
+            const events = isRecord(data) && Array.isArray(data.events) ? data.events : [];
+            if (!events.length) return 'No events loaded';
 
-            const categories = [...new Set(events.slice(0, 10).map((e: any) => e.category))];
+            const categories = [...new Set(events.slice(0, 10).map((e) =>
+                isRecord(e) && typeof e.category === 'string' ? e.category : undefined
+            ).filter((c): c is string => !!c))];
             return `${events.length} global events | Categories: ${categories.slice(0, 3).join(', ')}${categories.length > 3 ? '...' : ''}`;
         }
 
@@ -206,8 +214,8 @@ function summarizeBlockData(block: BlockInstance): string {
         case 'persona_strategist':
         case 'persona_oracle':
         case 'persona_guardian': {
-            const messages = (data as any)?.messages;
-            if (!messages || !messages.length) return 'No conversation yet';
+            const messages = isRecord(data) && Array.isArray(data.messages) ? data.messages : [];
+            if (!messages.length) return 'No conversation yet';
             return `${messages.length} messages in conversation`;
         }
 
@@ -268,9 +276,9 @@ function extractKeyMetrics(block: BlockInstance): string[] {
         }
 
         case 'tradingview': {
-            const d = data as Record<string, any>;
-            if (d.price) metrics.push(`$${d.price}`);
-            if (d.change) metrics.push(`${d.change > 0 ? '+' : ''}${d.change.toFixed(2)}%`);
+            const d = isRecord(data) ? data : {};
+            if (typeof d.price === 'number') metrics.push(`$${d.price}`);
+            if (typeof d.change === 'number') metrics.push(`${d.change > 0 ? '+' : ''}${d.change.toFixed(2)}%`);
             break;
         }
     }

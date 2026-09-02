@@ -7,7 +7,26 @@ import { useBlockStore } from '../stores';
 import { useWireStore } from '../stores/wireStore';
 
 import { WireFilters, ContextSource } from '../schemas/wire.schema';
-import { PolymarketMarket, NewsArticle, NewsFeed } from '../schemas/block.schema';
+import { PolymarketMarket, NewsArticle } from '../schemas/block.schema';
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function asPersonaMessages(value: unknown): Array<{ role: string; content: string }> {
+    if (!Array.isArray(value)) return [];
+    return value.filter(
+        (m): m is { role: string; content: string } =>
+            isRecord(m) && typeof m.role === 'string' && typeof m.content === 'string'
+    );
+}
+
+function asMemoryEntries(value: unknown): Array<{ content: string }> {
+    if (!Array.isArray(value)) return [];
+    return value.filter(
+        (e): e is { content: string } => isRecord(e) && typeof e.content === 'string'
+    );
+}
 
 /**
  * Extract and format data from a block based on wire filters
@@ -19,12 +38,12 @@ export function extractBlockData(
     const block = useBlockStore.getState().getBlock(blockId);
     if (!block?.data) return null;
 
-    const data = block.data as Record<string, any>;
+    const data = block.data;
     let extracted = '';
 
     try {
         // Handle different data types
-        if (data && typeof data === 'object' && 'markets' in data && Array.isArray(data.markets)) {
+        if (isRecord(data) && Array.isArray(data.markets)) {
             // Polymarket data
             const markets = data.markets as PolymarketMarket[];
             const filtered = filters.timeWindow && filters.timeWindow !== 'all'
@@ -36,24 +55,24 @@ export function extractBlockData(
             } else {
                 extracted = formatMarketsDetailed(filtered);
             }
-        } else if (data && typeof data === 'object' && 'articles' in data && Array.isArray(data.articles)) {
+        } else if (isRecord(data) && Array.isArray(data.articles)) {
             // News data
-            const feed = data as NewsFeed;
+            const articles = data.articles as NewsArticle[];
             const filtered = filters.timeWindow && filters.timeWindow !== 'all'
-                ? filterArticlesByTimeWindow(feed.articles, filters.timeWindow)
-                : feed.articles;
+                ? filterArticlesByTimeWindow(articles, filters.timeWindow)
+                : articles;
 
             if (filters.summaryOnly) {
                 extracted = formatNewsSummary(filtered);
             } else {
                 extracted = formatNewsDetailed(filtered);
             }
-        } else if (data && typeof data === 'object' && 'personaType' in data && Array.isArray(data.messages)) {
+        } else if (isRecord(data) && 'personaType' in data && Array.isArray(data.messages)) {
             // A persona used as a SOURCE: another mind's conclusion, not its
             // internals. This used to fall through to the generic JSON dump,
             // which fed the downstream persona ids, timestamps and isCollapsed
             // flags — a wire that looked connected and delivered noise.
-            const messages = data.messages as Array<{ role: string; content: string }>;
+            const messages = asPersonaMessages(data.messages);
             const lastAnswer = [...messages].reverse().find(m => m.role === 'assistant');
 
             // An error is not analysis. Propagating '⚠️ No LLM available' into a
@@ -63,25 +82,26 @@ export function extractBlockData(
             extracted = filters.summaryOnly
                 ? lastAnswer.content.slice(0, 500) + (lastAnswer.content.length > 500 ? '…' : '')
                 : lastAnswer.content;
-        } else if (data && typeof data === 'object' && 'poolId' in data && Array.isArray(data.entries)) {
+        } else if (isRecord(data) && 'poolId' in data && Array.isArray(data.entries)) {
             // Memory block — a Mind pool wired in like any other source.
-            const entries = data.entries as Array<{ content: string }>;
+            const entries = asMemoryEntries(data.entries);
             extracted = entries.length === 0
                 ? '(No entries)'
                 : entries.map(e => `- ${e.content}`).join('\n');
-        } else if (data && typeof data === 'object' && 'content' in data && typeof data.content === 'string') {
+        } else if (isRecord(data) && typeof data.content === 'string') {
             // Text block
             extracted = filters.summaryOnly
                 ? data.content.slice(0, 500) + (data.content.length > 500 ? '...' : '')
                 : data.content;
-        } else if (data && typeof data === 'object' && 'code' in data && typeof data.code === 'string') {
+        } else if (isRecord(data) && typeof data.code === 'string') {
             // Code block
-            extracted = `\`\`\`${data.language || ''}\n${data.code}\n\`\`\``;
-        } else if (data && typeof data === 'object' && 'items' in data && Array.isArray(data.items)) {
+            const language = typeof data.language === 'string' ? data.language : '';
+            extracted = `\`\`\`${language}\n${data.code}\n\`\`\``;
+        } else if (isRecord(data) && Array.isArray(data.items)) {
             // OmniItem[] from the gateway (polymarket, coingecko, fred, metaculus,
             // hackernews, …). The useful signal lives in each item's `metadata`
             // (probability, volume, price, value, …) — include it, don't drop it.
-            const items = data.items as any[];
+            const items = data.items;
             if (items.length === 0) {
                 extracted = '(No data)';
             } else {
@@ -92,8 +112,8 @@ export function extractBlockData(
                 if (items.length > limit) extracted += `\n… ${items.length - limit} more`;
             }
         } else if (Array.isArray(data)) {
-            const first = data[0] as any;
-            if (first && typeof first === 'object' && 'question' in first && 'outcomes' in first) {
+            const first = data[0];
+            if (isRecord(first) && 'question' in first && 'outcomes' in first) {
                 // PolymarketMarket[] (how the Polymarket block stores its data):
                 // use the dedicated formatter so outcomes + volume are included.
                 const markets = data as PolymarketMarket[];
@@ -103,7 +123,7 @@ export function extractBlockData(
                 extracted = filters.summaryOnly
                     ? formatMarketsSummary(filtered)
                     : formatMarketsDetailed(filtered);
-            } else if (first && typeof first === 'object' && 'metadata' in first) {
+            } else if (isRecord(first) && 'metadata' in first) {
                 // OmniItem[] stored directly.
                 const limit = filters.summaryOnly ? 8 : 25;
                 extracted = data.slice(0, limit).map(item => formatOmniItem(item)).join('\n');
@@ -138,13 +158,19 @@ export function extractBlockData(
  * Format a single OmniItem (gateway-normalized) into a readable line with its
  * key metadata, so the LLM sees probabilities/prices/values — not just titles.
  */
-function formatOmniItem(item: any): string {
-    const title = item.title || item.name || item.id || 'Untitled';
-    const meta = (item.metadata && typeof item.metadata === 'object') ? item.metadata : {};
+function formatOmniItem(item: unknown): string {
+    const rec = isRecord(item) ? item : {};
+    const title =
+        (typeof rec.title === 'string' && rec.title)
+        || (typeof rec.name === 'string' && rec.name)
+        || (typeof rec.id === 'string' && rec.id)
+        || (typeof rec.id === 'number' ? String(rec.id) : '')
+        || 'Untitled';
+    const meta = isRecord(rec.metadata) ? rec.metadata : {};
 
     // Keys worth surfacing, in priority order, with light formatting.
     const parts: string[] = [];
-    const push = (label: string, value: unknown, fmt?: (v: any) => string) => {
+    const push = (label: string, value: unknown, fmt?: (v: unknown) => string) => {
         if (value === undefined || value === null || value === '') return;
         parts.push(`${label}: ${fmt ? fmt(value) : value}`);
     };
@@ -159,8 +185,8 @@ function formatOmniItem(item: any): string {
     push('marketCapRank', meta.marketCapRank, v => `#${v}`);
 
     // A short description adds context for news/forecast items.
-    const desc = typeof item.description === 'string' && item.description.length < 160
-        ? item.description
+    const desc = typeof rec.description === 'string' && rec.description.length < 160
+        ? rec.description
         : undefined;
 
     const metaStr = parts.length > 0 ? ` (${parts.join(' | ')})` : '';
@@ -416,7 +442,7 @@ export class WireService {
 
         const { context, lastUpdate } = aggregateWireContext(targetBlockId);
 
-        const currentData = block.data as any;
+        const currentData = isRecord(block.data) ? block.data : {};
         useBlockStore.getState().updateData(targetBlockId, {
             ...currentData,
             currentContext: context,

@@ -4,6 +4,48 @@
 
 import { NextResponse } from 'next/server';
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function marketsFromRaw(raw: unknown): Record<string, unknown>[] {
+    if (Array.isArray(raw)) return raw.filter(isRecord);
+    if (isRecord(raw) && Array.isArray(raw.data)) return raw.data.filter(isRecord);
+    if (isRecord(raw) && Array.isArray(raw.markets)) return raw.markets.filter(isRecord);
+    return [];
+}
+
+interface MarketOutcome {
+    id: string;
+    name: string;
+    probability: number;
+}
+
+function parseJsonArray(value: unknown): unknown[] {
+    if (Array.isArray(value)) return value;
+    if (typeof value === 'string') {
+        try {
+            const parsed: unknown = JSON.parse(value);
+            return Array.isArray(parsed) ? parsed : [];
+        } catch {
+            return [];
+        }
+    }
+    return [];
+}
+
+function asNumber(value: unknown, fallback: number): number {
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    if (typeof value === 'string' && value !== '') {
+        const n = parseFloat(value);
+        return Number.isFinite(n) ? n : fallback;
+    }
+    return fallback;
+}
+
+function asString(value: unknown, fallback: string): string {
+    return typeof value === 'string' && value ? value : fallback;
+}
 
 /**
  * Polymarket API endpoint
@@ -29,89 +71,63 @@ export async function GET() {
             });
         }
 
-        const rawData = await response.json();
+        const rawData: unknown = await response.json();
+        const marketsArray = marketsFromRaw(rawData);
 
-        // Handle both array and object responses
-        let marketsArray: any[] = [];
-        if (Array.isArray(rawData)) {
-            marketsArray = rawData;
-        } else if (rawData.data && Array.isArray(rawData.data)) {
-            marketsArray = rawData.data;
-        } else if (rawData.markets && Array.isArray(rawData.markets)) {
-            marketsArray = rawData.markets;
-        } else {
-            // If API structure is unexpected, log it and return empty
+        if (
+            marketsArray.length === 0
+            && rawData != null
+            && !Array.isArray(rawData)
+            && !(isRecord(rawData) && (Array.isArray(rawData.data) || Array.isArray(rawData.markets)))
+        ) {
             console.warn('Unexpected Polymarket API response structure:', rawData);
-            marketsArray = [];
         }
 
-        // Transform Polymarket data to our schema
-        const markets = marketsArray
-            .slice(0, 50)
-            .map((market: any) => {
-                // Handle different outcome formats
-                let outcomes: any[] = [];
+        const markets = marketsArray.slice(0, 50).map((market) => {
+            let outcomes: MarketOutcome[] = [];
 
-                // Parse outcomePrices - Gamma API returns JSON string like "[0.65, 0.35]"
-                let parsedPrices: number[] = [];
-                if (market.outcomePrices) {
-                    try {
-                        parsedPrices = typeof market.outcomePrices === 'string'
-                            ? JSON.parse(market.outcomePrices)
-                            : market.outcomePrices;
-                    } catch {
-                        console.log('[Polymarket API] Could not parse outcomePrices:', market.outcomePrices);
-                    }
-                }
+            const parsedPrices = parseJsonArray(market.outcomePrices).map(p => asNumber(p, 0.5));
+            const parsedOutcomes = parseJsonArray(market.outcomes).filter((o): o is string => typeof o === 'string');
 
-                // Parse outcomes - Gamma API returns JSON string like '["Yes","No"]'
-                let parsedOutcomes: string[] = [];
-                if (market.outcomes) {
-                    try {
-                        parsedOutcomes = typeof market.outcomes === 'string'
-                            ? JSON.parse(market.outcomes)
-                            : market.outcomes;
-                    } catch {
-                        console.log('[Polymarket API] Could not parse outcomes:', market.outcomes);
-                    }
-                }
+            const tokens = market.tokens;
+            if (Array.isArray(tokens)) {
+                outcomes = tokens.filter(isRecord).map((token, index) => ({
+                    id: asString(token.token_id, `${asString(market.id, 'market')}_${index}`),
+                    name: asString(token.outcome, `Outcome ${index + 1}`),
+                    probability: asNumber(token.price, 0.5)
+                }));
+            } else if (parsedOutcomes.length > 0) {
+                outcomes = parsedOutcomes.map((outcome, index) => ({
+                    id: `${asString(market.id, 'market')}_${index}`,
+                    name: outcome,
+                    probability: parsedPrices[index] !== undefined ? parsedPrices[index] : 0.5
+                }));
+            } else {
+                outcomes = [
+                    { id: `${asString(market.id, 'market')}_0`, name: 'Yes', probability: parsedPrices[0] || 0.5 },
+                    { id: `${asString(market.id, 'market')}_1`, name: 'No', probability: parsedPrices[1] || 0.5 }
+                ];
+            }
 
-                // Try tokens format (CLOB API)
-                if (market.tokens && Array.isArray(market.tokens)) {
-                    outcomes = market.tokens.map((token: any, index: number) => ({
-                        id: token.token_id || `${market.id}_${index}`,
-                        name: token.outcome || `Outcome ${index + 1}`,
-                        probability: parseFloat(token.price || '0.5')
-                    }));
-                }
-                // Use parsed outcomes with prices (Gamma API)
-                else if (parsedOutcomes.length > 0) {
-                    outcomes = parsedOutcomes.map((outcome: string, index: number) => ({
-                        id: `${market.id}_${index}`,
-                        name: outcome,
-                        probability: parsedPrices[index] !== undefined ? parsedPrices[index] : 0.5
-                    }));
-                }
-                // Default Yes/No format
-                else {
-                    outcomes = [
-                        { id: `${market.id}_0`, name: 'Yes', probability: parsedPrices[0] || 0.5 },
-                        { id: `${market.id}_1`, name: 'No', probability: parsedPrices[1] || 0.5 }
-                    ];
-                }
+            const tags = Array.isArray(market.tags)
+                ? market.tags.filter((t): t is string => typeof t === 'string')
+                : [];
 
-                return {
-                    id: market.id || market.condition_id || market.market_slug || `market_${Date.now()}`,
-                    question: market.question || market.title || 'Unknown Market',
-                    description: market.description || '',
-                    outcomes,
-                    volume: parseFloat(market.volume || market.volumeNum || '0'),
-                    liquidity: parseFloat(market.liquidity || '0'),
-                    endDate: market.end_date_iso || market.endDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-                    category: market.category || market.market_type || market.tags?.[0] || 'Uncategorized',
-                    tags: market.tags || []
-                };
-            });
+            return {
+                id: asString(market.id, asString(market.condition_id, asString(market.market_slug, `market_${Date.now()}`))),
+                question: asString(market.question, asString(market.title, 'Unknown Market')),
+                description: asString(market.description, ''),
+                outcomes,
+                volume: asNumber(market.volume, asNumber(market.volumeNum, 0)),
+                liquidity: asNumber(market.liquidity, 0),
+                endDate: asString(
+                    market.end_date_iso,
+                    asString(market.endDate, new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString())
+                ),
+                category: asString(market.category, asString(market.market_type, tags[0] || 'Uncategorized')),
+                tags
+            };
+        });
 
         return NextResponse.json({
             success: true,

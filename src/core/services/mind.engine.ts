@@ -14,8 +14,12 @@ import {
 import { captureShellSnapshot, formatSnapshotForLLM } from './shell.snapshot';
 import { useMindStore } from '@/core/stores';
 import { useBlockStore } from '@/core/stores';
-import { PersonaConfig } from '@/core/schemas/mind.schema';
+import { PersonaConfig, type ContextEntryType } from '@/core/schemas/mind.schema';
 import { BlockInstance } from '@/core/schemas/block.schema';
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
 
 // ============================================
 // MIND ENGINE
@@ -273,33 +277,51 @@ ${taskDescription}
      * Summarize block data for context
      */
     private summarizeBlockData(blockType: string, data: unknown): string {
-        const d = data as Record<string, any> | null;
+        const d = isRecord(data) ? data : null;
 
         switch (blockType) {
-            case 'polymarket':
-                if (d?.market) {
-                    return `Market: "${d.market.question}" - Current probability: ${Math.round((d.market.yes_price || 0.5) * 100)}% YES. Volume: $${d.market.volume?.toLocaleString() || 'N/A'}`;
+            case 'polymarket': {
+                const market = d && isRecord(d.market) ? d.market : null;
+                if (market) {
+                    const question = typeof market.question === 'string' ? market.question : '';
+                    const yes = typeof market.yes_price === 'number' ? market.yes_price : 0.5;
+                    const volume = typeof market.volume === 'number'
+                        ? market.volume.toLocaleString()
+                        : 'N/A';
+                    return `Market: "${question}" - Current probability: ${Math.round(yes * 100)}% YES. Volume: $${volume}`;
                 }
                 return 'Polymarket block - no data loaded';
+            }
 
-            case 'tradingview':
-                if (d?.symbol) {
-                    return `Chart: ${d.symbol} - ${d.interval || '1D'} timeframe`;
+            case 'tradingview': {
+                if (d && typeof d.symbol === 'string') {
+                    const interval = typeof d.interval === 'string' ? d.interval : '1D';
+                    return `Chart: ${d.symbol} - ${interval} timeframe`;
                 }
                 return 'TradingView chart - no symbol configured';
+            }
 
-            case 'newsfeed':
-                if (d?.articles?.length) {
-                    const headlines = d.articles.slice(0, 3).map((a: any) => a.title).join('; ');
+            case 'newsfeed': {
+                const articles = d && Array.isArray(d.articles) ? d.articles : [];
+                if (articles.length) {
+                    const headlines = articles.slice(0, 3).map((a) =>
+                        isRecord(a) && typeof a.title === 'string' ? a.title : ''
+                    ).join('; ');
                     return `Recent headlines: ${headlines}`;
                 }
                 return 'News feed - no articles loaded';
+            }
 
-            case 'gdelt':
-                if (d?.events?.length) {
-                    return `${d.events.length} global events detected. Categories: ${[...new Set(d.events.slice(0, 5).map((e: any) => e.category))].join(', ')}`;
+            case 'gdelt': {
+                const events = d && Array.isArray(d.events) ? d.events : [];
+                if (events.length) {
+                    const categories = [...new Set(events.slice(0, 5).map((e) =>
+                        isRecord(e) && typeof e.category === 'string' ? e.category : undefined
+                    ).filter((c): c is string => !!c))];
+                    return `${events.length} global events detected. Categories: ${categories.join(', ')}`;
                 }
                 return 'GDELT events - no data loaded';
+            }
 
             default:
                 return `${blockType} block with ${Object.keys(d || {}).length} data fields`;
@@ -311,11 +333,13 @@ ${taskDescription}
      */
     private extractKeyMetrics(blockType: string, data: unknown): string[] {
         const metrics: string[] = [];
-        const d = data as Record<string, any> | null;
+        const d = isRecord(data) ? data : null;
+        const market = d && isRecord(d.market) ? d.market : null;
 
-        if (blockType === 'polymarket' && d?.market) {
-            metrics.push(`YES: ${Math.round((d.market.yes_price || 0.5) * 100)}%`);
-            if (d.market.volume) metrics.push(`Vol: $${(d.market.volume / 1000).toFixed(0)}k`);
+        if (blockType === 'polymarket' && market) {
+            const yes = typeof market.yes_price === 'number' ? market.yes_price : 0.5;
+            metrics.push(`YES: ${Math.round(yes * 100)}%`);
+            if (typeof market.volume === 'number') metrics.push(`Vol: $${(market.volume / 1000).toFixed(0)}k`);
         }
 
         return metrics;
@@ -347,9 +371,13 @@ ${taskDescription}
             }
 
             const isMemorySuggestion = insight.type === 'memory_suggestion';
+            const entryType: ContextEntryType =
+                insight.type === 'memory_suggestion' || insight.type === 'warning'
+                    ? 'inference'
+                    : insight.type;
 
             mindStore.addToPool(poolId, {
-                type: isMemorySuggestion ? 'inference' : (insight.type === 'warning' ? 'inference' : insight.type as any), // Cast to fit ContextEntryType
+                type: entryType,
                 content: insight.content,
                 importance: isMemorySuggestion ? 0.95 : (insight.confidence === 'high' ? 0.9 : insight.confidence === 'medium' ? 0.6 : 0.3),
                 metadata: {
