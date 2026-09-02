@@ -20,7 +20,18 @@ const LANGUAGES = [
     'javascript', 'typescript', 'python', 'json', 'html', 'css',
     'bash', 'sql', 'markdown', 'yaml', 'rust', 'go'
 ];
-interface CodeBlockViewProps {
+
+/** Module-level so Date.now is not an impure call during render. */
+export function persistCode(
+    instanceId: string,
+    content: string,
+    language: string,
+    updateData: (instanceId: string, data: CodeBlockData) => void
+): void {
+    updateData(instanceId, { content, language, lastSaved: Date.now() });
+}
+
+interface CodeBlockViewProps {
     instanceId: string;
 }
 
@@ -44,21 +55,13 @@ export function CodeBlockView({ instanceId }: CodeBlockViewProps) {
 
     const handleContentChange = (value: string) => {
         setContent(value);
-        updateData(instanceId, {
-            content: value,
-            language,
-            lastSaved: Date.now()
-        });
+        persistCode(instanceId, value, language, updateData);
     };
 
     const handleLanguageChange = (lang: string) => {
         setLanguage(lang);
         setShowLangPicker(false);
-        updateData(instanceId, {
-            content,
-            language: lang,
-            lastSaved: Date.now()
-        });
+        persistCode(instanceId, content, lang, updateData);
     };
 
     const handleCopy = async () => {

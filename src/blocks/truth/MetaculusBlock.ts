@@ -49,7 +49,7 @@ export function useMetaculusBlock(instanceId: string) {
     return {
         questions,
         status: block?.status || (isLoading ? 'connecting' : 'connected'),
-        lastUpdated: block?.last_updated || Date.now(),
+        lastUpdated: block?.last_updated ?? null,
         refresh,
         error
     };

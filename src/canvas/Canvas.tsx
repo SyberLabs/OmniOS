@@ -4,7 +4,7 @@
 // PROJECT OMNI: DRAG-AND-DROP CANVAS
 // ============================================
 
-import { useCallback, useState, useEffect, useMemo } from 'react';
+import { createElement, useCallback, useState, useEffect, useMemo } from 'react';
 import {
     DndContext,
     DragEndEvent,
@@ -20,7 +20,7 @@ import { BlockCard } from '@/components/blocks/BlockCard';
 import { blockRegistry } from '@/core/registry/BlockRegistry';
 import { WireRenderer } from './WireRenderer';
 import { snapToGrid, cn } from '@/lib/utils';
-import { getBlockView } from '@/core/registry/ViewRegistry';
+import { BlockViews } from '@/core/registry/ViewRegistry';
 
 interface CanvasProps {
     hideEmptyState?: boolean;
@@ -410,10 +410,11 @@ interface BlockContentProps {
 }
 
 function BlockContent({ block }: BlockContentProps) {
-    const View = getBlockView(block.schema.block_id);
-
+    // Look up a registered view. createElement (not <View />) so the compiler
+    // does not treat a map lookup as "creating a component during render".
+    const View = BlockViews[block.schema.block_id];
     if (View) {
-        return <View instanceId={block.instance_id} />;
+        return createElement(View, { instanceId: block.instance_id });
     }
 
     return (
