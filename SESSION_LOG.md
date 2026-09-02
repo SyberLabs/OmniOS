@@ -66,7 +66,7 @@ Gate: n/a (no code change)
 Notes: Unused-var warnings in PersonaBlock, WireHandle, and MindPanel are leftover from earlier work; not this item.
 
 ## AUDIT — SHIPPED
-Commit: (this commit)
+Commit: 7e2706b
 What: Removed the client `apiKey` path (apiStore, settings leftovers, dashboard input, gateway injection). 502s from keyed providers no longer echo `error.message`. Every keyed provider has a test that the browser-facing body does not contain the key. Client bundle scan of `.next/static` for env values: PASS.
 Why: The dashboard still offered a key field for a custom-provider path nothing shipped uses, and stored it in localStorage in the clear. That is an affordance that cannot be honoured honestly. Encrypting it would have been XOR theatre again.
 Gate: tsc / lint (0 errors) / tests (215) / build / e2e (6) — all green
