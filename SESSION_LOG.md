@@ -17,8 +17,15 @@ Gate: tsc / lint (0 errors, 48 warnings remaining for items 3/6/9) / tests (172)
 Notes: Canvas uses `createElement(BlockViews[id])` so the registered type stays stable. Metaculus now matches every other truth block (`lastUpdated` is the store's, or null).
 
 ## ITEM 3 — SHIPPED
-Commit: (this commit)
+Commit: 59303e6
 What: Cleared the 7 setState-in-effect and 2 exhaustive-deps warnings without disabling rules. Client mount uses `useSyncExternalStore`. Workspace blocks read stored data during render (or as the store itself). The LLM pill fetches after the effect, not by setState inside it.
 Why: Derived state in an effect is a cascading render. A hydration `setHasMounted(true)` effect is the same bug with a prettier name.
 Gate: tsc / lint (0 errors, 38 warnings left for items 6/9 and unused vars) / tests (172) / build / e2e — all green
 Notes: Canvas memo now filters `blocks` in the function body so `blocks` is a real dependency. Resize effect lists `updatePosition`. Did not suppress anything.
+
+## ITEM 4 — SHIPPED
+Commit: (this commit)
+What: Added focused e2e specs for Crystallize, Cascade, provenance hover, provider switch, and Memory/params persistence. The golden path remains; these cover the loops shipped after it.
+Why: Every shipped bug this cycle lived in the UI wiring layer unit tests cannot see. Those loops had no end-to-end proof.
+Gate: tsc / lint (0 errors) / tests (172) / build / e2e (6 passed) — all green
+Notes: Provenance hover asserts `data-cited` on the block card, same contract as `data-reading` on wires — not pixels. Cascade uses the Investor Analyst→Strategist wire so it does not depend on live data APIs. Persistence Apply had to be `exact: true` because dnd-kit exposes the whole World Bank card as a button whose accessible name includes "Apply".

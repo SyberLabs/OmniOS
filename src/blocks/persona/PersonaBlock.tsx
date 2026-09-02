@@ -414,6 +414,7 @@ function SourceChip({
             onMouseLeave={() => onHighlight([])}
             onFocus={() => onHighlight([source.id])}
             onBlur={() => onHighlight([])}
+            data-testid="provenance-chip"
             className={cn(
                 'px-1.5 py-0.5 rounded text-[10px] border transition-colors',
                 style.className
