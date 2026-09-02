@@ -146,7 +146,8 @@ export const useShellStore = create<ShellState>()(
                                     blockId: b.schema.block_id,
                                     instanceId: b.instance_id,
                                     position: b.position,
-                                    dimensions: b.dimensions
+                                    dimensions: b.dimensions,
+                                    ...(b.params ? { params: b.params } : {})
                                 })),
                                 wires: useWireStore.getState().getWiresByShell(shellId),
                                 persona: state.currentPersona,
@@ -220,7 +221,8 @@ export const useShellStore = create<ShellState>()(
                         instanceId: b.instance_id,
                         position: b.position,
                         dimensions: b.dimensions,
-                        config: { data: b.data }
+                        config: { data: b.data },
+                        ...(b.params ? { params: b.params } : {})
                     })),
                     wires: shellWires,
                     persona: metadata?.persona || get().currentPersona,
@@ -268,7 +270,8 @@ export const useShellStore = create<ShellState>()(
                         data: savedBlock.config?.data || null,
                         position: savedBlock.position,
                         dimensions: savedBlock.dimensions,
-                        shellId: shellId
+                        shellId: shellId,
+                        ...(savedBlock.params ? { params: savedBlock.params } : {})
                     });
                 });
 
@@ -347,7 +350,8 @@ export const useShellStore = create<ShellState>()(
                         blockId: tb.blockId,
                         instanceId,
                         position: tb.position,
-                        dimensions: tb.dimensions ?? { width: 320, height: isPersona ? 400 : 240 }
+                        dimensions: tb.dimensions ?? { width: 320, height: isPersona ? 400 : 240 },
+                        ...(tb.params ? { params: tb.params } : {})
                     };
                 });
 

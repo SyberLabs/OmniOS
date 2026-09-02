@@ -179,6 +179,9 @@ export interface BlockInstance {
 
   /** Shell isolation - ID of the shell this block belongs to */
   shellId: string;
+
+  /** Fetch/config knobs for this instance. Absent means never configured. */
+  params?: Record<string, unknown>;
 }
 
 /**

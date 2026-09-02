@@ -14,6 +14,23 @@ import {
 import { vaultStorage } from '../vault';
 import { useWireStore } from './wireStore';
 
+/**
+ * omni-blocks persist migrations.
+ * v0 → v1: drop the legacy dual-wire `connections` field.
+ * v1 → v2: params is optional. Leave it absent — undefined means never configured.
+ * Do not backfill fetch defaults into persisted records.
+ */
+export function migrateBlockStore(
+    persistedState: unknown,
+    fromVersion: number
+): Record<string, unknown> {
+    const persisted = { ...((persistedState || {}) as Record<string, unknown>) };
+    if (fromVersion < 1) {
+        delete persisted.connections;
+    }
+    return persisted;
+}
+
 // ============================================
 // BLOCK STORE
 // ============================================
@@ -42,6 +59,9 @@ interface BlockState {
 
     /** Update block status */
     updateStatus: (instanceId: string, status: ConnectionStatus, error?: string) => void;
+
+    /** Merge fetch/config knobs onto a block. Partial; does not replace siblings. */
+    setParams: (instanceId: string, params: Record<string, unknown>) => void;
 
     /** Clear all blocks and wires on the active shell */
     clearCanvas: () => void;
@@ -134,6 +154,16 @@ export const useBlockStore = create<BlockState>()(
                 }));
             },
 
+            setParams: (instanceId, params) => {
+                set(state => ({
+                    blocks: state.blocks.map(b =>
+                        b.instance_id === instanceId
+                            ? { ...b, params: { ...b.params, ...params } }
+                            : b
+                    )
+                }));
+            },
+
             clearCanvas: () => {
                 // Clear only the active shell
                 const activeShellId = get().activeShellId;
@@ -162,20 +192,14 @@ export const useBlockStore = create<BlockState>()(
         }),
         {
             name: 'omni-blocks',
-            version: 1,
+            version: 2,
             // OmniVault (IndexedDB): core canvas state outgrew localStorage (A2).
             storage: createJSONStorage(() => vaultStorage),
             partialize: (state) => ({
                 blocks: state.blocks,
                 activeShellId: state.activeShellId
             }),
-            // v0 → v1: drop the legacy dual-wire `connections` field. Wires
-            // live solely in wireStore (`omni-wires`) as of A1.
-            migrate: (persistedState: unknown) => {
-                const persisted = (persistedState || {}) as Record<string, unknown>;
-                delete persisted.connections;
-                return persisted;
-            }
+            migrate: migrateBlockStore
         }
     )
 );

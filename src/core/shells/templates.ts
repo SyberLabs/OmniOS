@@ -18,6 +18,8 @@ export interface TemplateBlock {
     blockId: string;
     position: { x: number; y: number };
     dimensions?: { width: number; height: number };
+    /** Fetch knobs copied onto the spawned BlockInstance. */
+    params?: Record<string, unknown>;
 }
 
 /** A wire between two template blocks, by their local `ref`s. */
@@ -51,7 +53,7 @@ const INVESTOR_SHELL: ShellTemplate = {
     id: 'tmpl_investor',
     name: 'Investor Shell',
     description:
-        'Prediction markets, crypto, global indicators, and tech signals wired into an ' +
+        'Prediction markets, crypto, US GDP growth, and tech signals wired into an ' +
         'Analyst and Strategist — a ready-made environment that works without API keys.',
     icon: 'TrendingUp',
     tags: ['finance', 'markets', 'macro'],
@@ -62,7 +64,7 @@ const INVESTOR_SHELL: ShellTemplate = {
         { ref: 'polymarket', blockId: 'polymarket_live_odds', position: { x: 40, y: 40 } },
         { ref: 'crypto', blockId: 'coingecko_crypto', position: { x: 40, y: 320 } },
         // --- Context (middle column) ---
-        { ref: 'worldbank', blockId: 'worldbank_indicator', position: { x: 420, y: 40 } },
+        { ref: 'worldbank', blockId: 'worldbank_indicator', position: { x: 420, y: 40 }, params: { indicator: 'NY.GDP.MKTP.KD.ZG', country: 'USA' } },
         { ref: 'hn', blockId: 'hackernews_feed', position: { x: 420, y: 320 } },
         // --- Personas (right column) ---
         { ref: 'analyst', blockId: 'persona_analyst', position: { x: 800, y: 120 } },

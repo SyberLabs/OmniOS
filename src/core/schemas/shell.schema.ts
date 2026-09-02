@@ -113,6 +113,9 @@ export interface ShellBlockState {
     /** Canvas dimensions */
     dimensions: { width: number; height: number };
 
+    /** Fetch/config knobs copied from BlockInstance.params */
+    params?: Record<string, unknown>;
+
     /** Block-specific configuration */
     config?: Record<string, unknown>;
 }

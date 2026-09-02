@@ -110,4 +110,28 @@ describe('instantiateTemplate', () => {
         const shell = useShellStore.getState().shells.find(s => s.id === shellId)!;
         expect(shell.name).toBe('My Investor');
     });
+
+    it('copies a template block\'s params onto the created instance', () => {
+        // Templates aim fetches (e.g. GDP growth, not the World Bank dollar-GDP default).
+        // If this is dropped, every spawned shell is generic again.
+        const aimed: ShellTemplate = {
+            ...investor,
+            id: 'tmpl_aimed',
+            blocks: [
+                {
+                    ref: 'worldbank',
+                    blockId: 'worldbank_indicator',
+                    position: { x: 0, y: 0 },
+                    params: { indicator: 'NY.GDP.MKTP.KD.ZG', country: 'USA' }
+                },
+                { ref: 'analyst', blockId: 'persona_analyst', position: { x: 400, y: 0 } }
+            ],
+            connections: []
+        };
+        const shellId = useShellStore.getState().instantiateTemplate(aimed)!;
+        const wb = useBlockStore.getState()
+            .getBlocksByShell(shellId)
+            .find(b => b.schema.block_id === 'worldbank_indicator');
+        expect(wb?.params).toEqual({ indicator: 'NY.GDP.MKTP.KD.ZG', country: 'USA' });
+    });
 });

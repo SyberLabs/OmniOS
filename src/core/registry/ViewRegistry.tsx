@@ -28,6 +28,11 @@ import {
 } from '@/blocks/workspace';
 import { PersonaBlockView } from '@/blocks/persona';
 import { MemoryBlockView } from '@/components/blocks/MemoryBlock';
+import { useBlockStore } from '@/core/stores';
+
+function storedParams(instanceId: string): Record<string, unknown> | undefined {
+    return useBlockStore.getState().getBlock(instanceId)?.params;
+}
 
 // ============================================
 // BLOCK WRAPPERS
@@ -63,7 +68,10 @@ function PolymarketBlockContent({ instanceId }: { instanceId: string }) {
 }
 
 function NewsBlockContent({ instanceId }: { instanceId: string }) {
-    const { articles, status, lastUpdated, refresh, error } = useNewsBlock(instanceId);
+    const stored = useBlockStore(s => s.getBlock(instanceId)?.params);
+    const query = typeof stored?.query === 'string' ? stored.query : undefined;
+    const category = typeof stored?.category === 'string' ? stored.category : undefined;
+    const { articles, status, lastUpdated, refresh, error } = useNewsBlock(instanceId, query, category);
 
     return (
         <NewsView
@@ -119,15 +127,21 @@ function MetaculusBlockContent({ instanceId }: { instanceId: string }) {
 }
 
 function AlphaVantageBlockContent({ instanceId }: { instanceId: string }) {
+    const persistParams = useBlockStore(s => s.setParams);
     const defaultSymbol = 'AAPL';
-    const [symbolInput, setSymbolInput] = useState(defaultSymbol);
-    const [params, setParams] = useState<{ symbol: string }>({ symbol: defaultSymbol });
+    const initial = storedParams(instanceId);
+    const initialSymbol = typeof initial?.symbol === 'string' ? initial.symbol : defaultSymbol;
+    const [symbolInput, setSymbolInput] = useState(initialSymbol);
+    const [params, setParams] = useState<{ symbol: string }>({ symbol: initialSymbol });
     const { items, metrics, status, lastUpdated, refresh, error } = useAlphaVantageBlock(instanceId, params);
 
     const handleApplySymbol = () => {
         const nextSymbol = symbolInput.trim().toUpperCase();
         if (!nextSymbol) return;
-        setParams(prev => (prev.symbol === nextSymbol ? prev : { ...prev, symbol: nextSymbol }));
+        const next = { ...params, symbol: nextSymbol };
+        if (params.symbol === nextSymbol) return;
+        setParams(next);
+        persistParams(instanceId, next);
     };
 
     return (
@@ -146,12 +160,14 @@ function AlphaVantageBlockContent({ instanceId }: { instanceId: string }) {
 }
 
 function OpenAlexBlockContent({ instanceId }: { instanceId: string }) {
+    const persistParams = useBlockStore(s => s.setParams);
+    const initial = storedParams(instanceId);
     const [draft, setDraft] = useState({
-        search: '',
-        topic: '',
-        year: ''
+        search: typeof initial?.search === 'string' ? initial.search : '',
+        topic: typeof initial?.topic === 'string' ? initial.topic : '',
+        year: typeof initial?.year === 'string' ? initial.year : ''
     });
-    const [params, setParams] = useState<Record<string, unknown>>({});
+    const [params, setParams] = useState<Record<string, unknown>>(initial ?? {});
     const { items, status, lastUpdated, refresh, error } = useOpenAlexBlock(instanceId, params);
 
     const handleApplyFilters = () => {
@@ -183,6 +199,12 @@ function OpenAlexBlockContent({ instanceId }: { instanceId: string }) {
         if (filters.length) nextParams.filter = filters.join(',');
 
         setParams(nextParams);
+        persistParams(instanceId, {
+            search: search || undefined,
+            filter: filters.length ? filters.join(',') : undefined,
+            topic: topic || undefined,
+            year: year || undefined
+        });
     };
 
     return (
@@ -204,21 +226,25 @@ function OpenAlexBlockContent({ instanceId }: { instanceId: string }) {
 }
 
 function FredBlockContent({ instanceId }: { instanceId: string }) {
+    const persistParams = useBlockStore(s => s.setParams);
     const defaultSeries = 'GDP';
-    const [seriesInput, setSeriesInput] = useState(defaultSeries);
+    const initial = storedParams(instanceId);
+    const initialSeries = typeof initial?.seriesId === 'string' ? initial.seriesId : defaultSeries;
+    const [seriesInput, setSeriesInput] = useState(initialSeries);
     const [params, setParams] = useState<{ seriesId: string; limit: number; sort_order: string }>({
-        seriesId: defaultSeries,
-        limit: 24,
-        sort_order: 'desc'
+        seriesId: initialSeries,
+        limit: typeof initial?.limit === 'number' ? initial.limit : 24,
+        sort_order: typeof initial?.sort_order === 'string' ? initial.sort_order : 'desc'
     });
     const { items, metrics, status, lastUpdated, refresh, error } = useFredBlock(instanceId, params);
 
     const handleApplySeries = () => {
         const nextSeries = seriesInput.trim().toUpperCase();
         if (!nextSeries) return;
-        setParams(prev =>
-            prev.seriesId === nextSeries ? prev : { ...prev, seriesId: nextSeries }
-        );
+        if (params.seriesId === nextSeries) return;
+        const next = { ...params, seriesId: nextSeries };
+        setParams(next);
+        persistParams(instanceId, next);
     };
 
     return (
@@ -237,18 +263,20 @@ function FredBlockContent({ instanceId }: { instanceId: string }) {
 }
 
 function BlsBlockContent({ instanceId }: { instanceId: string }) {
+    const persistParams = useBlockStore(s => s.setParams);
     const currentYear = new Date().getFullYear();
     const defaultStart = String(currentYear - 5);
     const defaultEnd = String(currentYear);
+    const initial = storedParams(instanceId);
     const [draft, setDraft] = useState({
-        seriesId: 'LNS14000000',
-        startYear: defaultStart,
-        endYear: defaultEnd
+        seriesId: typeof initial?.seriesId === 'string' ? initial.seriesId : 'LNS14000000',
+        startYear: typeof initial?.startYear === 'string' ? initial.startYear : defaultStart,
+        endYear: typeof initial?.endYear === 'string' ? initial.endYear : defaultEnd
     });
     const [params, setParams] = useState({
-        seriesId: 'LNS14000000',
-        startYear: defaultStart,
-        endYear: defaultEnd
+        seriesId: typeof initial?.seriesId === 'string' ? initial.seriesId : 'LNS14000000',
+        startYear: typeof initial?.startYear === 'string' ? initial.startYear : defaultStart,
+        endYear: typeof initial?.endYear === 'string' ? initial.endYear : defaultEnd
     });
     const { items, metrics, status, lastUpdated, refresh, error } = useBlsBlock(instanceId, params);
 
@@ -264,7 +292,9 @@ function BlsBlockContent({ instanceId }: { instanceId: string }) {
         const startYear = normalizeYear(draft.startYear, defaultStart);
         const endYear = normalizeYear(draft.endYear, defaultEnd);
 
-        setParams({ seriesId, startYear, endYear });
+        const next = { seriesId, startYear, endYear };
+        setParams(next);
+        persistParams(instanceId, next);
     };
 
     return (
@@ -295,16 +325,20 @@ function WorldBankBlockContent({ instanceId }: { instanceId: string }) {
         endYear?: string;
     };
 
+    const persistParams = useBlockStore(s => s.setParams);
+    const initial = storedParams(instanceId);
     const [draft, setDraft] = useState({
-        indicator: 'NY.GDP.MKTP.CD',
-        country: 'USA',
-        startYear: '',
-        endYear: ''
+        indicator: typeof initial?.indicator === 'string' ? initial.indicator : 'NY.GDP.MKTP.CD',
+        country: typeof initial?.country === 'string' ? initial.country : 'USA',
+        startYear: typeof initial?.startYear === 'string' ? initial.startYear : '',
+        endYear: typeof initial?.endYear === 'string' ? initial.endYear : ''
     });
     const [params, setParams] = useState<WorldBankParams>({
-        indicator: 'NY.GDP.MKTP.CD',
-        country: 'USA',
-        per_page: 60
+        indicator: typeof initial?.indicator === 'string' ? initial.indicator : 'NY.GDP.MKTP.CD',
+        country: typeof initial?.country === 'string' ? initial.country : 'USA',
+        per_page: typeof initial?.per_page === 'number' ? initial.per_page : 60,
+        ...(typeof initial?.startYear === 'string' ? { startYear: initial.startYear } : {}),
+        ...(typeof initial?.endYear === 'string' ? { endYear: initial.endYear } : {})
     });
     const { items, metrics, status, lastUpdated, refresh, error } = useWorldBankBlock(instanceId, params);
 
@@ -331,6 +365,11 @@ function WorldBankBlockContent({ instanceId }: { instanceId: string }) {
         if (endYear) nextParams.endYear = endYear;
 
         setParams(nextParams);
+        persistParams(instanceId, {
+            ...nextParams,
+            startYear: startYear || undefined,
+            endYear: endYear || undefined
+        });
     };
 
     return (
