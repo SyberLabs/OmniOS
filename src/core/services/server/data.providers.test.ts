@@ -12,7 +12,7 @@ import {
     KEYED_PROVIDERS
 } from './data.providers';
 
-const ENV_KEYS = ['FRED_API_KEY', 'BLS_API_KEY', 'ALPHA_VANTAGE_API_KEY', 'NEWSAPI_KEY'];
+const ENV_KEYS = ['FRED_API_KEY', 'BLS_API_KEY', 'ALPHA_VANTAGE_API_KEY', 'NEWSAPI_KEY', 'METACULUS_API_KEY'];
 const saved: Record<string, string | undefined> = {};
 
 beforeEach(() => {
@@ -41,8 +41,8 @@ function captureFetch(body: unknown = { ok: true }) {
 }
 
 describe('provider allowlist', () => {
-    it('accepts exactly the four keyed providers', () => {
-        expect(KEYED_PROVIDERS).toEqual(['fred', 'bls', 'alpha_vantage', 'newsapi']);
+    it('accepts exactly the keyed providers', () => {
+        expect(KEYED_PROVIDERS).toEqual(['fred', 'bls', 'alpha_vantage', 'newsapi', 'metaculus']);
     });
 
     it('rejects anything else', () => {
@@ -57,7 +57,8 @@ describe('missing key', () => {
         ['fred', (b: Record<string, unknown>) => String(b.error_message)],
         ['bls', (b: Record<string, unknown>) => String((b.message as string[])[0])],
         ['alpha_vantage', (b: Record<string, unknown>) => String(b['Error Message'])],
-        ['newsapi', (b: Record<string, unknown>) => String(b.message)]
+        ['newsapi', (b: Record<string, unknown>) => String(b.message)],
+        ['metaculus', (b: Record<string, unknown>) => String(b.error)]
     ] as const)('%s returns its own error shape naming the env var', async (id, read) => {
         const { status, body } = await fetchKeyedProvider(id, {});
         // 200: a missing key is a setup state the block renders, not a crash.
@@ -107,6 +108,19 @@ describe('the key reaches the provider, never the caller', () => {
         const headers = calls[0].init?.headers as Record<string, string>;
         expect(headers['X-Api-Key']).toBe('secret-news');
         expect(calls[0].url).toContain('q=markets');
+    });
+
+    it('Metaculus puts the token in the Authorization header, never the URL', async () => {
+        process.env.METACULUS_API_KEY = 'secret-metaculus';
+        const calls = captureFetch({ results: [] });
+
+        await fetchKeyedProvider('metaculus', { limit: '10', search: 'AI' });
+
+        expect(calls[0].url).toContain('metaculus.com/api/posts');
+        expect(calls[0].url).not.toContain('secret-metaculus');
+        expect(calls[0].url).toContain('limit=10');
+        const headers = calls[0].init?.headers as Record<string, string>;
+        expect(headers.Authorization).toBe('Token secret-metaculus');
     });
 
     it('Alpha Vantage passes symbol and function through', async () => {

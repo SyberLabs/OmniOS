@@ -4,6 +4,7 @@ import {
     getShellTemplate,
     validateTemplate,
     validateAllTemplates,
+    keyedProvidersForTemplate,
     type ShellTemplate
 } from './templates';
 import { blockRegistry } from '@/core/registry/BlockRegistry';
@@ -26,6 +27,32 @@ describe('SHELL_TEMPLATES integrity (against the real registry)', () => {
     it('template ids are unique', () => {
         const ids = SHELL_TEMPLATES.map(t => t.id);
         expect(new Set(ids).size).toBe(ids.length);
+    });
+});
+
+describe('keyedProvidersForTemplate — what a shell needs before it spawns', () => {
+    it('the Investor template resolves to zero keyed providers', () => {
+        // The demo must work on a fresh clone with no keys in .env.
+        const investor = getShellTemplate('tmpl_investor')!;
+        expect(keyedProvidersForTemplate(investor)).toEqual([]);
+        expect(investor.blocks.some(b =>
+            ['fred_series', 'bls_series', 'alpha_vantage_quote', 'newsapi_feed', 'metaculus_forecast']
+                .includes(b.blockId)
+        )).toBe(false);
+    });
+
+    it('a template containing a keyed block reports that provider', () => {
+        const investor = getShellTemplate('tmpl_investor')!;
+        const withFred: ShellTemplate = {
+            ...investor,
+            blocks: [
+                ...investor.blocks,
+                { ref: 'fred', blockId: 'fred_series', position: { x: 0, y: 0 } }
+            ]
+        };
+        const keyed = keyedProvidersForTemplate(withFred);
+        expect(keyed.map(p => p.id)).toEqual(['fred']);
+        expect(keyed[0].envVar).toBe('FRED_API_KEY');
     });
 });
 

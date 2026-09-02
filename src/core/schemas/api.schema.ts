@@ -161,6 +161,11 @@ export interface ApiProvider {
      */
     serverKeyed?: boolean;
 
+    /**
+     * process.env name when serverKeyed. Render the NAME, never the value.
+     */
+    envVar?: string;
+
     /** Corresponding block IDs that use this API */
     blockIds?: string[];
 
@@ -240,10 +245,14 @@ export const API_CATALOG: ApiProvider[] = [
         category: 'truth',
         description: 'Forecasting platform with calibrated predictions',
         icon: 'Target',
-        baseUrl: 'https://www.metaculus.com/api2',
+        baseUrl: 'https://www.metaculus.com/api',
         docsUrl: 'https://www.metaculus.com/api/',
         pricing: 'free',
-        requiresAuth: false,
+        requiresAuth: true,
+        authType: 'api_key',
+        serverKeyed: true,
+        envVar: 'METACULUS_API_KEY',
+        blockIds: ['metaculus_forecast'],
         integration: {
             support: 'supported',
             gateway: {
@@ -268,6 +277,7 @@ export const API_CATALOG: ApiProvider[] = [
         requiresAuth: true,
         serverKeyed: true,
         authType: 'api_key',
+        envVar: 'ALPHA_VANTAGE_API_KEY',
         blockIds: ['alpha_vantage_quote'],
         integration: {
             support: 'supported',
@@ -291,6 +301,7 @@ export const API_CATALOG: ApiProvider[] = [
         pricing: 'freemium',
         freeTierLimits: '10-50 calls/min',
         requiresAuth: false,
+        blockIds: ['coingecko_crypto'],
         integration: {
             support: 'supported',
             gateway: {
@@ -314,6 +325,7 @@ export const API_CATALOG: ApiProvider[] = [
         requiresAuth: true,
         serverKeyed: true,
         authType: 'api_key',
+        envVar: 'FRED_API_KEY',
         blockIds: ['fred_series'],
         integration: {
             support: 'supported',
@@ -347,6 +359,7 @@ export const API_CATALOG: ApiProvider[] = [
         requiresAuth: true,
         serverKeyed: true,
         authType: 'api_key',
+        envVar: 'NEWSAPI_KEY',
         blockIds: ['newsapi_feed'],
         integration: {
             support: 'supported',
@@ -369,7 +382,7 @@ export const API_CATALOG: ApiProvider[] = [
         docsUrl: 'https://github.com/HackerNews/API',
         pricing: 'free',
         requiresAuth: false,
-        blockIds: ['openalex_works'],
+        blockIds: ['hackernews_feed'],
         integration: {
             support: 'supported',
             gateway: {
@@ -391,6 +404,7 @@ export const API_CATALOG: ApiProvider[] = [
         docsUrl: 'https://docs.openalex.org/',
         pricing: 'free',
         requiresAuth: false,
+        blockIds: ['openalex_works'],
         integration: {
             support: 'supported',
             gateway: {
@@ -473,6 +487,7 @@ export const API_CATALOG: ApiProvider[] = [
         requiresAuth: true,
         serverKeyed: true,
         authType: 'api_key',
+        envVar: 'BLS_API_KEY',
         blockIds: ['bls_series'],
         integration: {
             support: 'supported',

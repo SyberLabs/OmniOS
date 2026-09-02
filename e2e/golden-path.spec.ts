@@ -33,6 +33,7 @@ test('golden path: spawn Investor → live wires → Think streams → persists'
     // 1 · Open the Shell Manager and spawn the Investor shell from the Store.
     await page.getByTitle('Shell Manager').click();
     await page.getByRole('button', { name: 'Use this shell' }).click();
+    await expect(page.getByText('Shell Store')).toBeHidden();
 
     // 2 · Blocks render on the canvas (data cluster + personas).
     await expect(page.getByText('Analyst').first()).toBeVisible();
@@ -41,7 +42,7 @@ test('golden path: spawn Investor → live wires → Think streams → persists'
     // 3 · Wires are LIVE — drawn from the single wire system (A1 regression:
     //     template pre-wiring used to be invisible and inert).
     await expect(page.getByTestId('wire').first()).toBeVisible();
-    expect(await page.getByTestId('wire').count()).toBeGreaterThanOrEqual(11);
+    expect(await page.getByTestId('wire').count()).toBeGreaterThanOrEqual(5);
 
     // 4 · Think — the persona streams a (mock) LLM response grounded in the
     //     wired context. This exercises ping → stream → token-render.

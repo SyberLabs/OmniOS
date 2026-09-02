@@ -102,32 +102,21 @@ export const metaculusNormalizer: ApiTypeDefinition<MetaculusResponse> = {
 
         debug('[Metaculus] 🎯 Starting fetch...', { limit, search });
 
+        const query = new URLSearchParams({
+            provider: 'metaculus',
+            limit: String(limit)
+        });
+        if (search) query.set('search', search);
+
         try {
-            let proxyUrl = `/api/metaculus?limit=${limit}`;
-            if (search) proxyUrl += `&search=${encodeURIComponent(search)}`;
-
-            debug('[Metaculus] 📡 Using local proxy:', proxyUrl);
-
-            const response = await fetch(proxyUrl);
-
-            if (response.ok) {
-                const data = await response.json();
-                debug('[Metaculus] ✅ Proxy succeeded:', {
-                    resultCount: data.results?.length || 0
-                });
-                return data;
-            }
-
-            // Non-OK is an expected, recoverable upstream condition (Metaculus
-            // currently 403s unauthenticated traffic). Return a clean error for
-            // the normalizer to surface as block state — no thrown/logged noise.
-            const message = response.status === 403
-                ? 'Metaculus is not accepting requests right now (403).'
-                : `Metaculus request failed (${response.status}).`;
-            debug('[Metaculus] ⚠️ Proxy returned status:', response.status);
-            return { error: message };
+            const response = await fetch(`/api/data?${query.toString()}`);
+            const data = await response.json();
+            debug('[Metaculus] ✅ Proxy returned:', {
+                resultCount: data.results?.length || 0,
+                hasError: !!data.error
+            });
+            return data;
         } catch (error) {
-            // Only genuinely unexpected failures (network/parse) land here.
             debug('[Metaculus] ⚠️ Fetch failed:', error);
             return { error: error instanceof Error ? error.message : 'Unknown error' };
         }

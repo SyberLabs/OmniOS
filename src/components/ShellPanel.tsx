@@ -9,7 +9,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useShellStore, useBlockStore } from '@/core/stores';
 import { ShellConfig } from '@/core/schemas/shell.schema';
-import { SHELL_TEMPLATES, type ShellTemplate } from '@/core/shells/templates';
+import { SHELL_TEMPLATES, keyedProvidersForTemplate, type ShellTemplate } from '@/core/shells/templates';
 
 interface ShellPanelProps {
     isOpen: boolean;
@@ -198,6 +198,9 @@ export function ShellPanel({ isOpen, onClose }: ShellPanelProps) {
                                                 <p className="text-xs text-[var(--text-muted)] mb-2 leading-relaxed">
                                                     {template.description}
                                                 </p>
+                                                <p className="text-[10px] text-[var(--text-muted)] mb-2">
+                                                    {keyedProvidersLine(template)}
+                                                </p>
                                                 <div className="flex items-center justify-between gap-2">
                                                     <div className="flex flex-wrap gap-1">
                                                         {template.tags.map(tag => (
@@ -330,6 +333,13 @@ export function ShellPanel({ isOpen, onClose }: ShellPanelProps) {
             )}
         </AnimatePresence>
     );
+}
+
+function keyedProvidersLine(template: ShellTemplate): string {
+    const keyed = keyedProvidersForTemplate(template);
+    if (keyed.length === 0) return 'Works without API keys';
+    const names = keyed.map(p => p.envVar).filter((name): name is string => Boolean(name));
+    return `Needs ${names.join(', ')}`;
 }
 
 // ============================================

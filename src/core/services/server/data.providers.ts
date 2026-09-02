@@ -1,7 +1,7 @@
 // ============================================
 // PROJECT OMNI: KEYED DATA PROVIDERS (server-only)
 //
-// The four providers that need an API key. Their keys are read from
+// The providers that need an API key. Their keys are read from
 // process.env here and never reach the browser — the same posture the LLM
 // path has always had, finally applied to the data path.
 //
@@ -17,9 +17,9 @@
 
 import 'server-only';
 
-export type KeyedProviderId = 'fred' | 'bls' | 'alpha_vantage' | 'newsapi';
+export type KeyedProviderId = 'fred' | 'bls' | 'alpha_vantage' | 'newsapi' | 'metaculus';
 
-export const KEYED_PROVIDERS: KeyedProviderId[] = ['fred', 'bls', 'alpha_vantage', 'newsapi'];
+export const KEYED_PROVIDERS: KeyedProviderId[] = ['fred', 'bls', 'alpha_vantage', 'newsapi', 'metaculus'];
 
 export function isKeyedProvider(id: string): id is KeyedProviderId {
     return (KEYED_PROVIDERS as string[]).includes(id);
@@ -137,6 +137,26 @@ const PROVIDERS: Record<KeyedProviderId, ProviderDef> = {
             // NewsAPI accepts the key as a header, which keeps it out of the
             // URL and therefore out of any upstream access log we don't own.
             return { url: url.toString(), init: { headers: { 'X-Api-Key': key } } };
+        }
+    },
+
+    metaculus: {
+        env: 'METACULUS_API_KEY',
+        // normalizeFn reads `raw.error` — keep that shape so the client
+        // path does not need a second missing-key branch.
+        missingKey: () => ({
+            error: 'Metaculus requires an API key. Set METACULUS_API_KEY in .env.'
+        }),
+        buildRequest: (params, key) => {
+            const url = new URL('https://www.metaculus.com/api/posts/');
+            url.searchParams.set('limit', str(params, 'limit') ?? '20');
+            const search = str(params, 'search');
+            if (search) url.searchParams.set('search', search);
+            // Documented scheme: `Authorization: Token <token>`. Never the query string.
+            return {
+                url: url.toString(),
+                init: { headers: { Authorization: `Token ${key}` } }
+            };
         }
     }
 };

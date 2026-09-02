@@ -18,6 +18,7 @@ describe('ShellPanel — Shell Store wiring (real stores)', () => {
         expect(screen.getByText('Shell Store')).toBeTruthy();
         expect(screen.getByText('Investor Shell')).toBeTruthy();
         expect(screen.getByRole('button', { name: 'Use this shell' })).toBeTruthy();
+        expect(screen.getByText('Works without API keys')).toBeTruthy();
     });
 
     it('"Use this shell" spawns a fully wired shell and closes the panel', () => {
