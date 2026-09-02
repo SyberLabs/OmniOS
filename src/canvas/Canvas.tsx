@@ -21,6 +21,7 @@ import { blockRegistry } from '@/core/registry/BlockRegistry';
 import { WireRenderer } from './WireRenderer';
 import { snapToGrid, cn } from '@/lib/utils';
 import { BlockViews } from '@/core/registry/ViewRegistry';
+import { useClientMounted } from '@/core/hooks';
 
 interface CanvasProps {
     hideEmptyState?: boolean;
@@ -35,7 +36,6 @@ export function Canvas({ hideEmptyState = false, shellId, onBrowseShells }: Canv
         addBlock,
         updatePosition,
         removeBlock,
-        getBlocksByShell,
         activeShellId,
         setActiveShell
     } = useBlockStore();
@@ -44,11 +44,7 @@ export function Canvas({ hideEmptyState = false, shellId, onBrowseShells }: Canv
     const [activeDragId, setActiveDragId] = useState<string | null>(null);
     const [dragDelta, setDragDelta] = useState<{ x: number; y: number } | null>(null);
 
-    // Hydration fix: only render dynamic content after mount
-    const [hasMounted, setHasMounted] = useState(false);
-    useEffect(() => {
-        setHasMounted(true);
-    }, []);
+    const hasMounted = useClientMounted();
 
     // Use shellId prop or fallback to active shell
     const currentShell = shellId || activeShellId;
@@ -56,8 +52,8 @@ export function Canvas({ hideEmptyState = false, shellId, onBrowseShells }: Canv
     // Filter blocks by shell (only after mount to avoid hydration mismatch).
     // Wires are rendered by WireRenderer straight from the wire store.
     const shellBlocks = useMemo(
-        () => hasMounted ? getBlocksByShell(currentShell) : [],
-        [blocks, currentShell, getBlocksByShell, hasMounted]
+        () => hasMounted ? blocks.filter(b => b.shellId === currentShell) : [],
+        [hasMounted, blocks, currentShell]
     );
 
     // Set active shell when shellId prop changes
@@ -334,7 +330,7 @@ function DraggableBlock({ id, isDragging, isSelected, onSelect, onClose }: Dragg
             window.removeEventListener('mousemove', handleMouseMove);
             window.removeEventListener('mouseup', handleMouseUp);
         };
-    }, [isResizing, resizeStart, block, id, updateDimensions]);
+    }, [isResizing, resizeStart, block, id, updateDimensions, updatePosition]);
 
     if (!block) return null;
 

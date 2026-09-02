@@ -18,8 +18,19 @@ import { Brain, Check, RefreshCw } from 'lucide-react';
 import { useMindStore } from '@/core/stores/mindStore';
 import type { LLMProvider } from '@/core/schemas/mind.schema';
 import { cn } from '@/lib/utils';
+import { useClientMounted } from '@/core/hooks';
 
 type PillStatus = 'checking' | 'available' | 'unavailable';
+
+async function pingLlm(provider: LLMProvider, baseUrl?: string): Promise<boolean> {
+    const res = await fetch('/api/llm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: 'ping', provider, baseUrl })
+    });
+    const data = res.ok ? await res.json() : { available: false };
+    return data.available === true;
+}
 
 const PROVIDERS: { id: LLMProvider; label: string; hint: string }[] = [
     { id: 'local', label: 'Local', hint: 'Ollama on localhost:11434 — no key, nothing leaves the machine' },
@@ -33,35 +44,36 @@ export function LlmStatusPill() {
     const [status, setStatus] = useState<PillStatus>('checking');
     const [open, setOpen] = useState(false);
     const wrapRef = useRef<HTMLDivElement>(null);
-
-    // Persisted-store reads differ between server and client on first paint;
-    // render nothing until mounted (same pattern as the rest of the TopBar).
-    const [hasMounted, setHasMounted] = useState(false);
-    useEffect(() => { setHasMounted(true); }, []);
+    const hasMounted = useClientMounted();
 
     const ping = useCallback(async () => {
         setStatus('checking');
         try {
-            const res = await fetch('/api/llm', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    mode: 'ping',
-                    provider: llmConfig.provider,
-                    baseUrl: llmConfig.baseUrl
-                })
-            });
-            const data = res.ok ? await res.json() : { available: false };
-            setStatus(data.available === true ? 'available' : 'unavailable');
+            setStatus(await pingLlm(llmConfig.provider, llmConfig.baseUrl) ? 'available' : 'unavailable');
         } catch {
             setStatus('unavailable');
         }
     }, [llmConfig.provider, llmConfig.baseUrl]);
 
-    // Re-pings whenever the provider changes, so switching shows its own result.
+    const pingKey = `${llmConfig.provider}|${llmConfig.baseUrl ?? ''}`;
+    const [activePingKey, setActivePingKey] = useState(pingKey);
+    if (hasMounted && pingKey !== activePingKey) {
+        setActivePingKey(pingKey);
+        setStatus('checking');
+    }
+
     useEffect(() => {
-        if (hasMounted) void ping();
-    }, [hasMounted, ping]);
+        if (!hasMounted) return;
+        let cancelled = false;
+        pingLlm(llmConfig.provider, llmConfig.baseUrl)
+            .then((ok) => {
+                if (!cancelled) setStatus(ok ? 'available' : 'unavailable');
+            })
+            .catch(() => {
+                if (!cancelled) setStatus('unavailable');
+            });
+        return () => { cancelled = true; };
+    }, [hasMounted, llmConfig.provider, llmConfig.baseUrl]);
 
     useEffect(() => {
         if (!open) return;

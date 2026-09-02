@@ -5,7 +5,7 @@
 // Markdown notes with preview toggle
 // ============================================
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { useBlockStore } from '@/core/stores';
 import { Eye, Edit3, Save } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -23,17 +23,15 @@ export function TextBlockView({ instanceId }: TextBlockViewProps) {
     const block = useBlockStore(state => state.blocks.find(b => b.instance_id === instanceId));
     const updateData = useBlockStore(state => state.updateData);
 
+    const storedContent = (block?.data as TextBlockData | undefined)?.content ?? '';
     const [isPreview, setIsPreview] = useState(false);
-    const [content, setContent] = useState('');
+    const [content, setContent] = useState(storedContent);
     const [hasUnsaved, setHasUnsaved] = useState(false);
-
-    // Initialize content from block data
-    useEffect(() => {
-        if (block?.data) {
-            const data = block.data as TextBlockData;
-            setContent(data.content || '');
-        }
-    }, [block?.data]);
+    const [seenStored, setSeenStored] = useState(storedContent);
+    if (storedContent !== seenStored) {
+        setSeenStored(storedContent);
+        if (!hasUnsaved) setContent(storedContent);
+    }
 
     const handleSave = useCallback(() => {
         updateData(instanceId, {

@@ -5,7 +5,7 @@
 // Image, video, and PDF gallery with local upload
 // ============================================
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useMemo } from 'react';
 import { useBlockStore } from '@/core/stores';
 import { Plus, X, Image as ImageIcon, Film, ExternalLink, Upload, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -43,23 +43,17 @@ export function MediaBlockView({ instanceId }: MediaBlockViewProps) {
     const block = useBlockStore(state => state.blocks.find(b => b.instance_id === instanceId));
     const updateData = useBlockStore(state => state.updateData);
 
-    const [items, setItems] = useState<MediaItem[]>([]);
+    const items = useMemo(
+        () => (block?.data as MediaBlockData | undefined)?.items ?? [],
+        [block?.data]
+    );
     const [showAddUrl, setShowAddUrl] = useState(false);
     const [urlInput, setUrlInput] = useState('');
     const [selectedItem, setSelectedItem] = useState<MediaItem | null>(null);
     const [isDragging, setIsDragging] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // Initialize items from block data
-    useEffect(() => {
-        if (block?.data) {
-            const data = block.data as MediaBlockData;
-            setItems(data.items || []);
-        }
-    }, [block?.data]);
-
     const saveItems = useCallback((newItems: MediaItem[]) => {
-        setItems(newItems);
         updateData(instanceId, {
             items: newItems,
             lastUpdated: Date.now()

@@ -5,7 +5,6 @@
 // Clean separation: Logo | Tools | Command | Status | Settings
 // ============================================
 
-import { useState, useEffect } from 'react';
 import {
     Command,
     Palette,
@@ -24,6 +23,7 @@ import { useShellStore, useSettingsStore, useUIStore, useToolStore } from '@/cor
 import { useApiStore } from '@/core/stores/apiStore';
 import { LlmStatusPill } from './LlmStatusPill';
 import { cn } from '@/lib/utils';
+import { useClientMounted } from '@/core/hooks';
 
 export function TopBar({
     onOpenSkin,
@@ -48,10 +48,7 @@ export function TopBar({
     const { activeTool, setTool } = useToolStore();
     const { installedApis } = useApiStore();
 
-    // Persisted-store reads (e.g. the active shell) differ between server and
-    // client on first paint; gate them behind mount to avoid hydration mismatch.
-    const [hasMounted, setHasMounted] = useState(false);
-    useEffect(() => { setHasMounted(true); }, []);
+    const hasMounted = useClientMounted();
 
     const activeShell = hasMounted ? getActiveShell() : undefined;
     const isHome = pathname === '/';

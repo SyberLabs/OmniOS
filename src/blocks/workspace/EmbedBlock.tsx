@@ -5,7 +5,7 @@
 // External web content iframe
 // ============================================
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { useBlockStore } from '@/core/stores';
 import { Globe, RefreshCw, ExternalLink, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -23,19 +23,17 @@ export function EmbedBlockView({ instanceId }: EmbedBlockViewProps) {
     const block = useBlockStore(state => state.blocks.find(b => b.instance_id === instanceId));
     const updateData = useBlockStore(state => state.updateData);
 
-    const [url, setUrl] = useState('');
-    const [inputUrl, setInputUrl] = useState('');
+    const storedUrl = (block?.data as EmbedBlockData | undefined)?.url ?? '';
+    const [url, setUrl] = useState(storedUrl);
+    const [inputUrl, setInputUrl] = useState(storedUrl);
+    const [seenUrl, setSeenUrl] = useState(storedUrl);
+    if (storedUrl !== seenUrl) {
+        setSeenUrl(storedUrl);
+        setUrl(storedUrl);
+        setInputUrl(storedUrl);
+    }
     const [isLoading, setIsLoading] = useState(false);
     const [hasError, setHasError] = useState(false);
-
-    // Initialize URL from block data
-    useEffect(() => {
-        if (block?.data) {
-            const data = block.data as EmbedBlockData;
-            setUrl(data.url || '');
-            setInputUrl(data.url || '');
-        }
-    }, [block?.data]);
 
     const handleLoadUrl = useCallback(() => {
         if (!inputUrl.trim()) return;

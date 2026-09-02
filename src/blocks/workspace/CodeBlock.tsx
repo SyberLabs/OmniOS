@@ -5,7 +5,7 @@
 // Syntax-highlighted code display
 // ============================================
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useBlockStore } from '@/core/stores';
 import { Copy, Check, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -39,27 +39,17 @@ export function CodeBlockView({ instanceId }: CodeBlockViewProps) {
     const block = useBlockStore(state => state.blocks.find(b => b.instance_id === instanceId));
     const updateData = useBlockStore(state => state.updateData);
 
-    const [content, setContent] = useState('');
-    const [language, setLanguage] = useState('javascript');
+    const stored = block?.data as CodeBlockData | undefined;
+    const content = stored?.content ?? '';
+    const language = stored?.language ?? 'javascript';
     const [copied, setCopied] = useState(false);
     const [showLangPicker, setShowLangPicker] = useState(false);
 
-    // Initialize content from block data
-    useEffect(() => {
-        if (block?.data) {
-            const data = block.data as CodeBlockData;
-            setContent(data.content || '');
-            setLanguage(data.language || 'javascript');
-        }
-    }, [block?.data]);
-
     const handleContentChange = (value: string) => {
-        setContent(value);
         persistCode(instanceId, value, language, updateData);
     };
 
     const handleLanguageChange = (lang: string) => {
-        setLanguage(lang);
         setShowLangPicker(false);
         persistCode(instanceId, content, lang, updateData);
     };
