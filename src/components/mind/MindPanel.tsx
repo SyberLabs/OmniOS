@@ -537,7 +537,7 @@ function GraphView({ graph }: GraphViewProps) {
                 </div>
                 <div className="graph-stat">
                     <span className="stat-value">
-                        {graph.lastUpdated ? new Date(graph.lastUpdated).toLocaleTimeString() : '—'}
+                        {graph.lastUpdated ? new Date(graph.lastUpdated).toLocaleTimeString() : ': '}
                     </span>
                     <span className="stat-label">Last Update</span>
                 </div>
@@ -605,7 +605,7 @@ function SettingsView({ llmConfig, onProviderChange }: SettingsViewProps) {
                 </div>
             </section>
 
-            {/* API Key — configured server-side via environment variables.
+            {/* API Key: configured server-side via environment variables.
                 Keys are never entered or stored in the browser. */}
             {needsApiKey && (
                 <section className="settings-section">

@@ -19,7 +19,7 @@ function seed(id: string, data: unknown) {
     useBlockStore.setState({ blocks: [block], activeShellId: 'root' });
 }
 
-describe('extractBlockData — includes the signal, not just titles', () => {
+describe('extractBlockData: includes the signal, not just titles', () => {
     beforeEach(() => useBlockStore.setState({ blocks: [], activeShellId: 'root' }));
 
     it('formats PolymarketMarket[] with probabilities and volume (the live-bug regression)', () => {

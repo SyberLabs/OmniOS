@@ -1,5 +1,5 @@
 // ============================================
-// CASCADE + CRYSTALLIZE — the loop closing.
+// CASCADE + CRYSTALLIZE: the loop closing.
 //
 // Cascade resolves which minds run and in what order. Crystallize turns an
 // answer back into wired memory. Between them they close the product's loop:
@@ -101,7 +101,7 @@ describe('planCascade', () => {
         expect(new Set(order).size).toBe(order.length);
     });
 
-    it('ignores data blocks — they are fetched, not run', () => {
+    it('ignores data blocks: they are fetched, not run', () => {
         useBlockStore.setState({
             blocks: [dataBlock('fred'), persona('p1')],
             activeShellId: 'root'

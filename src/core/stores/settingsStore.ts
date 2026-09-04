@@ -1,7 +1,7 @@
 // ============================================
 // PROJECT OMNI: SETTINGS STORE
 // User preferences. Stays on localStorage: small, synchronous, and holds
-// nothing sensitive — provider keys are server-side.
+// nothing sensitive: provider keys are server-side.
 // ============================================
 
 import { create } from 'zustand';

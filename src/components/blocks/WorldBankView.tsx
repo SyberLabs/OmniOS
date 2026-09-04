@@ -175,13 +175,13 @@ function SeriesRow({ item }: { item: OmniItem }) {
 
 function formatValue(value: unknown): string {
     if (typeof value === 'number') {
-        return Number.isFinite(value) ? value.toLocaleString(undefined, { maximumFractionDigits: 4 }) : '—';
+        return Number.isFinite(value) ? value.toLocaleString(undefined, { maximumFractionDigits: 4 }) : ': ';
     }
     const parsed = Number(value);
     if (!Number.isNaN(parsed) && value !== '' && value !== null && value !== undefined) {
         return parsed.toLocaleString(undefined, { maximumFractionDigits: 4 });
     }
-    if (value === null || value === undefined || value === '') return '—';
+    if (value === null || value === undefined || value === '') return ': ';
     return String(value);
 }
 

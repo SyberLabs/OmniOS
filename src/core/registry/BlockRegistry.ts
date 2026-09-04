@@ -427,7 +427,7 @@ blockRegistry.register({
 // ============================================
 // MEMORY BLOCKS
 // A Mind pool made spatial. Wire one into a persona to give it recollection
-// the same way you give it data — visibly, and cuttably.
+// the same way you give it data: visibly, and cuttably.
 // ============================================
 
 blockRegistry.register({

@@ -2,7 +2,7 @@ import { defineConfig, devices } from '@playwright/test';
 
 /**
  * Golden-path e2e (apex A3). Runs against the production build (`next start`)
- * with OMNI_E2E=1 so /api/llm serves a deterministic mock — the full client
+ * with OMNI_E2E=1 so /api/llm serves a deterministic mock: the full client
  * pipeline (spawn shell → wires → Think → streaming render) is exercised
  * without a real LLM provider or external keys.
  *

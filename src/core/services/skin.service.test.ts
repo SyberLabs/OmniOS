@@ -1,5 +1,5 @@
 // ============================================
-// SKIN SERVICE — LLM JSON in, CSS variables out.
+// SKIN SERVICE: LLM JSON in, CSS variables out.
 //
 // A theme prompt must not become arbitrary CSS. Only known colour tokens
 // with colour-shaped values are applied.

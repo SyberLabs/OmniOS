@@ -1,5 +1,5 @@
 // ============================================
-// PROJECT OMNI: OMNIVAULT — STORAGE ADAPTER (apex A2)
+// PROJECT OMNI: OMNIVAULT: STORAGE ADAPTER (apex A2)
 // IndexedDB-backed async StateStorage for zustand persist. Breaks the
 // localStorage ceiling (~5MB, synchronous, easily wiped) for the core canvas
 // stores; the Garden's longitudinal history (apex C1) lands here later.
@@ -7,7 +7,7 @@
 // Key properties:
 // - Drop-in behind createJSONStorage: stores keep their name/version/migrate.
 // - LAZY LEGACY MIGRATION: on a read miss, the same key is pulled from
-//   localStorage (the pre-vault home) and copied into the vault — existing
+//   localStorage (the pre-vault home) and copied into the vault: existing
 //   users lose nothing, with no migration orchestration step. The original
 //   localStorage copy is left in place for one release as a fallback.
 // - SSR/node-safe: every method no-ops when IndexedDB is unavailable
@@ -50,14 +50,14 @@ export async function __resetVaultConnection(): Promise<void> {
         try {
             (await dbPromise).close();
         } catch {
-            // Already closed/broken — fine.
+            // Already closed/broken: fine.
         }
     }
     dbPromise = null;
 }
 
 /**
- * The OmniVault StateStorage. Async — zustand persist hydrates the store
+ * The OmniVault StateStorage. Async: zustand persist hydrates the store
  * after mount; consumers already tolerate late-arriving state via the
  * hasMounted pattern, and the golden-path e2e guards reload persistence.
  */

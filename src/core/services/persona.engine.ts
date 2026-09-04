@@ -2,7 +2,7 @@
 // PROJECT OMNI: PERSONA ENGINE
 // The real "Think over wired data" loop for persona BLOCKS.
 // Connects aggregateWireContext (the data half) to getLLMService (the LLM half)
-// — replacing the former setTimeout placeholder in PersonaBlock.
+//: replacing the former setTimeout placeholder in PersonaBlock.
 // Shared by both chat (handleSendMessage) and autonomous Think (handleThink).
 // ============================================
 
@@ -26,7 +26,7 @@ const MAX_TOKENS = 2048;
 export function buildPersonaSystemPrompt(personaType: PersonaType, customName?: string): string {
     const cfg = PERSONA_CONFIGS[personaType];
     const name = customName || cfg.name;
-    return `You are ${name} ${cfg.avatar}, an AI persona within "The Citadel" — a spatial command center for truth-seeking and strategic intelligence.
+    return `You are ${name} ${cfg.avatar}, an AI persona within "The Citadel": a spatial command center for truth-seeking and strategic intelligence.
 
 Your focus: ${cfg.description}.
 
@@ -100,7 +100,7 @@ export interface PersonaTurnResult {
     success: boolean;
     content?: string;
     sourceIds: string[];
-    /** What actually fed this turn — record this, not the block's wires. */
+    /** What actually fed this turn: record this, not the block's wires. */
     sources: ContextSource[];
     error?: string;
     /** User halted the stream. Partial `content` is kept. */
@@ -118,7 +118,7 @@ export async function* streamPersonaTurn(
     input.onPrepared?.(sources);
 
     // The Cognition Kernel owns the turn lifecycle (availability, registry
-    // token floor, streaming, fail-closed errors) — apex A4.
+    // token floor, streaming, fail-closed errors): apex A4.
     const turn = runTurnStream(messages, { maxTokens: MAX_TOKENS, signal: input.abortSignal });
     let step = await turn.next();
     while (!step.done) {

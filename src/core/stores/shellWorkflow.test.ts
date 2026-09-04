@@ -7,7 +7,7 @@ import { getShellTemplate, type ShellTemplate } from '../shells/templates';
 
 const investor = getShellTemplate('tmpl_investor') as ShellTemplate;
 
-describe('shell workflow — createShell', () => {
+describe('shell workflow: createShell', () => {
     beforeEach(() => {
         useShellStore.setState({ shells: [], activeShellId: null });
         useBlockStore.setState({ blocks: [], activeShellId: 'root' });
@@ -40,7 +40,7 @@ describe('shell workflow — createShell', () => {
     });
 });
 
-describe('shell workflow — deleteShell', () => {
+describe('shell workflow: deleteShell', () => {
     beforeEach(() => {
         useShellStore.setState({ shells: [], activeShellId: null });
         useBlockStore.setState({ blocks: [], activeShellId: 'root' });
@@ -79,7 +79,7 @@ describe('shell workflow — deleteShell', () => {
     });
 });
 
-describe('shell workflow — wire cleanup (A1 orphan-wire regressions)', () => {
+describe('shell workflow: wire cleanup (A1 orphan-wire regressions)', () => {
     beforeEach(() => {
         useShellStore.setState({ shells: [], activeShellId: null });
         useBlockStore.setState({ blocks: [], activeShellId: 'root' });

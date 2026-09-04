@@ -4,7 +4,7 @@
 // PROJECT OMNI: BLOCK ERROR BOUNDARY (apex A5)
 // Failure isolation: one crashing block view must never take down the
 // canvas. The boundary wraps each block's inner view (inside BlockCard),
-// so the card chrome — drag, delete, wires — stays functional and the
+// so the card chrome (drag, delete, wires) stays functional and the
 // user can retry or remove the crashed block.
 // ============================================
 

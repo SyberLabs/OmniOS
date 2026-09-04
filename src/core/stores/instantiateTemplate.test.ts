@@ -31,7 +31,7 @@ describe('instantiateTemplate', () => {
         expect(useBlockStore.getState().activeShellId).toBe(shellId);
     });
 
-    it('creates real DataWires — the wires RENDER (wireStore) with no dangling refs', () => {
+    it('creates real DataWires: the wires RENDER (wireStore) with no dangling refs', () => {
         // A1 regression: template wiring must land in the single wire system
         // (wireStore), which is what WireRenderer draws and personas consume.
         const shellId = useShellStore.getState().instantiateTemplate(investor)!;
@@ -51,8 +51,8 @@ describe('instantiateTemplate', () => {
         }
     });
 
-    it('template wires FEED personas — data flows into aggregateWireContext', () => {
-        // A1 regression: this is the exact live bug — the Investor shell spawned
+    it('template wires FEED personas: data flows into aggregateWireContext', () => {
+        // A1 regression: this is the exact live bug: the Investor shell spawned
         // with inert wiring, so personas received no context until hand-wired.
         const shellId = useShellStore.getState().instantiateTemplate(investor)!;
         const blocks = useBlockStore.getState().getBlocksByShell(shellId);

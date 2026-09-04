@@ -3,7 +3,7 @@ import { freshStart } from './helpers';
 
 /**
  * The TopBar pill is the provider selector. Switching must update the label
- * and re-ping — it used to look like a selector and only refresh.
+ * and re-ping: it used to look like a selector and only refresh.
  */
 test('provider switch: TopBar pill changes provider and re-pings', async ({ page }) => {
     await freshStart(page);

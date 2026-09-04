@@ -1,7 +1,7 @@
 // ============================================
 // PROJECT OMNI: SHELL STORE
 // A shell is a serialized canvas: blocks + wires + metadata. Every operation
-// here has to move both stores together — saving one without the other is the
+// here has to move both stores together: saving one without the other is the
 // one bug this area has actually shipped.
 // ============================================
 
@@ -106,7 +106,7 @@ export const useShellStore = create<ShellState>()(
             createShell: (name, description) => {
                 const now = Date.now();
 
-                // A new shell starts EMPTY — it is not a copy of the current
+                // A new shell starts EMPTY: it is not a copy of the current
                 // canvas. (To snapshot the current canvas, use "Save Current".)
                 const newShell: ShellConfig = {
                     id: `shell_${now}_${Math.random().toString(36).substr(2, 9)}`,
@@ -127,7 +127,7 @@ export const useShellStore = create<ShellState>()(
                 }));
 
                 // Switch the block store to the new (empty) shell so the canvas
-                // — which follows the active shell — shows a blank workspace.
+                // (which follows the active shell) shows a blank workspace.
                 // Existing shells' blocks are untouched (kept under their own id).
                 useBlockStore.getState().setActiveShell(newShell.id);
 
@@ -357,7 +357,7 @@ export const useShellStore = create<ShellState>()(
 
                 // Remap ref-based template connections to real DataWires (the single
                 // wire system) so they render AND feed personas. Drop any that
-                // reference a missing block (defensive — validateTemplate covers this).
+                // reference a missing block (defensive: validateTemplate covers this).
                 const wires: DataWire[] = template.connections
                     .map((c, i): DataWire | null => {
                         const sourceBlockId = refToInstanceId.get(c.sourceRef);

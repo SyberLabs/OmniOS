@@ -3,7 +3,7 @@ import { runTurn, runTurnStream, unavailableMessage } from './kernel';
 import { useMindStore } from '@/core/stores/mindStore';
 import type { LLMConfig } from '@/core/schemas/mind.schema';
 
-// Mock the LLM service — kernel tests cover the TURN LIFECYCLE, not the network.
+// Mock the LLM service: kernel tests cover the TURN LIFECYCLE, not the network.
 const mockService = {
     isAvailable: vi.fn(),
     complete: vi.fn(),
@@ -31,7 +31,7 @@ beforeEach(() => {
     mockService.stream.mockReset();
 });
 
-describe('runTurn — the one turn lifecycle (apex A4)', () => {
+describe('runTurn: the one turn lifecycle (apex A4)', () => {
     it('returns content + tokens on success', async () => {
         setConfig({});
         mockService.isAvailable.mockResolvedValue(true);
@@ -69,7 +69,7 @@ describe('runTurn — the one turn lifecycle (apex A4)', () => {
         expect(mockService.complete).not.toHaveBeenCalled();
     });
 
-    it('never throws — provider errors land in the result', async () => {
+    it('never throws: provider errors land in the result', async () => {
         setConfig({});
         mockService.isAvailable.mockResolvedValue(true);
         mockService.complete.mockRejectedValue(new Error('upstream 500'));

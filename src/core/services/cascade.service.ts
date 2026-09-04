@@ -1,13 +1,13 @@
 // ============================================
 // PROJECT OMNI: CASCADE
 //
-// "Plural minds" — Analyst feeds Strategist. Wiring persona to persona has
+// "Plural minds": Analyst feeds Strategist. Wiring persona to persona has
 // always been possible; until the source formatter was fixed it delivered
 // noise, and even then nothing triggered the upstream turn, so a downstream
 // persona reasoned over whatever its neighbour last happened to say.
 //
 // This resolves the run order: every persona upstream of the target, in
-// dependency order, then the target itself. It only computes the plan —
+// dependency order, then the target itself. It only computes the plan
 // running a turn belongs to the block that owns the conversation.
 // ============================================
 
@@ -39,8 +39,8 @@ export interface CascadePlan {
  * Resolve the run order for a target persona: a depth-first walk up the
  * persona wires, emitting each block after its own sources.
  *
- * Cycles are possible — nothing stops a user wiring two personas to each
- * other — so a block already being visited is skipped rather than followed.
+ * Cycles are possible: nothing stops a user wiring two personas to each
+ * other, so a block already being visited is skipped rather than followed.
  * The plan stays finite and each persona runs at most once.
  */
 export function planCascade(targetBlockId: string): CascadePlan {
@@ -66,7 +66,7 @@ export function planCascade(targetBlockId: string): CascadePlan {
     return { order, hadCycle };
 }
 
-/** Whether a target has any upstream personas — i.e. whether a chain exists. */
+/** Whether a target has any upstream personas: i.e. whether a chain exists. */
 export function hasUpstreamPersonas(targetBlockId: string): boolean {
     return personaSourcesOf(targetBlockId).length > 0;
 }

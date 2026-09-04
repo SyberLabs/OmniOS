@@ -29,7 +29,7 @@ function renderFred(overrides: {
     );
 }
 
-describe('FredView — fetch states', () => {
+describe('FredView: fetch states', () => {
     it('renders the server error, not Loading', () => {
         renderFred({ error: FRED_SETUP, status: 'error' });
 

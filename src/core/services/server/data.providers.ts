@@ -2,7 +2,7 @@
 // PROJECT OMNI: KEYED DATA PROVIDERS (server-only)
 //
 // The providers that need an API key. Their keys are read from
-// process.env here and never reach the browser — the same posture the LLM
+// process.env here and never reach the browser: the same posture the LLM
 // path has always had, finally applied to the data path.
 //
 // Each provider owns three things:
@@ -142,7 +142,7 @@ const PROVIDERS: Record<KeyedProviderId, ProviderDef> = {
 
     metaculus: {
         env: 'METACULUS_API_KEY',
-        // normalizeFn reads `raw.error` — keep that shape so the client
+        // normalizeFn reads `raw.error`: keep that shape so the client
         // path does not need a second missing-key branch.
         missingKey: () => ({
             error: 'Metaculus requires an API key. Set METACULUS_API_KEY in .env.'
@@ -167,7 +167,7 @@ export interface ProxyResult {
 }
 
 /**
- * Fetch one keyed provider server-side. Never throws — upstream failures come
+ * Fetch one keyed provider server-side. Never throws: upstream failures come
  * back as the provider's own error shape so the client normalizer is unchanged.
  */
 export async function fetchKeyedProvider(

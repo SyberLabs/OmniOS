@@ -23,7 +23,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # Blocking gates — these protect the green build (Phase 1) and the
+      # Blocking gates: these protect the green build (Phase 1) and the
       # test suite (Phase 4).
       - name: Typecheck
         run: npm run typecheck
@@ -40,7 +40,7 @@ jobs:
       - name: Build
         run: npm run build
 
-      # Golden-path e2e (apex A3): drives the real built app — spawn Investor
+      # Golden-path e2e (apex A3): drives the real built app: spawn Investor
       # shell → blocks render → wires live → mock-LLM Think streams → persists
       # across reload. The LLM is the OMNI_E2E server double (no keys needed).
       # This guards the UI wiring layer where unit tests can't see.

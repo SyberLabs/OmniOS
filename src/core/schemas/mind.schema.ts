@@ -34,7 +34,7 @@ import { DEFAULT_MODEL } from '../models.registry';
 
 /**
  * Default configurations for each provider.
- * Model ids come from the model registry (single source of truth — see
+ * Model ids come from the model registry (single source of truth: see
  * src/core/models.registry.ts, apex A5).
  */
 export const LLM_DEFAULTS: Record<LLMProvider, LLMConfig> = {
@@ -303,7 +303,7 @@ export interface ContextEntry {
 // A Mind pool as an object on the canvas. Before this existed, pools reached
 // personas through hidden per-persona toggles: real context with no spatial
 // representation, which the product's own thesis forbids. Now a pool is wired
-// in like any other source — visible, inspectable, and cuttable.
+// in like any other source: visible, inspectable, and cuttable.
 // ============================================
 
 export interface MemoryBlockData {

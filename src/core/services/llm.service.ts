@@ -1,7 +1,7 @@
 // ============================================
 // PROJECT OMNI: LLM SERVICE (client)
 // Thin client that proxies all LLM calls through the server-side /api/llm
-// route. No provider API keys ever live in the browser — they are read from
+// route. No provider API keys ever live in the browser: they are read from
 // process.env on the server. See IMPLEMENTATION_PLAN.md (Phase 3).
 // ============================================
 
@@ -55,7 +55,7 @@ export class LLMService {
 
     /**
      * Lightweight availability probe. Uses the route's `mode: 'ping'` which
-     * checks key presence for cloud providers and pings Ollama for local —
+     * checks key presence for cloud providers and pings Ollama for local
      * WITHOUT running a real completion. Returns the server's `available` flag.
      */
     async isAvailable(): Promise<boolean> {

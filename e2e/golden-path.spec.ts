@@ -39,22 +39,22 @@ test('golden path: spawn Investor → live wires → Think streams → persists'
     await expect(page.getByText('Analyst').first()).toBeVisible();
     await expect(page.getByText('Strategist').first()).toBeVisible();
 
-    // 3 · Wires are LIVE — drawn from the single wire system (A1 regression:
+    // 3 · Wires are LIVE: drawn from the single wire system (A1 regression:
     //     template pre-wiring used to be invisible and inert).
     await expect(page.getByTestId('wire').first()).toBeVisible();
     expect(await page.getByTestId('wire').count()).toBeGreaterThanOrEqual(5);
 
-    // 4 · Think — the persona streams a (mock) LLM response grounded in the
+    // 4 · Think: the persona streams a (mock) LLM response grounded in the
     //     wired context. This exercises ping → stream → token-render.
     await page.getByTitle('Think').first().click();
     await expect(page.getByText('E2E MOCK RESPONSE')).toBeVisible({ timeout: 20_000 });
     // Wait for the stream to COMPLETE (final words rendered, Think re-enabled)
-    // before reloading — reloading mid-stream aborts the fetch and the draft
+    // before reloading: reloading mid-stream aborts the fetch and the draft
     // is replaced with an error message (defensible app behavior; a test race).
     await expect(page.getByText(/grounded analysis of the wired data\./)).toBeVisible({ timeout: 10_000 });
     await expect(page.getByTitle('Think').first()).toBeEnabled();
 
-    // 5 · Persistence — reload and the spawned shell (blocks + wires + the
+    // 5 · Persistence: reload and the spawned shell (blocks + wires + the
     //     conversation) survives via the persisted stores.
     await page.reload();
     await expect(page.getByText('Analyst').first()).toBeVisible();

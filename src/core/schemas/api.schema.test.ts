@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { API_CATALOG } from './api.schema';
 import { blockRegistry } from '@/core/registry/BlockRegistry';
 
-describe('catalog blockIds — the map shells use to know what they need', () => {
+describe('catalog blockIds: the map shells use to know what they need', () => {
     it('every registered truth block maps to exactly one provider', () => {
         for (const block of blockRegistry.getByCategory('truth')) {
             const owners = API_CATALOG.filter(p => p.blockIds?.includes(block.block_id));

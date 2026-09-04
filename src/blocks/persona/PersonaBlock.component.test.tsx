@@ -10,7 +10,7 @@ import type { DataWire } from '@/core/schemas/wire.schema';
 import type { BlockInstance } from '@/core/schemas/block.schema';
 import type { PersonaTurnResult } from '@/core/services/persona.engine';
 
-// Mock the persona engine — these tests cover the UI WIRING layer (the layer
+// Mock the persona engine: these tests cover the UI WIRING layer (the layer
 // where the fake-handler bug lived), not the LLM round-trip itself.
 vi.mock('@/core/services/persona.engine', () => ({
     streamPersonaTurn: vi.fn()
@@ -44,7 +44,7 @@ function mockStream(chunks: string[], result: PersonaTurnResult) {
     });
 }
 
-describe('PersonaBlockView — UI wiring', () => {
+describe('PersonaBlockView: UI wiring', () => {
     beforeEach(() => {
         vi.mocked(streamPersonaTurn).mockReset();
         seedPersonaBlock();
@@ -101,7 +101,7 @@ describe('PersonaBlockView — UI wiring', () => {
             success: false,
             sourceIds: [],
             sources: [],
-            error: 'No LLM available — make sure Ollama is running (localhost:11434).'
+            error: 'No LLM available: make sure Ollama is running (localhost:11434).'
         });
         render(<PersonaBlockView instanceId={PERSONA_ID} />);
 
@@ -112,7 +112,7 @@ describe('PersonaBlockView — UI wiring', () => {
     });
 });
 
-describe('PersonaBlockView — provenance', () => {
+describe('PersonaBlockView: provenance', () => {
     beforeEach(() => {
         seedPersonaBlock();
         useWireStore.setState({ wires: [] });
@@ -153,7 +153,7 @@ describe('PersonaBlockView — provenance', () => {
     });
 
     it('shows recalled memory as a source, distinctly from live data', async () => {
-        // Memory is a wired block now, so it names a thing on the canvas —
+        // Memory is a wired block now, so it names a thing on the canvas
         // but it is styled apart because recollection is not live data.
         mockStream(['from memory'], {
             success: true,
@@ -183,7 +183,7 @@ describe('PersonaBlockView — provenance', () => {
     });
 });
 
-describe('PersonaBlockView — answer rendering', () => {
+describe('PersonaBlockView: answer rendering', () => {
     beforeEach(() => {
         seedPersonaBlock();
         useWireStore.setState({ wires: [] });
@@ -230,7 +230,7 @@ describe('PersonaBlockView — answer rendering', () => {
     });
 });
 
-describe('PersonaBlockView — empty states', () => {
+describe('PersonaBlockView: empty states', () => {
     beforeEach(() => {
         seedPersonaBlock();
         useWireStore.setState({ wires: [] });

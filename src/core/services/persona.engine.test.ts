@@ -43,7 +43,7 @@ describe('buildPersonaSystemPrompt', () => {
     });
 });
 
-describe('preparePersonaTurn — message assembly', () => {
+describe('preparePersonaTurn: message assembly', () => {
     const personaId = 'persona_analyst_1';
 
     beforeEach(() => {
@@ -136,7 +136,7 @@ describe('preparePersonaTurn — message assembly', () => {
     });
 });
 
-describe('streamPersonaTurn — fails closed', () => {
+describe('streamPersonaTurn: fails closed', () => {
     beforeEach(() => {
         useBlockStore.setState({
             blocks: [makeBlock('p', 'persona_analyst', createPersonaBlockData('analyst'))],
@@ -161,7 +161,7 @@ describe('streamPersonaTurn — fails closed', () => {
     });
 });
 
-describe('streamPersonaTurn — onPrepared before first token', () => {
+describe('streamPersonaTurn: onPrepared before first token', () => {
     const originalStream = vi.mocked(runTurnStream).getMockImplementation();
 
     beforeEach(() => {

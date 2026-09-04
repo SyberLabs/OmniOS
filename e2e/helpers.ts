@@ -2,7 +2,7 @@ import { expect, type Page } from '@playwright/test';
 
 /**
  * Wipe both persistence engines and boot from a blank app.
- * IndexedDB must go too — localStorage.clear alone leaves OmniVault data
+ * IndexedDB must go too: localStorage.clear alone leaves OmniVault data
  * that would make later persistence assertions pass vacuously.
  */
 export async function freshStart(page: Page): Promise<void> {

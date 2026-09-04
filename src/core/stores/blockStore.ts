@@ -17,7 +17,7 @@ import { useWireStore } from './wireStore';
 /**
  * omni-blocks persist migrations.
  * v0 → v1: drop the legacy dual-wire `connections` field.
- * v1 → v2: params is optional. Leave it absent — undefined means never configured.
+ * v1 → v2: params is optional. Leave it absent: undefined means never configured.
  * Do not backfill fetch defaults into persisted records.
  */
 export function migrateBlockStore(

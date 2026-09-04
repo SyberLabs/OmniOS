@@ -97,9 +97,9 @@ function parseBody(raw: unknown): { ok: true; body: ParsedBody } | { ok: false; 
 // When the server runs with OMNI_E2E=1 (never set in production), the route
 // answers with deterministic canned output so the golden-path e2e can exercise
 // the full client pipeline (persona block → streaming render) without a real
-// provider. Server-side env var only — clients cannot trigger this.
+// provider. Server-side env var only: clients cannot trigger this.
 // ============================================
-const E2E_RESPONSE = 'E2E MOCK RESPONSE — grounded analysis of the wired data.';
+const E2E_RESPONSE = 'E2E MOCK RESPONSE: grounded analysis of the wired data.';
 
 function e2eDouble(rawObj: Record<string, unknown>): Response {
     if (rawObj.mode === 'ping') {
@@ -137,7 +137,7 @@ export async function POST(request: NextRequest) {
         return e2eDouble(rawObj);
     }
 
-    // Lightweight availability probe (mode: 'ping') — checks key presence for
+    // Lightweight availability probe (mode: 'ping'): checks key presence for
     // cloud providers and actually pings Ollama for local, WITHOUT running a
     // real completion. Always 200 with { available } so the client can branch
     // cleanly instead of misreading a failed generation as "available".

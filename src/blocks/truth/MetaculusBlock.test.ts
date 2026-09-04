@@ -33,7 +33,7 @@ beforeEach(() => {
     });
 });
 
-describe('useMetaculusBlock — lastUpdated is the block\'s, not invented', () => {
+describe('useMetaculusBlock: lastUpdated is the block\'s, not invented', () => {
     it('does not invent a timestamp when the block has never updated', () => {
         // Date.now() during render was a fake "just now" that hid a never-fetched block.
         const { result } = renderHook(() => useMetaculusBlock(ID));

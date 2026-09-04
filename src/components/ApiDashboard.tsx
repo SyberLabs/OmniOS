@@ -500,7 +500,7 @@ function ApiMarketplaceCard({ api, isInstalled, onInstall }: ApiMarketplaceCardP
                         api.pricing === 'paid' && "bg-[var(--citadel-primary)]/20 text-[var(--citadel-primary)]",
                         api.pricing === 'open_source' && "bg-[var(--mind-aqua-surface)]/20 text-[var(--mind-aqua-surface)]"
                     )}>
-                        {api.pricing === 'free' ? 'âœ“ Free' : api.pricing === 'freemium' ? 'â— Freemium' : api.pricing === 'paid' ? '$ Paid' : 'âš¡ Open Source'}
+                        {api.pricing === 'free' ? 'âœ“ Free' : api.pricing === 'freemium' ? 'â:  Freemium' : api.pricing === 'paid' ? '$ Paid' : 'âš¡ Open Source'}
                     </span>
                     <span className={cn(
                         "text-xs px-2 py-0.5 rounded-full",

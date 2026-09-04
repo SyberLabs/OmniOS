@@ -1,7 +1,7 @@
 // ============================================
-// PROJECT OMNI: OMNIVAULT — EXPORT / IMPORT (apex A2)
+// PROJECT OMNI: OMNIVAULT: EXPORT / IMPORT (apex A2)
 // One-click "your data" portability. The export gathers BOTH storage
-// engines — vault (IndexedDB) keys AND legacy `omni-*` localStorage keys —
+// engines: vault (IndexedDB) keys AND legacy `omni-*` localStorage keys
 // so it is complete regardless of which stores have migrated to the vault.
 // Import writes each entry to both engines (harmless, guarantees pickup
 // wherever the owning store currently reads from), then the caller reloads.
@@ -34,7 +34,7 @@ export async function exportVault(): Promise<OmniVaultExport> {
         }
     }
 
-    // …then the vault (migrated stores win when both hold a copy —
+    // …then the vault (migrated stores win when both hold a copy
     // the vault is the live engine for them).
     for (const key of await listVaultKeys()) {
         const value = await getVaultValue(key);

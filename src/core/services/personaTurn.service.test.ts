@@ -1,5 +1,5 @@
 // ============================================
-// PERSONA TURN — the visible read.
+// PERSONA TURN: the visible read.
 //
 // A persona gathering context must light the wires that actually fed it.
 // A connected empty source staying dark is the product teaching the user
@@ -108,12 +108,12 @@ function lastAssistant() {
     return personaData().messages.filter(m => m.role === 'assistant').at(-1);
 }
 
-describe('runPersonaTurn — fail-closed conversation', () => {
+describe('runPersonaTurn: fail-closed conversation', () => {
     it('commits a failure into the conversation as a visible warning', async () => {
         mockStream({
             sources: [],
             chunks: [],
-            result: { success: false, error: 'No LLM available — start Ollama' }
+            result: { success: false, error: 'No LLM available: start Ollama' }
         });
 
         const outcome = await runPersonaTurn(PERSONA);
@@ -121,9 +121,9 @@ describe('runPersonaTurn — fail-closed conversation', () => {
         expect(outcome).toEqual({
             ran: true,
             success: false,
-            error: 'No LLM available — start Ollama'
+            error: 'No LLM available: start Ollama'
         });
-        expect(lastAssistant()?.content).toBe('⚠️ No LLM available — start Ollama');
+        expect(lastAssistant()?.content).toBe('⚠️ No LLM available: start Ollama');
         expect(personaData().isThinking).toBe(false);
     });
 
@@ -150,7 +150,7 @@ describe('runPersonaTurn — fail-closed conversation', () => {
     });
 });
 
-describe('runPersonaTurn — streaming commits', () => {
+describe('runPersonaTurn: streaming commits', () => {
     afterEach(() => {
         vi.restoreAllMocks();
     });
@@ -194,7 +194,7 @@ describe('runPersonaTurn — streaming commits', () => {
     });
 });
 
-describe('runPersonaTurn — provenance is the turn\'s', () => {
+describe('runPersonaTurn: provenance is the turn\'s', () => {
     it('records the turn sources, not every connected wire', async () => {
         mockStream({
             sources: [{ id: 'fred', kind: 'wire', label: 'FRED Series' }],
@@ -217,7 +217,7 @@ describe('runPersonaTurn — provenance is the turn\'s', () => {
     });
 });
 
-describe('runPersonaTurn — reading wires are the contributing ones', () => {
+describe('runPersonaTurn: reading wires are the contributing ones', () => {
     it('puts a contributing wire in readingWireIds and leaves an empty one dark', async () => {
         let during: string[] | undefined;
         mockStream({
@@ -258,7 +258,7 @@ describe('runPersonaTurn — reading wires are the contributing ones', () => {
     });
 });
 
-describe('runPersonaTurn — stop keeps the partial', () => {
+describe('runPersonaTurn: stop keeps the partial', () => {
     it('keeps streamed tokens and marks the message stopped, not failed', async () => {
         vi.mocked(streamPersonaTurn).mockImplementation(async function* (input: PersonaTurnInput) {
             input.onPrepared?.([]);

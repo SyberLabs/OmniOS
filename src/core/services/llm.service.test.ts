@@ -1,8 +1,8 @@
 // ============================================
-// LLM SERVICE — the client proxy contract.
+// LLM SERVICE: the client proxy contract.
 //
 // Every call goes to /api/llm. The browser never holds a provider key, and
-// the JSON body must not grow an apiKey field — that is how a key would
+// the JSON body must not grow an apiKey field, that is how a key would
 // leak into the client bundle's request path.
 // ============================================
 

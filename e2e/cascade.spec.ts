@@ -3,14 +3,14 @@ import { freshStart, spawnInvestor } from './helpers';
 
 /**
  * Investor already wires Analyst → Strategist. Run chain must run both, and
- * the downstream answer must cite the upstream — provenance from the turn,
+ * the downstream answer must cite the upstream: provenance from the turn,
  * not from "there is a wire".
  */
 test('cascade: Run chain answers both personas and the downstream cites the upstream', async ({ page }) => {
     await freshStart(page);
     await spawnInvestor(page);
 
-    await page.getByTitle('Run chain — think upstream personas first, then this one').click();
+    await page.getByTitle('Run chain: think upstream personas first, then this one').click();
 
     await expect(page.getByText('E2E MOCK RESPONSE')).toHaveCount(2, { timeout: 30_000 });
     await expect(page.getByTitle('Think').first()).toBeEnabled();

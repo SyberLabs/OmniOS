@@ -1,7 +1,7 @@
 # OmniOS
 
 A canvas for thinking with AI over live data. Drop **blocks** that pull real
-numbers — prediction markets, economic series, crypto, news, research — wire
+numbers: prediction markets, economic series, crypto, news, research: wire
 them into **personas**, and ask a question that is answered from what the
 wires are actually carrying.
 
@@ -21,7 +21,7 @@ mock data.
 ## The idea
 
 A block is a live view of one source. A wire says *this feeds that*. A persona
-is a mind whose entire context is what its incoming wires carry — so the
+is a mind whose entire context is what its incoming wires carry, so the
 question "what does this thing actually know?" has a literal answer you can
 point at on screen.
 
@@ -62,12 +62,12 @@ CI runs all five on every push and pull request.
 
 ## Not in this repo
 
-- **The agent surface** — keyless local browser automation, `/surface` and
-  `/api/agent` — moved to
+- **The agent surface**: keyless local browser automation, `/surface` and
+  `/api/agent`: moved to
   [SyberLabs/omni-agent](https://github.com/SyberLabs/omni-agent) on
   2026-09-01. It shared no module with the canvas.
-- **The Garden and the life OS** — `/garden`, life-system domains, stability
-  and equilibrium modelling — deleted on 2026-09-01. It was a second product
+- **The Garden and the life OS**: `/garden`, life-system domains, stability
+  and equilibrium modelling: deleted on 2026-09-01. It was a second product
   in the same repo, ~15k lines whose value was gated on history that was
   never built. See `APEX_PLAN.md` §5.
 

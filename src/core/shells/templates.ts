@@ -54,7 +54,7 @@ const INVESTOR_SHELL: ShellTemplate = {
     name: 'Investor Shell',
     description:
         'Prediction markets, crypto, US GDP growth, and tech signals wired into an ' +
-        'Analyst and Strategist — a ready-made environment that works without API keys.',
+        'Analyst and Strategist: a ready-made environment that works without API keys.',
     icon: 'TrendingUp',
     tags: ['finance', 'markets', 'macro'],
     persona: 'analyst',
@@ -90,7 +90,7 @@ const RESEARCHER_SHELL: ShellTemplate = {
     name: 'Researcher Shell',
     description:
         'OpenAlex papers on foundation models, Hacker News, and live prediction markets ' +
-        'wired into a Researcher with Memory — works without API keys.',
+        'wired into a Researcher with Memory: works without API keys.',
     icon: 'BookOpen',
     tags: ['research', 'papers', 'tech'],
     persona: 'researcher',
