@@ -31,7 +31,7 @@ describe('SHELL_TEMPLATES integrity (against the real registry)', () => {
     });
 });
 
-describe('keyedProvidersForTemplate: what a shell needs before it spawns', () => {
+describe('keyedProvidersForTemplate — what a shell needs before it spawns', () => {
     it.each(SHELL_TEMPLATES.map(t => t.id))('%s needs zero keyed providers', (id) => {
         expect(keyedProvidersForTemplate(getShellTemplate(id)!)).toEqual([]);
     });
@@ -51,7 +51,7 @@ describe('keyedProvidersForTemplate: what a shell needs before it spawns', () =>
     });
 });
 
-describe('validateTemplate: catches authoring mistakes', () => {
+describe('validateTemplate — catches authoring mistakes', () => {
     const base: ShellTemplate = {
         id: 'tmpl_test',
         name: 'Test',

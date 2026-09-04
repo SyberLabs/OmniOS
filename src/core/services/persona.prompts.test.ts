@@ -1,5 +1,5 @@
 // ============================================
-// PERSONA PROMPTS: what the Mind panel injects.
+// PERSONA PROMPTS — what the Mind panel injects.
 //
 // Lock the parse, not the prose: SUGGEST_MEMORY must become a typed insight,
 // and a named persona must actually appear in the system prompt.

@@ -79,7 +79,7 @@ export interface DataWire {
  * distinguished because they are different kinds of evidence:
  *   `wire`      live external data
  *   `memory`    recollection the user authored or accepted
- *   `inference` another persona's conclusion: a model's opinion, not a
+ *   `inference` another persona's conclusion — a model's opinion, not a
  *               measurement. Worth flagging on its own: chaining minds
  *               compounds their errors, and the reader should see when an
  *               answer rests on another answer.
@@ -106,7 +106,7 @@ export interface PersonaChatMessage {
     sourcedFrom?: string[];
     /**
      * Everything that actually fed this response, wired and ambient alike.
-     * Recorded from the turn's own result, not from the block's wires
+     * Recorded from the turn's own result, not from the block's wires —
      * a connected wire that carried no data is not a source.
      */
     sources?: ContextSource[];

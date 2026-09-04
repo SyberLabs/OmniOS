@@ -6,9 +6,9 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { DataWire, WireFilters, WireStatus, DEFAULT_WIRE_FILTERS } from '../schemas/wire.schema';
-// Direct, not via the barrel. blockStore and wireStore are genuinely mutual
+// Direct, not via the barrel. blockStore and wireStore are genuinely mutual —
 // deleting a block clears its wires, and a new wire defaults to the active
-// shell, but every use is a lazy .getState() inside a function body, so the
+// shell — but every use is a lazy .getState() inside a function body, so the
 // cycle never resolves at module-init.
 import { useBlockStore } from './blockStore';
 import { vaultStorage } from '../vault';

@@ -20,7 +20,7 @@ async function wipeVault(): Promise<void> {
     });
 }
 
-describe('vaultStorage: IndexedDB adapter (apex A2)', () => {
+describe('vaultStorage — IndexedDB adapter (apex A2)', () => {
     beforeEach(async () => {
         localStorage.clear();
         await wipeVault();

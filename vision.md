@@ -6,7 +6,7 @@
 
 ## The Core Idea
 
-**The Citadel** is not another dashboard. It is a *cognitive workspace*: a spatial environment where you think alongside AI, not just use it.
+**The Citadel** is not another dashboard. It is a *cognitive workspace* — a spatial environment where you think alongside AI, not just use it.
 
 Traditional tools separate concerns:
 - Data lives in one place
@@ -20,7 +20,7 @@ The Citadel unifies them. Data blocks, AI personas, and your own notes exist on 
 ## Design Principles
 
 ### 1. Spatial Intelligence
-Intelligence should be **visible and spatial**. When you wire a prediction market to an Analyst persona, you see the connection. When data updates, pulses flow along the wire. Context is not abstract: it is architecture.
+Intelligence should be **visible and spatial**. When you wire a prediction market to an Analyst persona, you see the connection. When data updates, pulses flow along the wire. Context is not abstract — it is architecture.
 
 ### 2. Blocks as Portals
 Each block is a portal to a different modality:
@@ -45,9 +45,9 @@ Each persona has its own memory, its own context, its own conversation. Wire dif
 
 ### 4. Shells as Configurations
 A **Shell** is a saved arrangement of blocks, wires, and personas. Switch shells to shift your entire cognitive environment:
-- *Morning Briefing*: News + Analyst + Calendar
-- *Market Watch*: Polymarket + Crypto + Strategist
-- *Research Mode*: Papers + Notes + Researcher
+- *Morning Briefing* — News + Analyst + Calendar
+- *Market Watch* — Polymarket + Crypto + Strategist
+- *Research Mode* — Papers + Notes + Researcher
 
 The Citadel remembers how you like to think.
 
@@ -77,23 +77,23 @@ The Citadel remembers how you like to think.
                       └─────────────────────────┘
 ```
 
-Insights can be **crystallized**: saved as new blocks that can themselves be wired to other personas. Over time, a knowledge graph emerges.
+Insights can be **crystallized** — saved as new blocks that can themselves be wired to other personas. Over time, a knowledge graph emerges.
 
 ---
 
 ## What We're Building Against
 
 Most "AI + data" tools are:
-- **Chat-first**: You talk to an AI that has no visible context
-- **Tab-scattered**: Data lives in 12 browser tabs, AI in another
-- **Stateless**: Every session starts from zero
-- **Monolithic**: One AI with one personality for everything
+- **Chat-first** — You talk to an AI that has no visible context
+- **Tab-scattered** — Data lives in 12 browser tabs, AI in another
+- **Stateless** — Every session starts from zero
+- **Monolithic** — One AI with one personality for everything
 
 The Citadel rejects all of this. It is:
-- **Canvas-first**: Spatial arrangement is the interface
-- **Integrated**: Data, AI, and thought in one place
-- **Stateful**: Memories persist, shells are saved
-- **Plural**: Multiple AI perspectives, each with purpose
+- **Canvas-first** — Spatial arrangement is the interface
+- **Integrated** — Data, AI, and thought in one place
+- **Stateful** — Memories persist, shells are saved
+- **Plural** — Multiple AI perspectives, each with purpose
 
 ---
 
@@ -105,7 +105,7 @@ Your *Morning Briefing* shell loads: Polymarket on the left, NewsAPI in the cent
 
 You notice something interesting. You ask a follow-up question. The Analyst responds, citing which data sources informed its answer.
 
-You crystallize the insight: it becomes a new block. You wire it to your Strategist persona, along with your notes from yesterday. You ask: "Given this context, what should I do this week?"
+You crystallize the insight — it becomes a new block. You wire it to your Strategist persona, along with your notes from yesterday. You ask: "Given this context, what should I do this week?"
 
 The Strategist thinks. Wires pulse. An answer emerges.
 
@@ -137,15 +137,15 @@ This is not "using AI." This is *thinking with AI*.
 
 ## The Name
 
-**The Citadel**: a fortress for thought.
+**The Citadel** — a fortress for thought.
 
 Not a bunker. Not a prison. A *citadel* is a stronghold at the heart of a city, a place of command and clarity. It is where you go when you need to think clearly, see widely, and decide wisely.
 
-**Project Omni**: the underlying system. "Omni" because it sees all (your data), remembers all (your memories), and connects all (your personas and blocks).
+**Project Omni** — the underlying system. "Omni" because it sees all (your data), remembers all (your memories), and connects all (your personas and blocks).
 
 ---
 
 *"The mind is not a vessel to be filled, but a fire to be kindled."*
-*: Plutarch*
+*— Plutarch*
 
 The Citadel provides the fuel. You bring the spark.

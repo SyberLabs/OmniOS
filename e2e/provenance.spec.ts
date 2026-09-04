@@ -3,13 +3,13 @@ import { freshStart, spawnInvestor } from './helpers';
 
 /**
  * Hovering a provenance chip must light the block it names. The attribute
- * is the contract: pixels are not.
+ * is the contract — pixels are not.
  */
 test('provenance: hovering a source chip highlights its block', async ({ page }) => {
     await freshStart(page);
     await spawnInvestor(page);
 
-    await page.getByTitle('Run chain: think upstream personas first, then this one').click();
+    await page.getByTitle('Run chain — think upstream personas first, then this one').click();
 
     const analystChip = page.getByTestId('provenance-chip').filter({ hasText: 'Analyst' });
     await expect(analystChip).toBeVisible({ timeout: 30_000 });

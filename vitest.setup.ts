@@ -3,7 +3,7 @@
 // environment without pulling in jsdom.
 const memStore = new Map<string, string>();
 
-// Spec-faithful enough to be ENUMERABLE (length/key): the vault export
+// Spec-faithful enough to be ENUMERABLE (length/key) — the vault export
 // iterates localStorage, so the hardcoded `length: 0` variant broke it.
 const localStoragePolyfill = {
     getItem: (k: string) => memStore.get(k) ?? null,

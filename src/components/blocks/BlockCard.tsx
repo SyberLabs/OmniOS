@@ -211,7 +211,7 @@ export function BlockCard({
                 </div>
             </div>
 
-            {/* Content: isolated: a crashing view can't take down the canvas,
+            {/* Content — isolated: a crashing view can't take down the canvas,
                 and the card chrome (drag/delete/wires) stays functional. */}
             <div className="block-content flex-1 overflow-hidden p-0">
                 <BlockErrorBoundary blockName={block.schema.display_name}>

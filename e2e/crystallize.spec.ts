@@ -3,7 +3,7 @@ import { freshStart, spawnInvestor, waitForMockAnswer } from './helpers';
 
 /**
  * Think → Crystallize → a Memory block appears, wired back, holding the text.
- * Crystallizing must produce something the user can SEE, not a hidden pool.
+ * Crystallizing must produce something the user can SEE — not a hidden pool.
  */
 test('crystallize: Think then Crystallize creates a wired Memory block', async ({ page }) => {
     await freshStart(page);
@@ -14,7 +14,7 @@ test('crystallize: Think then Crystallize creates a wired Memory block', async (
     await page.getByTitle('Think').first().click();
     await waitForMockAnswer(page);
 
-    await page.getByTitle('Keep this as memory: it becomes a block you can wire anywhere').click();
+    await page.getByTitle('Keep this as memory — it becomes a block you can wire anywhere').click();
     await expect(page.getByText('Kept in a new Memory block')).toBeVisible();
 
     await expect(page.getByText('Memory').first()).toBeVisible();

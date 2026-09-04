@@ -2,7 +2,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { persistCode } from './CodeBlock';
 
-describe('persistCode: language/content saves a timestamp', () => {
+describe('persistCode — language/content saves a timestamp', () => {
     it('writes lastSaved as a number alongside content and language', () => {
         const updateData = vi.fn();
         const before = Date.now();

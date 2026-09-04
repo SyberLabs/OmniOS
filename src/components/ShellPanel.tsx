@@ -175,7 +175,7 @@ export function ShellPanel({ isOpen, onClose }: ShellPanelProps) {
                                 </div>
                             </div>
 
-                            {/* Shell Store: built-in templates */}
+                            {/* Shell Store — built-in templates */}
                             {SHELL_TEMPLATES.length > 0 && (
                                 <div>
                                     <h3 className="text-xs font-semibold text-[var(--text-muted)] uppercase mb-2">

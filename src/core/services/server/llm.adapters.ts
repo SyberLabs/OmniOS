@@ -36,7 +36,7 @@ const DEFAULT_TEMPERATURE = 0.7;
 const DEFAULT_MAX_TOKENS = 1024;
 
 // ============================================
-// OLLAMA (Local): no key required
+// OLLAMA (Local) — no key required
 // ============================================
 
 async function ollamaComplete(req: ServerLLMRequest): Promise<LLMResponse> {

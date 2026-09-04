@@ -44,7 +44,7 @@ beforeEach(() => {
     useUIStore.setState({ readingWireIds: [] });
 });
 
-describe('WireRenderer: the visible read', () => {
+describe('WireRenderer — the visible read', () => {
     it('marks a reading wire with data-reading, and leaves others unmarked', () => {
         // Assert the attribute, not pixels: motion is CSS; honesty is which
         // wire is flagged.

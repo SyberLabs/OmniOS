@@ -2,14 +2,14 @@
 
 // ============================================
 // PROJECT OMNI: LLM STATUS PILL
-// Answers "is my LLM reachable?" at a glance in the TopBar, and, since it is
+// Answers "is my LLM reachable?" at a glance in the TopBar — and, since it is
 // the only place the provider is ever shown, lets you change it.
 //
 // It used to display the provider name on a hover-styled button whose click
 // merely re-pinged. It read as a selector and behaved as a refresh, so the
 // provider looked stuck: the real switch was buried in Mind → Settings.
 //
-// Availability uses /api/llm mode:'ping': key presence for cloud, a live
+// Availability uses /api/llm mode:'ping' — key presence for cloud, a live
 // Ollama ping for local. No generation, no keys in the browser.
 // ============================================
 
@@ -33,9 +33,9 @@ async function pingLlm(provider: LLMProvider, baseUrl?: string): Promise<boolean
 }
 
 const PROVIDERS: { id: LLMProvider; label: string; hint: string }[] = [
-    { id: 'local', label: 'Local', hint: 'Ollama on localhost:11434: no key, nothing leaves the machine' },
-    { id: 'anthropic', label: 'Anthropic', hint: 'Claude: needs ANTHROPIC_API_KEY in .env' },
-    { id: 'google', label: 'Google', hint: 'Gemini: needs GOOGLE_API_KEY in .env' }
+    { id: 'local', label: 'Local', hint: 'Ollama on localhost:11434 — no key, nothing leaves the machine' },
+    { id: 'anthropic', label: 'Anthropic', hint: 'Claude — needs ANTHROPIC_API_KEY in .env' },
+    { id: 'google', label: 'Google', hint: 'Gemini — needs GOOGLE_API_KEY in .env' }
 ];
 
 export function LlmStatusPill() {
@@ -95,8 +95,8 @@ export function LlmStatusPill() {
         ? `LLM ready: ${llmConfig.provider} · ${llmConfig.model}`
         : status === 'unavailable'
             ? (llmConfig.provider === 'local'
-                ? 'LLM unavailable: start Ollama (localhost:11434)'
-                : `LLM unavailable: set the ${llmConfig.provider} API key in .env`)
+                ? 'LLM unavailable — start Ollama (localhost:11434)'
+                : `LLM unavailable — set the ${llmConfig.provider} API key in .env`)
             : 'Checking LLM availability…';
 
     return (

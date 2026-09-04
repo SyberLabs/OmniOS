@@ -6,7 +6,7 @@ import { useShellStore, useBlockStore } from '@/core/stores';
 import { useWireStore } from '@/core/stores/wireStore';
 import { getShellTemplate } from '@/core/shells/templates';
 
-describe('ShellPanel: Shell Store wiring (real stores)', () => {
+describe('ShellPanel — Shell Store wiring (real stores)', () => {
     beforeEach(() => {
         useShellStore.setState({ shells: [], activeShellId: null });
         useBlockStore.setState({ blocks: [], activeShellId: 'root' });

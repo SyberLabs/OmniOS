@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { dropClientApiKeys } from './apiStore';
 import { dropSettingsClientKeys } from './settingsStore';
 
-describe('dropClientApiKeys: leftover vault keys must not survive migrate', () => {
+describe('dropClientApiKeys — leftover vault keys must not survive migrate', () => {
     it('strips plaintext apiKey and XOR-era encryptedKey', () => {
         const persisted = {
             configs: {

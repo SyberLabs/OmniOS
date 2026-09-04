@@ -1,6 +1,6 @@
 // ============================================
 // PROJECT OMNI: UI STORE
-// Ephemeral view state: deliberately not persisted. Drag state and a
+// Ephemeral view state — deliberately not persisted. Drag state and a
 // highlight channel should not survive a reload.
 // ============================================
 
@@ -44,7 +44,7 @@ interface UIState {
     setHighlightedBlocks: (ids: string[]) => void;
 
     /**
-     * Wires currently feeding a persona turn. Ephemeral: must not survive
+     * Wires currently feeding a persona turn. Ephemeral — must not survive
      * a reload, and must clear even if the turn errors.
      */
     readingWireIds: string[];

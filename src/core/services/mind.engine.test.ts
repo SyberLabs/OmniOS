@@ -1,5 +1,5 @@
 // ============================================
-// MIND ENGINE: the Mind panel's think path.
+// MIND ENGINE — the Mind panel's think path.
 //
 // Persona turns do not go through here (those are personaTurn.service).
 // This still has to fail closed, never leave status stuck on processing,

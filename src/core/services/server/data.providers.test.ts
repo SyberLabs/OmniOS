@@ -1,5 +1,5 @@
 // ============================================
-// KEYED DATA PROXY: the key must stay on the server.
+// KEYED DATA PROXY — the key must stay on the server.
 //
 // These lock the property the whole change exists for: a block asks OmniOS,
 // OmniOS asks the provider, and the browser never holds the credential.

@@ -3,7 +3,7 @@
 // Per-provider install state and status.
 //
 // Shipped keyed providers are proxied through /api/data with the key read
-// from process.env. This store must not hold a secret: a custom-provider
+// from process.env. This store must not hold a secret — a custom-provider
 // field that stored keys in the clear was removed rather than dressed up
 // as encryption.
 // ============================================

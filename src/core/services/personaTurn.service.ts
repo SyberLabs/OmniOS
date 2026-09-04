@@ -3,11 +3,11 @@
 //
 // Running a turn used to live inside the PersonaBlock component, which meant
 // only the component rendering a persona could make it think. That is fine
-// until one persona needs to run another (the cascade) so the turn moved
+// until one persona needs to run another — the cascade — so the turn moved
 // here, where it is addressed by block id and needs no React at all.
 //
 // Layering: persona.engine assembles the prompt and streams it (pure); this
-// owns the block-store side effects: draft messages, thinking state,
+// owns the block-store side effects — draft messages, thinking state,
 // provenance, throttled commits, abort, regenerate.
 // ============================================
 

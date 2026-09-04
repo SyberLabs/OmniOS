@@ -1,5 +1,5 @@
 // ============================================
-// PROVENANCE: what actually fed a persona turn.
+// PROVENANCE — what actually fed a persona turn.
 //
 // The product's central claim is that a persona's context is inspectable.
 // These lock the two ways that claim can quietly become false:
@@ -102,7 +102,7 @@ beforeEach(() => {
     useWireStore.setState({ wires: [] });
 });
 
-describe('aggregateWireContext: wired sources', () => {
+describe('aggregateWireContext — wired sources', () => {
     it('names each contributing block, not just its id', () => {
         useBlockStore.setState({
             blocks: [seedPersona(), block('src-1', 'FRED Series', { value: 42 })],
@@ -158,7 +158,7 @@ describe('aggregateWireContext: wired sources', () => {
     });
 });
 
-describe('aggregateWireContext: memory is wired, not injected', () => {
+describe('aggregateWireContext — memory is wired, not injected', () => {
     it('a Memory block is cited by kind, distinct from live data', () => {
         useBlockStore.setState({
             blocks: [
@@ -179,7 +179,7 @@ describe('aggregateWireContext: memory is wired, not injected', () => {
         expect(context).toContain('Rates held steady.');
     });
 
-    it('cutting the wire removes the memory: the point of making it a block', () => {
+    it('cutting the wire removes the memory — the point of making it a block', () => {
         useBlockStore.setState({
             blocks: [seedPersona(), memoryBlock('mem-1', 'Long-term memory', ['Secret.'])],
             activeShellId: 'root'
@@ -200,7 +200,7 @@ describe('aggregateWireContext: memory is wired, not injected', () => {
         });
         useWireStore.setState({ wires: [wire('w1', 'mem-1', PERSONA)] });
 
-        // It formats to '(No entries)', which is real output, so it IS cited.
+        // It formats to '(No entries)', which is real output — so it IS cited.
         // What matters is that the persona can see there is nothing in it.
         const { context } = aggregateWireContext(PERSONA);
         expect(context).toContain('(No entries)');
@@ -218,7 +218,7 @@ describe('aggregateWireContext: memory is wired, not injected', () => {
     });
 });
 
-describe('persona as a source: the cascade', () => {
+describe('persona as a source — the cascade', () => {
     it("passes on the conclusion, not the persona's internals", () => {
         useBlockStore.setState({
             blocks: [
@@ -266,7 +266,7 @@ describe('persona as a source: the cascade', () => {
             blocks: [
                 seedPersona(),
                 personaBlock('up-1', 'Analyst', [
-                    { role: 'assistant', content: '⚠️ No LLM available: set the key in .env.' }
+                    { role: 'assistant', content: '⚠️ No LLM available — set the key in .env.' }
                 ])
             ],
             activeShellId: 'root'

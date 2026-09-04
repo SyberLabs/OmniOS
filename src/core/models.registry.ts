@@ -1,7 +1,7 @@
 // ============================================
 // PROJECT OMNI: MODEL REGISTRY (apex A5)
 // Single source of truth for LLM model ids. Model names are config *data*
-// and they decay: this project shipped two live 404s from deprecated ids
+// and they decay — this project shipped two live 404s from deprecated ids
 // (claude-3-haiku-20240307, gemini-2.0-flash-exp). The registry centralizes:
 //   - the current default model per provider
 //   - known-good model options
@@ -16,7 +16,7 @@ export interface ModelInfo {
     label: string;
     /**
      * Minimum sensible output-token budget. "Thinking" models (Gemini 2.5)
-     * spend budget on internal reasoning before visible output: small caps
+     * spend budget on internal reasoning before visible output — small caps
      * return empty/truncated text (learned live).
      */
     minOutputTokens?: number;

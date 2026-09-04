@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { BlockErrorBoundary } from './BlockErrorBoundary';
 
-// React logs caught boundary errors via console.error: silence for the test.
+// React logs caught boundary errors via console.error — silence for the test.
 let consoleSpy: ReturnType<typeof vi.spyOn>;
 beforeEach(() => {
     consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -15,7 +15,7 @@ function Bomb({ defused }: { defused?: boolean }) {
     return <div>view recovered</div>;
 }
 
-describe('BlockErrorBoundary: failure isolation (apex A5)', () => {
+describe('BlockErrorBoundary — failure isolation (apex A5)', () => {
     it('renders children when nothing throws', () => {
         render(
             <BlockErrorBoundary blockName="Polymarket">

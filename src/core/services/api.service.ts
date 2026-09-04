@@ -1,6 +1,6 @@
 // ============================================
 // PROJECT OMNI: CONNECTION TESTS
-// Settings-panel probes only. Blocks fetch through the gateway, never here
+// Settings-panel probes only. Blocks fetch through the gateway, never here —
 // these deliberately call the SAME routes the blocks use, so a green test
 // cannot pass while the real path is broken.
 // ============================================
@@ -28,7 +28,7 @@ export async function testNewsConnection(): Promise<{
 }> {
     try {
         // Same route the NewsAPI block uses, so a green test means the block
-        // will work: a separate /api/news path could pass while the real one failed.
+        // will work — a separate /api/news path could pass while the real one failed.
         const response = await fetch('/api/data?provider=newsapi&pageSize=1');
         const data = await response.json();
 

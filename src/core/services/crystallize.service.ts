@@ -7,7 +7,7 @@
 // The rule that shapes the whole design: crystallizing must produce something
 // the user can SEE. Writing an insight into a Mind pool with no Memory block
 // on the canvas would repeat exactly the mistake that made ambient context
-// wrong: real context with no spatial representation. So this finds a Memory
+// wrong — real context with no spatial representation. So this finds a Memory
 // block for the pool, and creates one if there is none.
 // ============================================
 
@@ -45,7 +45,7 @@ function findMemoryBlock(shellId: string, poolId: string): string | undefined {
 /**
  * Crystallize one answer into memory.
  *
- * `sourceBlockId` is the persona that produced it: used to place the new
+ * `sourceBlockId` is the persona that produced it — used to place the new
  * block near it, and to wire memory back in so the persona can recall what it
  * previously concluded.
  */
@@ -89,7 +89,7 @@ export function crystallize(content: string, sourceBlockId: string): Crystallize
     });
 
     // Wire memory back into the persona that produced it: an insight worth
-    // keeping is an insight worth recalling next time. Only on creation
+    // keeping is an insight worth recalling next time. Only on creation —
     // re-wiring an existing block every time would fight the user's own layout.
     let wiredBack = false;
     if (createdBlock && persona) {

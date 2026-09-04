@@ -9,7 +9,7 @@ import {
 } from './models.registry';
 import { LLM_DEFAULTS } from './schemas/mind.schema';
 
-describe('model registry: integrity', () => {
+describe('model registry — integrity', () => {
     it('every provider default exists in its registry list', () => {
         for (const [provider, defaultId] of Object.entries(DEFAULT_MODEL)) {
             const models = MODEL_REGISTRY[provider as keyof typeof MODEL_REGISTRY];
@@ -32,7 +32,7 @@ describe('model registry: integrity', () => {
     });
 });
 
-describe('resolveModel: self-healing', () => {
+describe('resolveModel — self-healing', () => {
     it('heals the two ids that shipped live 404s', () => {
         expect(resolveModel('google', 'gemini-2.0-flash-exp')).toBe('gemini-2.5-flash');
         expect(resolveModel('anthropic', 'claude-3-haiku-20240307')).toBe('claude-haiku-4-5-20251001');
@@ -49,7 +49,7 @@ describe('resolveModel: self-healing', () => {
     });
 });
 
-describe('minOutputTokensFor: thinking-model headroom', () => {
+describe('minOutputTokensFor — thinking-model headroom', () => {
     it('returns the floor for thinking models and 0 for others', () => {
         expect(minOutputTokensFor('gemini-2.5-flash')).toBe(2048);
         expect(minOutputTokensFor('claude-haiku-4-5-20251001')).toBe(0);

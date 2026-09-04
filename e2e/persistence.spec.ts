@@ -17,7 +17,7 @@ test('persistence: Memory entries and block params survive a reload', async ({ p
 
     await page.getByTitle('Think').first().click();
     await waitForMockAnswer(page);
-    await page.getByTitle('Keep this as memory: it becomes a block you can wire anywhere').click();
+    await page.getByTitle('Keep this as memory — it becomes a block you can wire anywhere').click();
     await expect(page.getByText('Kept in a new Memory block')).toBeVisible();
     await expect(page.getByPlaceholder('Remember something…')).toBeVisible();
 

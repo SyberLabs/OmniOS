@@ -9,7 +9,7 @@
 // plus two services (relationModeler, skin) each re-implemented this
 // ~30-50 line lifecycle with subtle divergences (differing availability
 // checks, error texts, token budgets). Now they are thin callers that own
-// only their DOMAIN knowledge: context assembly, prompts, memory pools
+// only their DOMAIN knowledge — context assembly, prompts, memory pools —
 // and delegate the turn itself here. This resolves the long-parked
 // "two Mind engines" question: one engine, many context sources.
 // ============================================
@@ -38,14 +38,14 @@ export interface TurnResult {
 /** The one actionable "no LLM" message, everywhere. */
 export function unavailableMessage(config: LLMConfig): string {
     return config.provider === 'local'
-        ? 'No LLM available: make sure Ollama is running (localhost:11434).'
-        : `No LLM available: set the ${config.provider} API key in .env.`;
+        ? 'No LLM available — make sure Ollama is running (localhost:11434).'
+        : `No LLM available — set the ${config.provider} API key in .env.`;
 }
 
 /**
  * Effective LLM options: caller overrides fall back to the active config,
  * and the model registry floors the output budget (thinking models like
- * Gemini 2.5 return empty text under small caps: learned live).
+ * Gemini 2.5 return empty text under small caps — learned live).
  */
 function effectiveOptions(config: LLMConfig, options?: TurnOptions): LLMOptions {
     return {
@@ -75,7 +75,7 @@ export async function checkLLMAvailable(): Promise<AvailabilityCheck> {
 }
 
 /**
- * Run a complete (non-streaming) turn. Never throws: fails closed with an
+ * Run a complete (non-streaming) turn. Never throws — fails closed with an
  * actionable error in the result.
  */
 export async function runTurn(messages: LLMMessage[], options?: TurnOptions): Promise<TurnResult> {
@@ -97,7 +97,7 @@ export async function runTurn(messages: LLMMessage[], options?: TurnOptions): Pr
 
 /**
  * Run a streaming turn. Yields chunks; returns the final TurnResult with the
- * accumulated content. Never throws: fails closed in the result.
+ * accumulated content. Never throws — fails closed in the result.
  */
 export async function* runTurnStream(
     messages: LLMMessage[],

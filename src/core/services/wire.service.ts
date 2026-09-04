@@ -71,7 +71,7 @@ export function extractBlockData(
             // A persona used as a SOURCE: another mind's conclusion, not its
             // internals. This used to fall through to the generic JSON dump,
             // which fed the downstream persona ids, timestamps and isCollapsed
-            // flags: a wire that looked connected and delivered noise.
+            // flags — a wire that looked connected and delivered noise.
             const messages = asPersonaMessages(data.messages);
             const lastAnswer = [...messages].reverse().find(m => m.role === 'assistant');
 
@@ -83,7 +83,7 @@ export function extractBlockData(
                 ? lastAnswer.content.slice(0, 500) + (lastAnswer.content.length > 500 ? '…' : '')
                 : lastAnswer.content;
         } else if (isRecord(data) && 'poolId' in data && Array.isArray(data.entries)) {
-            // Memory block: a Mind pool wired in like any other source.
+            // Memory block — a Mind pool wired in like any other source.
             const entries = asMemoryEntries(data.entries);
             extracted = entries.length === 0
                 ? '(No entries)'
@@ -100,7 +100,7 @@ export function extractBlockData(
         } else if (isRecord(data) && Array.isArray(data.items)) {
             // OmniItem[] from the gateway (polymarket, coingecko, fred, metaculus,
             // hackernews, …). The useful signal lives in each item's `metadata`
-            // (probability, volume, price, value, …): include it, don't drop it.
+            // (probability, volume, price, value, …) — include it, don't drop it.
             const items = data.items;
             if (items.length === 0) {
                 extracted = '(No data)';
@@ -129,7 +129,7 @@ export function extractBlockData(
                 extracted = data.slice(0, limit).map(item => formatOmniItem(item)).join('\n');
                 if (data.length > limit) extracted += `\n… ${data.length - limit} more`;
             } else {
-                // Generic object array (e.g. crypto assets): include key fields.
+                // Generic object array (e.g. crypto assets) — include key fields.
                 extracted = data.slice(0, 20).map(item => {
                     if (typeof item === 'object') return formatOmniItem(item);
                     return `- ${item}`;
@@ -156,7 +156,7 @@ export function extractBlockData(
 
 /**
  * Format a single OmniItem (gateway-normalized) into a readable line with its
- * key metadata, so the LLM sees probabilities/prices/values, not just titles.
+ * key metadata, so the LLM sees probabilities/prices/values — not just titles.
  */
 function formatOmniItem(item: unknown): string {
     const rec = isRecord(item) ? item : {};
@@ -190,7 +190,7 @@ function formatOmniItem(item: unknown): string {
         : undefined;
 
     const metaStr = parts.length > 0 ? ` (${parts.join(' | ')})` : '';
-    const descStr = desc ? `: ${desc}` : '';
+    const descStr = desc ? ` — ${desc}` : '';
     return `- ${title}${metaStr}${descStr}`;
 }
 

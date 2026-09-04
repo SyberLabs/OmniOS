@@ -198,7 +198,7 @@ export function Canvas({ hideEmptyState = false, shellId, onBrowseShells }: Canv
                                 Start with an environment
                             </div>
                             <p className="text-[var(--text-muted)] text-sm mb-5">
-                                A shell arrives pre-wired: live data blocks already connected to
+                                A shell arrives pre-wired — live data blocks already connected to
                                 personas, so you can ask a question immediately.
                             </p>
                             {onBrowseShells && (

@@ -1,7 +1,7 @@
-# Citadel: Think Loop Build Plan
+# Citadel — Think Loop Build Plan
 
 > Front: **Citadel** (active). Created 2026-06-19.
-> Goal: make the Citadel's core differentiator real: **wire live data into a persona
+> Goal: make the Citadel's core differentiator real — **wire live data into a persona
 > block, hit Think (or chat), and get a grounded LLM insight that cites its sources.**
 
 ---
@@ -19,7 +19,7 @@ The loop is **~90% built and severed at the last inch.**
   and `handleThink` are `setTimeout` placeholders returning **hardcoded fake text**. They never
   call the LLM; `handleSendMessage` doesn't even call `aggregateWireContext`.
 
-So: not a polish, a **build**, but a small, well-scoped one (connect two existing real halves).
+So: not a polish, a **build** — but a small, well-scoped one (connect two existing real halves).
 
 ## Success criteria
 
@@ -33,7 +33,7 @@ not a crash or a fake answer.
 
 ## Build steps
 
-### Step 1: A reusable persona-think service
+### Step 1 — A reusable persona-think service
 - Add `src/core/services/persona.engine.ts` (or extend `mind.engine.ts`) with one function,
   e.g. `runPersonaTurn({ instanceId, personaType, userMessage? })`, that:
   1. reads `llmConfig` from `useMindStore`,
@@ -46,25 +46,25 @@ not a crash or a fake answer.
 - Mirror `mind.engine.ts`'s call pattern exactly (it's the proven reference).
 - **Why a service, not inline:** chat and Think share 95% of this; both call it.
 
-### Step 2: Wire `handleSendMessage` to it (real chat)
+### Step 2 — Wire `handleSendMessage` to it (real chat)
 - Replace the `setTimeout` mock: push the user message, set `isThinking`, then stream the
   assistant reply token-by-token into the message (live update of `personaData.messages`),
   attributing `sourcedFrom: aggregateWireContext(instanceId).sourceIds`.
-- On no-provider: append a clear "‹persona› can't reach an LLM: start Ollama or set a key in
+- On no-provider: append a clear "‹persona› can't reach an LLM — start Ollama or set a key in
   .env" message instead of a fake one.
 
-### Step 3: Wire `handleThink` to it (autonomous analysis)
+### Step 3 — Wire `handleThink` to it (autonomous analysis)
 - Same path with no `userMessage` (uses the default "analyze the connected data" task), so
   Think produces a genuine, context-grounded observation rather than the canned bullet list.
 
-### Step 4: Loose ends
+### Step 4 — Loose ends
 - Remove the placeholder copy and the `console.log` in `toggleCollapsed`.
 - Ensure `currentContext` refreshes before a turn (call `handleUpdateContext` or inline it) so
   the model sees fresh wired data.
 - Decide: does a streamed persona response also post to the shell-mind `observations` pool
-  (like `mind.engine`)? Default: yes for Think, no for chat (avoid noise): match existing intent.
+  (like `mind.engine`)? Default: yes for Think, no for chat (avoid noise) — match existing intent.
 
-### Step 5: Tests + live verification
+### Step 5 — Tests + live verification
 - Unit: mock `getLLMService` (or the fetch) and assert `runPersonaTurn` (a) injects the wired
   context into the prompt, (b) includes the persona system prompt, (c) returns the streamed
   text, (d) fails closed with a clear message when `isAvailable` is false. (No real network.)
@@ -79,11 +79,11 @@ not a crash or a fake answer.
 - Persona-to-persona wiring as a *generation* trigger (Analyst → Strategist auto-run). The
   Investor shell wires it structurally; auto-cascading a Think down the chain is a follow-on.
 - Memory crystallization (insight → new wired block).
-- More shell templates (Researcher/Creative): gated on this loop being genuinely good.
+- More shell templates (Researcher/Creative) — gated on this loop being genuinely good.
 
 ## Risks / notes
 - The persona-block path and the Mind-panel path now both call the LLM; keep them consistent
-  (shared service) so they don't drift: this also nibbles at the parked "two Mind engines"
+  (shared service) so they don't drift — this also nibbles at the parked "two Mind engines"
   question without resolving it.
 - Streaming into Zustand on every token can be chatty; update on a throttled cadence or
   accumulate then set, as `SystemMindChat` does, to avoid re-render storms.

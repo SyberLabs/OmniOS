@@ -43,7 +43,7 @@ describe('fredNormalizer.normalizeFn', () => {
 
         expect(result.items).toHaveLength(2);
         expect(result.metrics).toBeUndefined();
-        // Explicitly not null: this is the regression we guard.
+        // Explicitly not null — this is the regression we guard.
         expect(result.metrics).not.toBeNull();
     });
 

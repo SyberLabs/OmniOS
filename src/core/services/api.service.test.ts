@@ -1,5 +1,5 @@
 // ============================================
-// API SERVICE: settings-panel probes.
+// API SERVICE — settings-panel probes.
 //
 // These must hit the same routes the blocks use, and must never put a key
 // on the URL. A green probe that used a different path would lie.

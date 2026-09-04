@@ -5,7 +5,7 @@
 //
 // A Mind pool as an object on the canvas. This replaces the per-persona
 // "use global memory" toggles, which fed real context into prompts with no
-// spatial representation: invisible input in a product whose whole claim is
+// spatial representation — invisible input in a product whose whole claim is
 // that context is something you can point at.
 //
 // It behaves like any other source: it holds its entries in block.data, so

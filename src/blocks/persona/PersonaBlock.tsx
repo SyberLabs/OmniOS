@@ -122,7 +122,7 @@ export function PersonaBlockView({ instanceId }: PersonaBlockViewProps) {
 
     const handleThink = () => {
         if (personaData.isThinking) return;
-        // Autonomous analysis: no user message: the engine uses its default
+        // Autonomous analysis: no user message — the engine uses its default
         // "analyze the wired data" task.
         void runTurn();
     };
@@ -234,7 +234,7 @@ export function PersonaBlockView({ instanceId }: PersonaBlockViewProps) {
                                     {connectedWires.length} {connectedWires.length === 1 ? 'source' : 'sources'} connected
                                 </p>
                                 <p className="text-xs text-[var(--text-muted)]/70 mt-1">
-                                    Ready: Think, or ask a question
+                                    Ready — Think, or ask a question
                                 </p>
                             </>
                         )}
@@ -322,7 +322,7 @@ export function PersonaBlockView({ instanceId }: PersonaBlockViewProps) {
                             onClick={() => { if (!personaData.isThinking) void runChain(); }}
                             disabled={personaData.isThinking}
                             className="p-1 rounded transition-colors disabled:opacity-50 text-[var(--citadel-primary-glow)] bg-[var(--citadel-primary)]/15 hover:bg-[var(--citadel-primary)]/25"
-                            title="Run chain: think upstream personas first, then this one"
+                            title="Run chain — think upstream personas first, then this one"
                         >
                             <Workflow className="w-3 h-3" />
                         </button>
@@ -365,7 +365,7 @@ export function PersonaBlockView({ instanceId }: PersonaBlockViewProps) {
 // PROVENANCE CHIPS
 // The answer to "what does this persona actually know?". Every source that
 // fed a turn is named here. Every source is a block on the canvas, so every
-// chip is hoverable and lights the thing it names: recollection included,
+// chip is hoverable and lights the thing it names — recollection included,
 // since Memory became a wired block rather than a hidden per-persona toggle.
 // Memory is styled apart because it is a different kind of evidence from
 // live data, not because it is less pointable.
@@ -412,19 +412,19 @@ const CHIP_STYLE: Record<ContextSource['kind'], { className: string; title: stri
     wire: {
         className:
             'border-[var(--citadel-secondary)]/40 text-[var(--citadel-secondary)] bg-[var(--citadel-secondary)]/10 hover:bg-[var(--citadel-secondary)]/20',
-        title: 'Live data: highlight this block on the canvas'
+        title: 'Live data — highlight this block on the canvas'
     },
     memory: {
         className:
             'border-dashed border-[var(--truth-amber)]/60 text-[var(--truth-amber)] bg-[var(--truth-amber)]/10 hover:bg-[var(--truth-amber)]/20',
-        title: 'Recollection from a Memory block: highlight it on the canvas'
+        title: 'Recollection from a Memory block — highlight it on the canvas'
     },
     inference: {
         // Deliberately distinct: an answer resting on another answer is the
         // one case where errors compound, and the reader should see it.
         className:
             'border-dashed border-[var(--citadel-primary)]/60 text-[var(--citadel-primary-glow)] bg-[var(--citadel-primary)]/10 hover:bg-[var(--citadel-primary)]/20',
-        title: "Another persona's conclusion: highlight it on the canvas"
+        title: "Another persona's conclusion — highlight it on the canvas"
     }
 };
 
@@ -460,12 +460,12 @@ function SourceChip({
 // ANSWER BODY
 // Models answer in markdown because the system prompt asks for grounded,
 // structured replies. Rendering that as preformatted text showed every reader
-// literal ## and **: the product's primary output, looking broken.
+// literal ## and ** — the product's primary output, looking broken.
 //
 // react-markdown escapes HTML rather than injecting it, which matters here:
 // an answer can quote text that came from an external feed.
 //
-// The element map keeps a 320px-wide block readable: tight spacing, wrapped
+// The element map keeps a 320px-wide block readable — tight spacing, wrapped
 // code, and tables that scroll instead of forcing the card wider.
 // ============================================
 
@@ -579,7 +579,7 @@ function CrystallizeButton({ content, personaId }: { content: string; personaId:
                 if (r.ok) setResult({ blockId: r.memoryBlockId, created: r.createdBlock });
             }}
             className="mt-1.5 flex items-center gap-1 text-[10px] text-[var(--text-muted)] hover:text-[var(--truth-amber)] transition-colors"
-            title="Keep this as memory: it becomes a block you can wire anywhere"
+            title="Keep this as memory — it becomes a block you can wire anywhere"
         >
             <Gem className="w-3 h-3" />
             Crystallize

@@ -65,10 +65,10 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
             }
             if (!confirm('Importing replaces your current data with the export. Continue?')) return;
             const restored = await importVault(parsed);
-            setDataResult({ success: true, message: `Restored ${restored} stores: reloading…` });
+            setDataResult({ success: true, message: `Restored ${restored} stores — reloading…` });
             setTimeout(() => window.location.reload(), 800);
         } catch {
-            setDataResult({ success: false, message: 'Import failed: file unreadable.' });
+            setDataResult({ success: false, message: 'Import failed — file unreadable.' });
             setTimeout(() => setDataResult(null), 5000);
         }
     };
@@ -180,7 +180,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                                 </div>
                             </div>
 
-                            {/* NewsAPI Configuration: server-side via .env */}
+                            {/* NewsAPI Configuration — server-side via .env */}
                             <div className="space-y-3">
                                 <div className="flex items-center gap-2">
                                     <Key className="w-4 h-4 text-[var(--truth-amber)]" />
@@ -282,7 +282,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                                 </div>
                             </div>
 
-                            {/* Data Management: OmniVault export/import (apex A2) */}
+                            {/* Data Management — OmniVault export/import (apex A2) */}
                             <div className="space-y-3">
                                 <div className="flex items-center gap-2">
                                     <HardDrive className="w-4 h-4 text-[var(--citadel-primary)]" />
