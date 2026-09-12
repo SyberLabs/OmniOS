@@ -47,11 +47,11 @@ const CATEGORY_ICONS: Record<BlockCategory, React.ReactNode> = {
 };
 
 const ARMORY_CATEGORY_ORDER: BlockCategory[] = [
-    'workspace',
-    'truth',
     'pulse',
     'physicality',
     'environment',
+    'truth',
+    'workspace',
     'model',
     'system',
     'health',
@@ -63,11 +63,10 @@ const ARMORY_CATEGORY_ORDER: BlockCategory[] = [
 ];
 
 const DEFAULT_EXPANDED_CATEGORIES: BlockCategory[] = [
-    'workspace',
-    'truth',
     'pulse',
     'physicality',
-    'environment'
+    'environment',
+    'truth'
 ];
 
 const CATEGORY_LABELS: Record<BlockCategory, string> = {
