@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { API_CATALOG } from './api.schema';
+import { API_CATALOG, getKeylessApis } from './api.schema';
 import { blockRegistry } from '@/core/registry/BlockRegistry';
 
 describe('catalog blockIds — the map shells use to know what they need', () => {
@@ -52,5 +52,6 @@ describe('keyless demo catalog', () => {
         for (const provider of keyless) {
             expect(provider.serverKeyed, provider.id).toBeFalsy();
         }
+        expect(getKeylessApis().map(p => p.id).sort()).toEqual(keyless.map(p => p.id).sort());
     });
 });

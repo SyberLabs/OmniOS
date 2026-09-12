@@ -824,3 +824,11 @@ export function isApiSupported(providerId: string): boolean {
 export function getSupportedApis(): ApiProvider[] {
     return API_CATALOG.filter(api => isApiSupported(api.id));
 }
+
+/**
+ * Supported providers that work with nothing in .env.
+ * Pre-installed in the Command Center and safe to drop on a demo canvas.
+ */
+export function getKeylessApis(): ApiProvider[] {
+    return getSupportedApis().filter(api => !api.requiresAuth);
+}

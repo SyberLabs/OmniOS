@@ -16,7 +16,7 @@ import {
     API_CATALOG,
     ApiProvider,
     getApiProvider,
-    getSupportedApis,
+    getKeylessApis,
     isApiSupported
 } from '../schemas/api.schema';
 import { apiGateway } from '../gateway';
@@ -63,14 +63,30 @@ interface ApiStoreState {
 // ============================================
 
 // Default APIs that come pre-installed (supported + no auth required)
-const DEFAULT_INSTALLED_APIS = getSupportedApis()
-    .filter(provider => !provider.requiresAuth)
-    .map(provider => provider.id);
+const DEFAULT_INSTALLED_APIS = getKeylessApis().map(provider => provider.id);
+
+type PersistedVault = {
+    installedApis?: string[];
+    configs?: Record<string, Record<string, unknown>>;
+};
+
+function isKeylessProvider(providerId: string): boolean {
+    const provider = getApiProvider(providerId);
+    return !!provider && !provider.requiresAuth;
+}
+
+function idleConfig(providerId: string) {
+    return {
+        providerId,
+        status: 'idle' as ApiStatus,
+        requestCount: 0
+    };
+}
 
 /** Drop leftover client keys from older persisted vaults. Mutates configs in place. */
 export function dropClientApiKeys(persisted: unknown): unknown {
     if (!persisted || typeof persisted !== 'object') return persisted;
-    const state = persisted as { configs?: Record<string, Record<string, unknown>> };
+    const state = persisted as PersistedVault;
     if (!state.configs) return persisted;
     for (const cfg of Object.values(state.configs)) {
         if ('encryptedKey' in cfg) {
@@ -80,6 +96,44 @@ export function dropClientApiKeys(persisted: unknown): unknown {
         delete cfg.apiKey;
     }
     return persisted;
+}
+
+/**
+ * Add any shipped keyless provider that is missing from a persisted vault.
+ * Used once on the v3 migrate so an existing Command Center picks up the
+ * new demo APIs. Later uninstalls are left alone.
+ */
+export function withMissingKeylessInstalled(persisted: unknown): unknown {
+    if (!persisted || typeof persisted !== 'object') return persisted;
+    const state = persisted as PersistedVault;
+    const installed = Array.isArray(state.installedApis) ? [...state.installedApis] : [];
+    const configs = { ...(state.configs ?? {}) };
+    let changed = false;
+
+    for (const id of DEFAULT_INSTALLED_APIS) {
+        if (!installed.includes(id)) {
+            installed.push(id);
+            changed = true;
+        }
+        const existing = configs[id];
+        if (!existing) {
+            configs[id] = idleConfig(id);
+            changed = true;
+        } else if (existing.status === 'not_configured' && isKeylessProvider(id)) {
+            configs[id] = { ...existing, status: 'idle' };
+            changed = true;
+        }
+    }
+
+    if (!changed) return persisted;
+    return { ...state, installedApis: installed, configs };
+}
+
+/** Persist migrate: strip leftover keys, then (until v3) install new keyless APIs. */
+export function migrateApiVault(persisted: unknown, fromVersion: number): unknown {
+    const stripped = dropClientApiKeys(persisted);
+    if (fromVersion >= 3) return stripped;
+    return withMissingKeylessInstalled(stripped);
 }
 
 export const useApiStore = create<ApiStoreState>()(
@@ -111,13 +165,18 @@ export const useApiStore = create<ApiStoreState>()(
                     if (state.installedApis.includes(providerId)) return state;
                     if (!isApiSupported(providerId)) return state;
 
+                    const provider = getApiProvider(providerId);
+                    const initialStatus: ApiStatus = provider && !provider.requiresAuth
+                        ? 'idle'
+                        : 'not_configured';
+
                     return {
                         installedApis: [...state.installedApis, providerId],
                         configs: {
                             ...state.configs,
                             [providerId]: state.configs[providerId] || {
                                 providerId,
-                                status: 'not_configured',
+                                status: initialStatus,
                                 requestCount: 0
                             }
                         }
@@ -213,12 +272,18 @@ export const useApiStore = create<ApiStoreState>()(
                 const state = get();
                 return state.installedApis.map(id => {
                     const provider = API_CATALOG.find(p => p.id === id);
+                    const fallbackStatus: ApiStatus = provider && !provider.requiresAuth
+                        ? 'idle'
+                        : 'not_configured';
                     const config = state.configs[id] || {
                         providerId: id,
-                        status: 'not_configured' as ApiStatus,
+                        status: fallbackStatus,
                         requestCount: 0
                     };
-                    return { ...config, provider: provider! };
+                    const status = config.status === 'not_configured' && provider && !provider.requiresAuth
+                        ? 'idle'
+                        : config.status;
+                    return { ...config, status, provider: provider! };
                 }).filter(c => c.provider);
             },
 
@@ -228,11 +293,12 @@ export const useApiStore = create<ApiStoreState>()(
         }),
         {
             name: 'omni-api-vault',
-            version: 2,
+            version: 3,
             // v0 stored `encryptedKey` (XOR theatre). v1 stored a plaintext
             // `apiKey` for a custom-provider path nothing shipped used. Both
-            // are dropped; keys live in process.env.
-            migrate: (persisted: unknown) => dropClientApiKeys(persisted),
+            // are dropped; keys live in process.env. v3 installs keyless
+            // demo APIs that shipped after an older vault was first saved.
+            migrate: (persisted: unknown, fromVersion: number) => migrateApiVault(persisted, fromVersion),
             storage: createJSONStorage(() => localStorage),
             partialize: (state) => ({
                 configs: state.configs,

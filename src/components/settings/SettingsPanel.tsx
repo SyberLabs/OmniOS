@@ -21,6 +21,7 @@ import {
 import { useSettingsStore } from '@/core/stores';
 import { testNewsConnection, testPolymarketConnection } from '@/core/services/api.service';
 import { exportVault, importVault, isVaultExport } from '@/core/vault';
+import { getKeylessApis } from '@/core/schemas/api.schema';
 import { cn } from '@/lib/utils';
 
 interface SettingsPanelProps {
@@ -237,18 +238,33 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                                 </div>
                             </div>
 
-                            {/* Polymarket Configuration */}
+                            {/* Keyless demo APIs */}
                             <div className="space-y-3">
                                 <div className="flex items-center gap-2">
                                     <Key className="w-4 h-4 text-[var(--truth-green)]" />
                                     <h3 className="text-sm font-semibold text-[var(--text-primary)]">
-                                        Polymarket Configuration
+                                        Demo APIs (no key)
                                     </h3>
                                 </div>
 
                                 <div className="space-y-3 p-4 bg-[var(--citadel-surface)] rounded-lg border border-[var(--citadel-border)]">
+                                    <p className="text-xs text-[var(--text-muted)] leading-relaxed">
+                                        These {getKeylessApis().length} connectors are installed by default and work with nothing in{' '}
+                                        <code className="px-1 py-0.5 rounded bg-[var(--citadel-bg)] text-[var(--text-primary)]">.env</code>.
+                                        Drag them from the Armory, or spawn World Watch / Investor / Researcher.
+                                    </p>
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {getKeylessApis().map(api => (
+                                            <span
+                                                key={api.id}
+                                                className="text-xs px-2 py-0.5 rounded-full bg-[var(--truth-green)]/15 text-[var(--truth-green)]"
+                                            >
+                                                {api.name}
+                                            </span>
+                                        ))}
+                                    </div>
                                     <p className="text-xs text-[var(--text-muted)]">
-                                        Polymarket uses a public API that doesn&apos;t require authentication for basic access.
+                                        Polymarket is one of them — a public API with no authentication for basic access.
                                     </p>
 
                                     <button
@@ -340,10 +356,10 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                             {/* Info Box */}
                             <div className="p-4 bg-[var(--citadel-primary)]/5 border border-[var(--citadel-primary)]/20 rounded-lg">
                                 <p className="text-xs text-[var(--text-muted)] leading-relaxed">
-                                    <strong className="text-[var(--citadel-primary)]">💡 Tip:</strong> API keys are configured
-                                    server-side via <code className="px-1 py-0.5 rounded bg-[var(--citadel-bg)] text-[var(--text-primary)]">.env</code> and
-                                    are never stored in the browser. Toggle &quot;Use Mock Data&quot; to explore the interface with demo
-                                    data before configuring real APIs.
+                                    <strong className="text-[var(--citadel-primary)]">Tip:</strong> Twelve demo APIs need no key.
+                                    NewsAPI, FRED, and the other keyed connectors read{' '}
+                                    <code className="px-1 py-0.5 rounded bg-[var(--citadel-bg)] text-[var(--text-primary)]">.env</code>{' '}
+                                    on the server only — never the browser. Toggle &quot;Use Mock Data&quot; to explore without live calls.
                                 </p>
                             </div>
                         </div>

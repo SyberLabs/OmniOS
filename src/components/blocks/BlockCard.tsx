@@ -9,19 +9,6 @@ import { motion } from 'framer-motion';
 import {
     X,
     GripVertical,
-    TrendingUp,
-    Newspaper,
-    LineChart,
-    Globe,
-    Plane,
-    Ship,
-    Activity,
-    BookOpen,
-    CloudSun,
-    DollarSign,
-    Library,
-    Github,
-    Files,
     Pin,
     PinOff,
     Brain
@@ -33,23 +20,7 @@ import { WireHandle } from '@/canvas/WireHandle';
 import { BlockErrorBoundary } from './BlockErrorBoundary';
 import { getInputPorts, getOutputPorts } from '@/core/services/port.service';
 import { cn } from '@/lib/utils';
-
-// Icon mapping
-const BLOCK_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
-    TrendingUp,
-    Newspaper,
-    LineChart,
-    Globe,
-    Plane,
-    Ship,
-    Activity,
-    BookOpen,
-    CloudSun,
-    DollarSign,
-    Library,
-    Github,
-    Files
-};
+import { resolveBlockIcon } from '@/components/blockIcons';
 
 import { type SyntheticListenerMap } from '@dnd-kit/core/dist/hooks/utilities';
 
@@ -72,9 +43,7 @@ export function BlockCard({
 }: BlockCardProps) {
     const [isHovered, setIsHovered] = useState(false);
 
-    const Icon = block.schema.icon
-        ? BLOCK_ICONS[block.schema.icon] || Activity
-        : Activity;
+    const Icon = resolveBlockIcon(block.schema.icon);
 
     const statusColor = getStatusColor(block.status);
 

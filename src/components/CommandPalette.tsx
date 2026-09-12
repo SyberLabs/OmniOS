@@ -10,7 +10,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
     Search,
     Layers,
-    Plus,
     Save,
     Palette,
     Zap,
@@ -18,11 +17,11 @@ import {
     Sun,
     Grid,
     TrendingUp,
-    Newspaper,
     Globe
 } from 'lucide-react';
 import { useUIStore, useShellStore, useBlockStore, useSettingsStore } from '@/core/stores';
 import { blockRegistry } from '@/core/registry/BlockRegistry';
+import { resolveBlockIcon } from '@/components/blockIcons';
 
 export function CommandPalette() {
     const { commandPaletteOpen, closeCommandPalette, toggleCommandPalette } = useUIStore();
@@ -148,7 +147,7 @@ export function CommandPalette() {
                                     {blocks.map(block => (
                                         <CommandItem
                                             key={block.block_id}
-                                            icon={getBlockIcon(block.icon)}
+                                            icon={<BlockCommandIcon name={block.icon} />}
                                             label={block.display_name}
                                             description={block.description}
                                             onSelect={() => handleAddBlock(block.block_id)}
@@ -229,6 +228,11 @@ interface CommandItemProps {
     onSelect: () => void;
 }
 
+function BlockCommandIcon({ name }: { name?: string }) {
+    const Icon = resolveBlockIcon(name);
+    return <Icon className="w-4 h-4" />;
+}
+
 function CommandItem({ icon, label, description, shortcut, onSelect }: CommandItemProps) {
     return (
         <Command.Item
@@ -253,14 +257,5 @@ function CommandItem({ icon, label, description, shortcut, onSelect }: CommandIt
     );
 }
 
-// Helper to get block icon
-function getBlockIcon(iconName?: string) {
-    const icons: Record<string, React.ReactNode> = {
-        TrendingUp: <TrendingUp className="w-4 h-4" />,
-        Newspaper: <Newspaper className="w-4 h-4" />,
-        Globe: <Globe className="w-4 h-4" />
-    };
-    return icons[iconName || ''] || <Plus className="w-4 h-4" />;
-}
 
 export default CommandPalette;
