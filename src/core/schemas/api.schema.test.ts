@@ -30,3 +30,27 @@ describe('catalog blockIds — the map shells use to know what they need', () =>
         expect(byId.hackernews).toEqual(['hackernews_feed']);
     });
 });
+
+describe('keyless demo catalog', () => {
+    it('ships at least 12 providers that need no key', () => {
+        const keyless = API_CATALOG.filter(p => !p.requiresAuth);
+        expect(keyless.map(p => p.id).sort()).toEqual([
+            'coingecko',
+            'crossref',
+            'frankfurter',
+            'github',
+            'hackernews',
+            'openalex',
+            'openlibrary',
+            'openmeteo',
+            'polymarket',
+            'usgs',
+            'wikipedia',
+            'worldbank'
+        ].sort());
+        expect(keyless).toHaveLength(12);
+        for (const provider of keyless) {
+            expect(provider.serverKeyed, provider.id).toBeFalsy();
+        }
+    });
+});

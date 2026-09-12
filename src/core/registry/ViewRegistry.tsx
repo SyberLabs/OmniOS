@@ -9,6 +9,7 @@ import { OpenAlexView } from '@/components/blocks/OpenAlexView';
 import { FredView } from '@/components/blocks/FredView';
 import { BlsView } from '@/components/blocks/BlsView';
 import { WorldBankView } from '@/components/blocks/WorldBankView';
+import { OmniFeedView } from '@/components/blocks/OmniFeedView';
 import { usePolymarketBlock } from '@/blocks/truth/PolymarketBlock';
 import { useNewsBlock } from '@/blocks/truth/NewsApiBlock';
 import { useCoinGeckoBlock } from '@/blocks/truth/CoinGeckoBlock';
@@ -19,6 +20,8 @@ import { useOpenAlexBlock } from '@/blocks/truth/OpenAlexBlock';
 import { useFredBlock } from '@/blocks/truth/FredBlock';
 import { useBlsBlock } from '@/blocks/truth/BlsBlock';
 import { useWorldBankBlock } from '@/blocks/truth/WorldBankBlock';
+import { useOmniFeedBlock } from '@/blocks/truth/OmniFeedBlock';
+import { API_CATALOG } from '@/core/schemas/api.schema';
 import {
     TextBlockView,
     CodeBlockView,
@@ -393,6 +396,61 @@ function WorldBankBlockContent({ instanceId }: { instanceId: string }) {
     );
 }
 
+function providerForBlock(blockId: string) {
+    return API_CATALOG.find(p => p.blockIds?.includes(blockId));
+}
+
+function OmniFeedBlockContent({ instanceId }: { instanceId: string }) {
+    const persistParams = useBlockStore(s => s.setParams);
+    const block = useBlockStore(s => s.getBlock(instanceId));
+    const provider = providerForBlock(block?.schema.block_id ?? '');
+    const gateway = provider?.integration?.gateway;
+    const searchParam = gateway?.type === 'rest_list' ? gateway.config.searchParam : undefined;
+    const defaults = gateway?.type === 'rest_list'
+        ? gateway.config.defaultParams
+        : gateway?.type === 'normalizer'
+            ? gateway.defaultParams
+            : undefined;
+    const initial = storedParams(instanceId) ?? {};
+    const initialSearch = searchParam && typeof initial[searchParam] === 'string'
+        ? String(initial[searchParam])
+        : searchParam && defaults && typeof defaults[searchParam] === 'string'
+            ? String(defaults[searchParam])
+            : '';
+    const [draft, setDraft] = useState(initialSearch);
+    const [params, setParams] = useState<Record<string, unknown>>({
+        ...(defaults || {}),
+        ...initial
+    });
+    const { items, status, lastUpdated, refresh, error } = useOmniFeedBlock(
+        instanceId,
+        provider?.id ?? '',
+        params
+    );
+
+    const handleApplySearch = () => {
+        if (!searchParam) return;
+        const next = { ...params, [searchParam]: draft.trim() };
+        setParams(next);
+        persistParams(instanceId, next);
+    };
+
+    return (
+        <OmniFeedView
+            name={provider?.name ?? 'Feed'}
+            items={items}
+            status={status}
+            lastUpdated={lastUpdated ?? null}
+            onRefresh={refresh}
+            error={error}
+            searchValue={searchParam ? draft : undefined}
+            searchPlaceholder={searchParam ? `Search ${provider?.name ?? ''}` : undefined}
+            onSearchChange={searchParam ? setDraft : undefined}
+            onApplySearch={searchParam ? handleApplySearch : undefined}
+        />
+    );
+}
+
 // ============================================
 // VIEW REGISTRY
 // ============================================
@@ -409,6 +467,13 @@ export const BlockViews: Record<string, React.ComponentType<{ instanceId: string
     'fred_series': FredBlockContent,
     'bls_series': BlsBlockContent,
     'worldbank_indicator': WorldBankBlockContent,
+    'usgs_quakes': OmniFeedBlockContent,
+    'openmeteo_forecast': OmniFeedBlockContent,
+    'frankfurter_fx': OmniFeedBlockContent,
+    'wikipedia_search': OmniFeedBlockContent,
+    'openlibrary_search': OmniFeedBlockContent,
+    'github_repos': OmniFeedBlockContent,
+    'crossref_works': OmniFeedBlockContent,
 
     // Workspace Blocks
     'text_note': TextBlockView,

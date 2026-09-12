@@ -12,10 +12,15 @@ import { blockRegistry } from '@/core/registry/BlockRegistry';
 const isRegistered = (id: string) => blockRegistry.has(id);
 
 describe('SHELL_TEMPLATES integrity (against the real registry)', () => {
-    it('has the Investor and Researcher shells', () => {
-        expect(SHELL_TEMPLATES.map(t => t.id)).toEqual(['tmpl_investor', 'tmpl_researcher']);
+    it('has the Investor, Researcher, and World Watch shells', () => {
+        expect(SHELL_TEMPLATES.map(t => t.id)).toEqual([
+            'tmpl_investor',
+            'tmpl_researcher',
+            'tmpl_world_watch'
+        ]);
         expect(getShellTemplate('tmpl_investor')).toBeDefined();
         expect(getShellTemplate('tmpl_researcher')).toBeDefined();
+        expect(getShellTemplate('tmpl_world_watch')).toBeDefined();
     });
 
     it('every template references only registered block_ids and valid refs', () => {

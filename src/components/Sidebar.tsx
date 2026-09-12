@@ -15,6 +15,11 @@ import {
     Ship,
     Activity,
     BookOpen,
+    CloudSun,
+    DollarSign,
+    Library,
+    Github,
+    Files,
     ChevronDown,
     ChevronRight,
     FileText,
@@ -64,6 +69,11 @@ const BLOCK_ICONS: Record<string, React.ComponentType<{ className?: string }>> =
     Ship,
     Activity,
     BookOpen,
+    CloudSun,
+    DollarSign,
+    Library,
+    Github,
+    Files,
     FileText,
     Code,
     MessageSquare,
@@ -116,7 +126,7 @@ const CATEGORY_DESCRIPTIONS: Record<BlockCategory, string> = {
 
 export function Sidebar() {
     const [searchQuery, setSearchQuery] = useState('');
-    const [expandedCategories, setExpandedCategories] = useState<BlockCategory[]>(['workspace', 'health']);
+    const [expandedCategories, setExpandedCategories] = useState<BlockCategory[]>(['workspace', 'truth', 'pulse']);
 
     const allBlocks = blockRegistry.getAll();
     const filteredBlocks = searchQuery

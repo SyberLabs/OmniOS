@@ -129,6 +129,24 @@ export function createRestListAdapter(
                 url.searchParams.set(key, String(value));
             });
 
+            if (config.via === 'proxy') {
+                const query = new URLSearchParams({ provider: provider.id });
+                Object.entries(mergedParams).forEach(([key, value]) => {
+                    query.set(key, String(value));
+                });
+                try {
+                    const response = await fetch(`/api/public?${query.toString()}`);
+                    return await response.json();
+                } catch (error) {
+                    return {
+                        error: {
+                            code: 'FETCH_ERROR',
+                            message: error instanceof Error ? error.message : 'Unknown error'
+                        }
+                    };
+                }
+            }
+
             const shouldInjectAuth = !!apiKey && (provider.requiresAuth || !!config.auth);
 
             // Auth injection

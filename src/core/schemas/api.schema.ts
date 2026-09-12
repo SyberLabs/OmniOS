@@ -91,6 +91,14 @@ export interface RestListAdapterConfig {
     rateLimitMs?: number;
     /** OmniData category for this adapter */
     category?: GatewayCategory;
+    /**
+     * Fetch through /api/public instead of the browser hitting the
+     * provider. Use this for any demo API whose CORS or User-Agent
+     * rules would otherwise leave the block empty on the canvas.
+     */
+    via?: 'direct' | 'proxy';
+    /** Query param the feed view treats as a search box, if present. */
+    searchParam?: string;
 }
 
 /**
@@ -467,6 +475,268 @@ export const API_CATALOG: ApiProvider[] = [
             }
         },
         tags: ['economics', 'global', 'data']
+    },
+    {
+        id: 'usgs',
+        name: 'USGS Earthquakes',
+        category: 'physicality',
+        description: 'Magnitude 4.5+ earthquakes in the last week',
+        icon: 'Activity',
+        baseUrl: 'https://earthquake.usgs.gov',
+        docsUrl: 'https://earthquake.usgs.gov/fdsnws/event/1/',
+        pricing: 'free',
+        requiresAuth: false,
+        blockIds: ['usgs_quakes'],
+        integration: {
+            support: 'supported',
+            gateway: {
+                type: 'rest_list',
+                config: {
+                    path: '/earthquakes/feed/v1.0/summary/4.5_week.geojson',
+                    via: 'proxy',
+                    itemsPath: 'features',
+                    itemMap: {
+                        id: 'id',
+                        title: 'properties.place',
+                        description: 'properties.mag',
+                        url: 'properties.url',
+                        timestamp: 'properties.time'
+                    },
+                    metadataMap: {
+                        magnitude: 'properties.mag',
+                        tsunami: 'properties.tsunami',
+                        alert: 'properties.alert'
+                    },
+                    cacheTtlMs: 5 * 60 * 1000,
+                    rateLimitMs: 2000,
+                    category: 'custom'
+                }
+            }
+        },
+        tags: ['earthquake', 'geology', 'hazards']
+    },
+    {
+        id: 'openmeteo',
+        name: 'Open-Meteo',
+        category: 'environment',
+        description: 'Current conditions and daily forecast, no API key',
+        icon: 'CloudSun',
+        baseUrl: 'https://api.open-meteo.com',
+        docsUrl: 'https://open-meteo.com/en/docs',
+        pricing: 'free',
+        requiresAuth: false,
+        blockIds: ['openmeteo_forecast'],
+        integration: {
+            support: 'supported',
+            gateway: {
+                type: 'normalizer',
+                normalizerId: 'openmeteo',
+                defaultParams: { latitude: 40.71, longitude: -74.01 }
+            },
+            testParams: { latitude: 40.71, longitude: -74.01 }
+        },
+        tags: ['weather', 'forecast', 'climate']
+    },
+    {
+        id: 'frankfurter',
+        name: 'Frankfurter FX',
+        category: 'economy',
+        description: 'ECB foreign-exchange reference rates',
+        icon: 'DollarSign',
+        baseUrl: 'https://api.frankfurter.app',
+        docsUrl: 'https://www.frankfurter.app/docs/',
+        pricing: 'free',
+        requiresAuth: false,
+        blockIds: ['frankfurter_fx'],
+        integration: {
+            support: 'supported',
+            gateway: {
+                type: 'normalizer',
+                normalizerId: 'frankfurter',
+                defaultParams: { from: 'USD' }
+            },
+            testParams: { from: 'USD' }
+        },
+        tags: ['fx', 'currency', 'ecb', 'rates']
+    },
+    {
+        id: 'wikipedia',
+        name: 'Wikipedia',
+        category: 'pulse',
+        description: 'Live article search across Wikipedia',
+        icon: 'BookOpen',
+        baseUrl: 'https://en.wikipedia.org',
+        docsUrl: 'https://www.mediawiki.org/wiki/API:Main_page',
+        pricing: 'free',
+        requiresAuth: false,
+        blockIds: ['wikipedia_search'],
+        integration: {
+            support: 'supported',
+            gateway: {
+                type: 'rest_list',
+                config: {
+                    path: '/w/api.php',
+                    via: 'proxy',
+                    searchParam: 'srsearch',
+                    defaultParams: {
+                        action: 'query',
+                        list: 'search',
+                        srsearch: 'artificial intelligence',
+                        srlimit: 12,
+                        format: 'json'
+                    },
+                    itemsPath: 'query.search',
+                    itemMap: {
+                        id: 'pageid',
+                        title: 'title',
+                        description: 'snippet'
+                    },
+                    metadataMap: {
+                        wikiTitle: 'title',
+                        wordcount: 'wordcount'
+                    },
+                    cacheTtlMs: 10 * 60 * 1000,
+                    rateLimitMs: 1000,
+                    category: 'news'
+                }
+            }
+        },
+        tags: ['encyclopedia', 'knowledge', 'search']
+    },
+    {
+        id: 'openlibrary',
+        name: 'Open Library',
+        category: 'developer',
+        description: 'Books and editions from the Internet Archive',
+        icon: 'Library',
+        baseUrl: 'https://openlibrary.org',
+        docsUrl: 'https://openlibrary.org/developers/api',
+        pricing: 'free',
+        requiresAuth: false,
+        blockIds: ['openlibrary_search'],
+        integration: {
+            support: 'supported',
+            gateway: {
+                type: 'rest_list',
+                config: {
+                    path: '/search.json',
+                    via: 'proxy',
+                    searchParam: 'q',
+                    defaultParams: {
+                        q: 'artificial intelligence',
+                        limit: 12
+                    },
+                    itemsPath: 'docs',
+                    itemMap: {
+                        id: 'key',
+                        title: 'title',
+                        description: 'author_name.0'
+                    },
+                    metadataMap: {
+                        workKey: 'key',
+                        year: 'first_publish_year',
+                        editionCount: 'edition_count'
+                    },
+                    cacheTtlMs: 10 * 60 * 1000,
+                    rateLimitMs: 1000,
+                    category: 'developer'
+                }
+            }
+        },
+        tags: ['books', 'library', 'research']
+    },
+    {
+        id: 'github',
+        name: 'GitHub',
+        category: 'developer',
+        description: 'Public repositories by stars — no login',
+        icon: 'Github',
+        baseUrl: 'https://api.github.com',
+        docsUrl: 'https://docs.github.com/en/rest',
+        pricing: 'free',
+        freeTierLimits: '60 unauthenticated requests/hour',
+        requiresAuth: false,
+        blockIds: ['github_repos'],
+        integration: {
+            support: 'supported',
+            gateway: {
+                type: 'rest_list',
+                config: {
+                    path: '/search/repositories',
+                    via: 'proxy',
+                    searchParam: 'q',
+                    defaultParams: {
+                        q: 'stars:>10000',
+                        sort: 'stars',
+                        order: 'desc',
+                        per_page: 12
+                    },
+                    headers: {
+                        Accept: 'application/vnd.github+json'
+                    },
+                    itemsPath: 'items',
+                    itemMap: {
+                        id: 'id',
+                        title: 'full_name',
+                        description: 'description',
+                        url: 'html_url',
+                        timestamp: 'updated_at'
+                    },
+                    metadataMap: {
+                        stars: 'stargazers_count',
+                        language: 'language',
+                        forks: 'forks_count'
+                    },
+                    cacheTtlMs: 10 * 60 * 1000,
+                    rateLimitMs: 5000,
+                    category: 'developer'
+                }
+            }
+        },
+        tags: ['code', 'opensource', 'repos']
+    },
+    {
+        id: 'crossref',
+        name: 'Crossref',
+        category: 'developer',
+        description: 'Scholarly works by DOI — no API key',
+        icon: 'Files',
+        baseUrl: 'https://api.crossref.org',
+        docsUrl: 'https://www.crossref.org/documentation/retrieve-metadata/rest-api/',
+        pricing: 'free',
+        requiresAuth: false,
+        blockIds: ['crossref_works'],
+        integration: {
+            support: 'supported',
+            gateway: {
+                type: 'rest_list',
+                config: {
+                    path: '/works',
+                    via: 'proxy',
+                    searchParam: 'query',
+                    defaultParams: {
+                        query: 'foundation models',
+                        rows: 12
+                    },
+                    itemsPath: 'message.items',
+                    itemMap: {
+                        id: 'DOI',
+                        title: 'title.0',
+                        description: 'publisher',
+                        url: 'URL'
+                    },
+                    metadataMap: {
+                        doi: 'DOI',
+                        type: 'type',
+                        container: 'container-title.0'
+                    },
+                    cacheTtlMs: 10 * 60 * 1000,
+                    rateLimitMs: 1000,
+                    category: 'developer'
+                }
+            }
+        },
+        tags: ['research', 'doi', 'papers', 'citations']
     },
     {
         id: 'bls',

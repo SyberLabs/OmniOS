@@ -17,6 +17,11 @@ import {
     Ship,
     Activity,
     BookOpen,
+    CloudSun,
+    DollarSign,
+    Library,
+    Github,
+    Files,
     Pin,
     PinOff,
     Brain
@@ -38,7 +43,12 @@ const BLOCK_ICONS: Record<string, React.ComponentType<{ className?: string }>> =
     Plane,
     Ship,
     Activity,
-    BookOpen
+    BookOpen,
+    CloudSun,
+    DollarSign,
+    Library,
+    Github,
+    Files
 };
 
 import { type SyntheticListenerMap } from '@dnd-kit/core/dist/hooks/utilities';
