@@ -13,13 +13,14 @@ describe('ShellPanel — Shell Store wiring (real stores)', () => {
         useWireStore.setState({ wires: [] } as never);
     });
 
-    it('shows the Shell Store with the Investor and Researcher template cards', () => {
+    it('shows the Shell Store with the Investor, Researcher, and World Watch cards', () => {
         render(<ShellPanel isOpen onClose={vi.fn()} />);
         expect(screen.getByText('Shell Store')).toBeTruthy();
         expect(screen.getByText('Investor Shell')).toBeTruthy();
         expect(screen.getByText('Researcher Shell')).toBeTruthy();
-        expect(screen.getAllByRole('button', { name: 'Use this shell' })).toHaveLength(2);
-        expect(screen.getAllByText('Works without API keys').length).toBeGreaterThanOrEqual(2);
+        expect(screen.getByText('World Watch')).toBeTruthy();
+        expect(screen.getAllByRole('button', { name: 'Use this shell' })).toHaveLength(3);
+        expect(screen.getAllByText('Works without API keys').length).toBeGreaterThanOrEqual(3);
     });
 
     it('"Use this shell" spawns a fully wired shell and closes the panel', () => {

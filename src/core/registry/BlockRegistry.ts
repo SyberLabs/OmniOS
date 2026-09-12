@@ -120,6 +120,9 @@ blockRegistry.register({
     wiring_logic: 'map_to_quant_agent',
     icon: 'Coins',
     description: 'Live cryptocurrency prices and market data',
+    ports: [
+        createJsonOutputPort('out', 'Market Data')
+    ],
     isUserCreatable: true
 });
 
@@ -151,6 +154,9 @@ blockRegistry.register({
     wiring_logic: 'map_to_narrative_agent',
     icon: 'Zap',
     description: 'Top stories from Hacker News',
+    ports: [
+        createJsonOutputPort('out', 'Story Feed')
+    ],
     isUserCreatable: true
 });
 
@@ -235,6 +241,118 @@ blockRegistry.register({
     ],
     icon: 'Globe',
     description: 'World Bank global development indicators',
+    isUserCreatable: true
+});
+
+blockRegistry.register({
+    block_id: 'usgs_quakes',
+    display_name: 'Earthquakes',
+    category: 'physicality',
+    data_type: 'telemetry',
+    refresh_rate: '5m',
+    semantic_tags: ['earthquake', 'usgs', 'hazards', 'geology'],
+    wiring_logic: 'map_to_analyst_agent',
+    ports: [
+        createJsonOutputPort('out', 'Quake Feed')
+    ],
+    icon: 'Activity',
+    description: 'USGS magnitude 4.5+ earthquakes this week',
+    isUserCreatable: true
+});
+
+blockRegistry.register({
+    block_id: 'openmeteo_forecast',
+    display_name: 'Weather',
+    category: 'environment',
+    data_type: 'telemetry',
+    refresh_rate: '15m',
+    semantic_tags: ['weather', 'forecast', 'climate', 'open-meteo'],
+    wiring_logic: 'map_to_analyst_agent',
+    ports: [
+        createJsonOutputPort('out', 'Forecast')
+    ],
+    icon: 'CloudSun',
+    description: 'Open-Meteo current conditions and daily forecast',
+    isUserCreatable: true
+});
+
+blockRegistry.register({
+    block_id: 'frankfurter_fx',
+    display_name: 'FX Rates',
+    category: 'truth',
+    data_type: 'financial',
+    refresh_rate: '1h',
+    semantic_tags: ['fx', 'currency', 'ecb', 'rates'],
+    wiring_logic: 'map_to_quant_agent',
+    ports: [
+        createJsonOutputPort('out', 'Rates')
+    ],
+    icon: 'DollarSign',
+    description: 'ECB foreign-exchange reference rates',
+    isUserCreatable: true
+});
+
+blockRegistry.register({
+    block_id: 'wikipedia_search',
+    display_name: 'Wikipedia',
+    category: 'pulse',
+    data_type: 'news_feed',
+    refresh_rate: '10m',
+    semantic_tags: ['wikipedia', 'encyclopedia', 'knowledge'],
+    wiring_logic: 'map_to_research_agent',
+    ports: [
+        createJsonOutputPort('out', 'Articles')
+    ],
+    icon: 'BookOpen',
+    description: 'Live Wikipedia article search',
+    isUserCreatable: true
+});
+
+blockRegistry.register({
+    block_id: 'openlibrary_search',
+    display_name: 'Open Library',
+    category: 'truth',
+    data_type: 'news_feed',
+    refresh_rate: '10m',
+    semantic_tags: ['books', 'library', 'research'],
+    wiring_logic: 'map_to_research_agent',
+    ports: [
+        createJsonOutputPort('out', 'Books')
+    ],
+    icon: 'Library',
+    description: 'Books from the Internet Archive catalog',
+    isUserCreatable: true
+});
+
+blockRegistry.register({
+    block_id: 'github_repos',
+    display_name: 'GitHub',
+    category: 'truth',
+    data_type: 'news_feed',
+    refresh_rate: '10m',
+    semantic_tags: ['github', 'code', 'opensource', 'repos'],
+    wiring_logic: 'map_to_developer_agent',
+    ports: [
+        createJsonOutputPort('out', 'Repositories')
+    ],
+    icon: 'Github',
+    description: 'Public GitHub repositories by stars',
+    isUserCreatable: true
+});
+
+blockRegistry.register({
+    block_id: 'crossref_works',
+    display_name: 'Crossref',
+    category: 'truth',
+    data_type: 'news_feed',
+    refresh_rate: '10m',
+    semantic_tags: ['research', 'doi', 'papers', 'citations'],
+    wiring_logic: 'map_to_research_agent',
+    ports: [
+        createJsonOutputPort('out', 'Works')
+    ],
+    icon: 'Files',
+    description: 'Scholarly works from Crossref — no API key',
     isUserCreatable: true
 });
 

@@ -111,6 +111,39 @@ const RESEARCHER_SHELL: ShellTemplate = {
 };
 
 // ============================================
+// WORLD WATCH SHELL
+// The remaining keyless connectors on one canvas — weather, quakes,
+// Wikipedia, FX, GitHub — so a demo does not depend on markets alone.
+// ============================================
+
+const WORLD_WATCH_SHELL: ShellTemplate = {
+    id: 'tmpl_world_watch',
+    name: 'World Watch',
+    description:
+        'Live weather, earthquakes, Wikipedia, ECB FX, and GitHub wired into an ' +
+        'Analyst — every block works with nothing in .env.',
+    icon: 'Globe',
+    tags: ['demo', 'live', 'keyless'],
+    persona: 'analyst',
+    aesthetic: 'command',
+    blocks: [
+        { ref: 'weather', blockId: 'openmeteo_forecast', position: { x: 40, y: 40 }, params: { latitude: 40.71, longitude: -74.01 } },
+        { ref: 'quakes', blockId: 'usgs_quakes', position: { x: 40, y: 320 } },
+        { ref: 'wiki', blockId: 'wikipedia_search', position: { x: 420, y: 40 }, params: { srsearch: 'artificial intelligence' } },
+        { ref: 'fx', blockId: 'frankfurter_fx', position: { x: 420, y: 320 } },
+        { ref: 'github', blockId: 'github_repos', position: { x: 800, y: 40 }, params: { q: 'stars:>10000' } },
+        { ref: 'analyst', blockId: 'persona_analyst', position: { x: 800, y: 360 } },
+    ],
+    connections: [
+        { sourceRef: 'weather', sourcePort: 'out', targetRef: 'analyst', targetPort: 'in' },
+        { sourceRef: 'quakes', sourcePort: 'out', targetRef: 'analyst', targetPort: 'in' },
+        { sourceRef: 'wiki', sourcePort: 'out', targetRef: 'analyst', targetPort: 'in' },
+        { sourceRef: 'fx', sourcePort: 'out', targetRef: 'analyst', targetPort: 'in' },
+        { sourceRef: 'github', sourcePort: 'out', targetRef: 'analyst', targetPort: 'in' },
+    ],
+};
+
+// ============================================
 // REGISTRY
 // ============================================
 
@@ -118,6 +151,7 @@ const RESEARCHER_SHELL: ShellTemplate = {
 export const SHELL_TEMPLATES: ShellTemplate[] = [
     INVESTOR_SHELL,
     RESEARCHER_SHELL,
+    WORLD_WATCH_SHELL,
 ];
 
 /** Look up a template by id. */

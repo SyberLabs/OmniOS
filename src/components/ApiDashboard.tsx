@@ -40,9 +40,11 @@ import {
     getApisByCategory,
     searchApis,
     getApiSupportLevel,
+    getKeylessApis,
     isApiSupported
 } from '@/core/schemas/api.schema';
 import { cn } from '@/lib/utils';
+import { BlockGlyph } from '@/components/blockIcons';
 
 // ============================================
 // CATEGORY ICONS & LABELS
@@ -78,6 +80,7 @@ export function ApiDashboardModal({ isOpen, onClose }: ApiDashboardModalProps) {
     const { installedApis, getInstalledConfigs } = useApiStore();
     const installedConfigs = getInstalledConfigs();
     const supportedCount = API_CATALOG.filter(api => isApiSupported(api.id)).length;
+    const keylessCount = getKeylessApis().length;
 
     // Count by status
     const statusCounts = {
@@ -120,7 +123,7 @@ export function ApiDashboardModal({ isOpen, onClose }: ApiDashboardModalProps) {
                                             API Command Center
                                         </h2>
                                         <p className="text-xs text-[var(--text-muted)]">
-                                            {installedApis.length} installed | {supportedCount} supported | {API_CATALOG.length} listed
+                                            {installedApis.length} installed | {supportedCount} supported | {keylessCount} work without a key
                                         </p>
                                     </div>
                                 </div>
@@ -281,7 +284,7 @@ function ApiConfigCard({ config, isExpanded, onToggle }: ApiConfigCardProps) {
                     className="w-8 h-8 rounded-lg flex items-center justify-center"
                     style={{ backgroundColor: `${categoryConfig.color}20`, color: categoryConfig.color }}
                 >
-                    {categoryConfig.icon}
+                    <BlockGlyph name={config.provider.icon} className="w-4 h-4" />
                 </div>
                 <div className="flex-1 text-left">
                     <p className="text-sm font-medium text-[var(--text-primary)]">{config.provider.name}</p>
@@ -317,6 +320,17 @@ function ApiConfigCard({ config, isExpanded, onToggle }: ApiConfigCardProps) {
                                     </p>
                                     <p className="text-xs text-[var(--text-muted)] mt-1">
                                         Set {config.provider.envVar ?? 'the env var'} in <code>.env</code> and restart. It is never sent to the browser.
+                                    </p>
+                                </div>
+                            )}
+
+                            {!config.provider.requiresAuth && (
+                                <div className="px-3 py-2 bg-[var(--truth-green)]/10 border border-[var(--truth-green)]/20 rounded-lg">
+                                    <p className="text-xs text-[var(--truth-green)] font-medium">
+                                        No API key required
+                                    </p>
+                                    <p className="text-xs text-[var(--text-muted)] mt-1">
+                                        Works on the canvas with nothing in <code>.env</code>. Drag its block from the Armory.
                                     </p>
                                 </div>
                             )}
@@ -483,7 +497,7 @@ function ApiMarketplaceCard({ api, isInstalled, onInstall }: ApiMarketplaceCardP
                     className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
                     style={{ backgroundColor: `${categoryConfig.color}20`, color: categoryConfig.color }}
                 >
-                    {categoryConfig.icon}
+                    <BlockGlyph name={api.icon} className="w-5 h-5" />
                 </div>
                 <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-[var(--text-primary)] truncate">{api.name}</p>
@@ -492,7 +506,7 @@ function ApiMarketplaceCard({ api, isInstalled, onInstall }: ApiMarketplaceCardP
             </div>
 
             <div className="flex items-center justify-between mt-3">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                     <span className={cn(
                         "text-xs px-2 py-0.5 rounded-full",
                         api.pricing === 'free' && "bg-[var(--truth-green)]/20 text-[var(--truth-green)]",
@@ -500,8 +514,13 @@ function ApiMarketplaceCard({ api, isInstalled, onInstall }: ApiMarketplaceCardP
                         api.pricing === 'paid' && "bg-[var(--citadel-primary)]/20 text-[var(--citadel-primary)]",
                         api.pricing === 'open_source' && "bg-[var(--mind-aqua-surface)]/20 text-[var(--mind-aqua-surface)]"
                     )}>
-                        {api.pricing === 'free' ? 'âœ“ Free' : api.pricing === 'freemium' ? 'â— Freemium' : api.pricing === 'paid' ? '$ Paid' : 'âš¡ Open Source'}
+                        {api.pricing === 'free' ? 'Free' : api.pricing === 'freemium' ? 'Freemium' : api.pricing === 'paid' ? 'Paid' : 'Open Source'}
                     </span>
+                    {!api.requiresAuth && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--truth-green)]/15 text-[var(--truth-green)]">
+                            No key
+                        </span>
+                    )}
                     <span className={cn(
                         "text-xs px-2 py-0.5 rounded-full",
                         supportLevel === 'supported' && "bg-[var(--truth-green)]/15 text-[var(--truth-green)]",

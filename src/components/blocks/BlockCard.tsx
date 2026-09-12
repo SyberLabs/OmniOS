@@ -9,14 +9,6 @@ import { motion } from 'framer-motion';
 import {
     X,
     GripVertical,
-    TrendingUp,
-    Newspaper,
-    LineChart,
-    Globe,
-    Plane,
-    Ship,
-    Activity,
-    BookOpen,
     Pin,
     PinOff,
     Brain
@@ -28,18 +20,7 @@ import { WireHandle } from '@/canvas/WireHandle';
 import { BlockErrorBoundary } from './BlockErrorBoundary';
 import { getInputPorts, getOutputPorts } from '@/core/services/port.service';
 import { cn } from '@/lib/utils';
-
-// Icon mapping
-const BLOCK_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
-    TrendingUp,
-    Newspaper,
-    LineChart,
-    Globe,
-    Plane,
-    Ship,
-    Activity,
-    BookOpen
-};
+import { BlockGlyph } from '@/components/blockIcons';
 
 import { type SyntheticListenerMap } from '@dnd-kit/core/dist/hooks/utilities';
 
@@ -61,10 +42,6 @@ export function BlockCard({
     dragListeners
 }: BlockCardProps) {
     const [isHovered, setIsHovered] = useState(false);
-
-    const Icon = block.schema.icon
-        ? BLOCK_ICONS[block.schema.icon] || Activity
-        : Activity;
 
     const statusColor = getStatusColor(block.status);
 
@@ -146,7 +123,7 @@ export function BlockCard({
                             className="w-5 h-5 rounded flex items-center justify-center bg-[var(--citadel-surface)]/50"
                             style={{ color: statusColor }}
                         >
-                            <Icon className="w-3 h-3" />
+                            <BlockGlyph name={block.schema.icon} className="w-3 h-3" />
                         </div>
                         {/* Connection indicators as tiny dots */}
                         {hasIncomingWires && (

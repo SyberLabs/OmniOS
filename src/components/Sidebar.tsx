@@ -9,34 +9,25 @@ import {
     Search,
     TrendingUp,
     Newspaper,
-    LineChart,
     Globe,
-    Plane,
-    Ship,
     Activity,
-    BookOpen,
+    CloudSun,
     ChevronDown,
     ChevronRight,
     FileText,
-    Code,
-    MessageSquare,
-    Image,
     Cpu,
     Heart,
     Briefcase,
     Wallet,
-    Home,
     Clock,
-    User,
-    Calculator,
-    Hexagon,
-    Maximize
+    User
 } from 'lucide-react';
 import { useState } from 'react';
 import { blockRegistry } from '@/core/registry/BlockRegistry';
 import { OmniBlockSchema, BlockCategory } from '@/core/schemas/block.schema';
 import { useBlockStore, useUIStore } from '@/core/stores';
 import { cn } from '@/lib/utils';
+import { BlockGlyph } from '@/components/blockIcons';
 
 // Icon mapping
 const CATEGORY_ICONS: Record<BlockCategory, React.ReactNode> = {
@@ -51,36 +42,32 @@ const CATEGORY_ICONS: Record<BlockCategory, React.ReactNode> = {
     finance: <Wallet className="w-4 h-4" />,
     mind_system: <Activity className="w-4 h-4" />,
     relationships: <User className="w-4 h-4" />,
-    environment: <Home className="w-4 h-4" />,
+    environment: <CloudSun className="w-4 h-4" />,
     time: <Clock className="w-4 h-4" />
 };
 
-const BLOCK_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
-    TrendingUp,
-    Newspaper,
-    LineChart,
-    Globe,
-    Plane,
-    Ship,
-    Activity,
-    BookOpen,
-    FileText,
-    Code,
-    MessageSquare,
-    Image,
-    Cpu,
-    Heart,
-    Briefcase,
-    Wallet,
-    Home,
-    Clock,
-    User: User,
-    Users: User,
-    Brain: Activity,
-    Calculator,
-    Hexagon,
-    Maximize: Maximize
-};
+const ARMORY_CATEGORY_ORDER: BlockCategory[] = [
+    'pulse',
+    'physicality',
+    'environment',
+    'truth',
+    'workspace',
+    'model',
+    'system',
+    'health',
+    'career',
+    'finance',
+    'mind_system',
+    'relationships',
+    'time'
+];
+
+const DEFAULT_EXPANDED_CATEGORIES: BlockCategory[] = [
+    'pulse',
+    'physicality',
+    'environment',
+    'truth'
+];
 
 const CATEGORY_LABELS: Record<BlockCategory, string> = {
     truth: 'Truth Blocks',
@@ -98,25 +85,9 @@ const CATEGORY_LABELS: Record<BlockCategory, string> = {
     time: 'Time Blocks'
 };
 
-const CATEGORY_DESCRIPTIONS: Record<BlockCategory, string> = {
-    truth: 'Prediction markets & financials',
-    pulse: 'Narrative & sentiment',
-    physicality: 'Real-world telemetry',
-    model: 'AI models & biomarkers',
-    workspace: 'Notes, code, chat & media',
-    system: 'Life Systems & Core Calculator',
-    health: 'Body, mind & spirit wellness',
-    career: 'Work, growth & networking',
-    finance: 'Income, expenses & wealth',
-    mind_system: 'Cognition, emotions & consciousness',
-    relationships: 'Family, friends & community',
-    environment: 'Living, digital & natural spaces',
-    time: 'Present, future & legacy'
-};
-
 export function Sidebar() {
     const [searchQuery, setSearchQuery] = useState('');
-    const [expandedCategories, setExpandedCategories] = useState<BlockCategory[]>(['workspace', 'health']);
+    const [expandedCategories, setExpandedCategories] = useState<BlockCategory[]>(DEFAULT_EXPANDED_CATEGORIES);
 
     const allBlocks = blockRegistry.getAll();
     const filteredBlocks = searchQuery
@@ -162,8 +133,9 @@ export function Sidebar() {
 
             {/* Block Categories */}
             <div className="sidebar-content space-y-2">
-                {(['workspace', 'health', 'career', 'finance', 'mind_system', 'relationships', 'environment', 'time', 'system', 'model', 'truth', 'pulse', 'physicality'] as BlockCategory[]).map(category => {
+                {ARMORY_CATEGORY_ORDER.map(category => {
                     const blocks = blocksByCategory[category] || [];
+                    if (blocks.length === 0) return null;
                     const isExpanded = expandedCategories.includes(category);
 
                     return (
@@ -199,15 +171,9 @@ export function Sidebar() {
                                     exit={{ height: 0, opacity: 0 }}
                                     className="bg-[var(--citadel-surface)] border-t border-[var(--citadel-border)]"
                                 >
-                                    {blocks.length === 0 ? (
-                                        <p className="px-3 py-2 text-xs text-[var(--text-muted)]">
-                                            {CATEGORY_DESCRIPTIONS[category]}
-                                        </p>
-                                    ) : (
-                                        blocks.map(block => (
-                                            <BlockItem key={block.block_id} block={block} />
-                                        ))
-                                    )}
+                                    {blocks.map(block => (
+                                        <BlockItem key={block.block_id} block={block} />
+                                    ))}
                                 </motion.div>
                             )}
                         </div>
@@ -229,8 +195,6 @@ interface BlockItemProps {
 function BlockItem({ block }: BlockItemProps) {
     const { addBlock } = useBlockStore();
     const { setDraggingBlock } = useUIStore();
-
-    const Icon = block.icon ? BLOCK_ICONS[block.icon] || Activity : Activity;
 
     const handleDragStart = (e: React.DragEvent) => {
         setDraggingBlock(block.block_id);
@@ -267,7 +231,7 @@ function BlockItem({ block }: BlockItemProps) {
                 )}
             >
                 <div className="w-8 h-8 rounded-lg bg-[var(--citadel-primary)]/10 flex items-center justify-center text-[var(--citadel-primary)]">
-                    <Icon className="w-4 h-4" />
+                    <BlockGlyph name={block.icon} className="w-4 h-4" />
                 </div>
                 <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-[var(--text-primary)] truncate">

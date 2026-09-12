@@ -23,6 +23,8 @@ import { alphavantageNormalizer } from './normalizers/alphavantage';
 import { fredNormalizer } from './normalizers/fred';
 import { blsNormalizer } from './normalizers/bls';
 import { worldbankNormalizer } from './normalizers/worldbank';
+import { openmeteoNormalizer } from './normalizers/openmeteo';
+import { frankfurterNormalizer } from './normalizers/frankfurter';
 import { createRestListAdapter } from './adapters/restList';
 
 /**
@@ -43,7 +45,9 @@ const normalizerRegistry = new Map<string, RegisteredApi>([
     ['alpha_vantage', alphavantageNormalizer as RegisteredApi],
     ['fred', fredNormalizer as RegisteredApi],
     ['bls', blsNormalizer as RegisteredApi],
-    ['worldbank', worldbankNormalizer as RegisteredApi]
+    ['worldbank', worldbankNormalizer as RegisteredApi],
+    ['openmeteo', openmeteoNormalizer as RegisteredApi],
+    ['frankfurter', frankfurterNormalizer as RegisteredApi]
 ]);
 
 // Register canonical API types (direct IDs)

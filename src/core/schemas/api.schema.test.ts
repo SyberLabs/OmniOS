@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { API_CATALOG } from './api.schema';
+import { API_CATALOG, getKeylessApis } from './api.schema';
 import { blockRegistry } from '@/core/registry/BlockRegistry';
 
 describe('catalog blockIds — the map shells use to know what they need', () => {
@@ -28,5 +28,30 @@ describe('catalog blockIds — the map shells use to know what they need', () =>
         expect(byId.coingecko).toEqual(['coingecko_crypto']);
         expect(byId.openalex).toEqual(['openalex_works']);
         expect(byId.hackernews).toEqual(['hackernews_feed']);
+    });
+});
+
+describe('keyless demo catalog', () => {
+    it('ships at least 12 providers that need no key', () => {
+        const keyless = API_CATALOG.filter(p => !p.requiresAuth);
+        expect(keyless.map(p => p.id).sort()).toEqual([
+            'coingecko',
+            'crossref',
+            'frankfurter',
+            'github',
+            'hackernews',
+            'openalex',
+            'openlibrary',
+            'openmeteo',
+            'polymarket',
+            'usgs',
+            'wikipedia',
+            'worldbank'
+        ].sort());
+        expect(keyless).toHaveLength(12);
+        for (const provider of keyless) {
+            expect(provider.serverKeyed, provider.id).toBeFalsy();
+        }
+        expect(getKeylessApis().map(p => p.id).sort()).toEqual(keyless.map(p => p.id).sort());
     });
 });
