@@ -44,7 +44,7 @@ import {
     isApiSupported
 } from '@/core/schemas/api.schema';
 import { cn } from '@/lib/utils';
-import { resolveBlockIcon } from '@/components/blockIcons';
+import { BlockGlyph } from '@/components/blockIcons';
 
 // ============================================
 // CATEGORY ICONS & LABELS
@@ -260,7 +260,6 @@ function ApiConfigCard({ config, isExpanded, onToggle }: ApiConfigCardProps) {
     const [isTesting, setIsTesting] = useState(false);
 
     const categoryConfig = CATEGORY_CONFIG[config.provider.category];
-    const ProviderIcon = resolveBlockIcon(config.provider.icon);
 
     const handleTest = async () => {
         setIsTesting(true);
@@ -285,7 +284,7 @@ function ApiConfigCard({ config, isExpanded, onToggle }: ApiConfigCardProps) {
                     className="w-8 h-8 rounded-lg flex items-center justify-center"
                     style={{ backgroundColor: `${categoryConfig.color}20`, color: categoryConfig.color }}
                 >
-                    <ProviderIcon className="w-4 h-4" />
+                    <BlockGlyph name={config.provider.icon} className="w-4 h-4" />
                 </div>
                 <div className="flex-1 text-left">
                     <p className="text-sm font-medium text-[var(--text-primary)]">{config.provider.name}</p>
@@ -486,7 +485,6 @@ interface ApiMarketplaceCardProps {
 
 function ApiMarketplaceCard({ api, isInstalled, onInstall }: ApiMarketplaceCardProps) {
     const categoryConfig = CATEGORY_CONFIG[api.category];
-    const ProviderIcon = resolveBlockIcon(api.icon);
     const supportLevel = getApiSupportLevel(api.id);
     const canInstall = isApiSupported(api.id);
     const supportLabel =
@@ -499,7 +497,7 @@ function ApiMarketplaceCard({ api, isInstalled, onInstall }: ApiMarketplaceCardP
                     className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
                     style={{ backgroundColor: `${categoryConfig.color}20`, color: categoryConfig.color }}
                 >
-                    <ProviderIcon className="w-5 h-5" />
+                    <BlockGlyph name={api.icon} className="w-5 h-5" />
                 </div>
                 <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-[var(--text-primary)] truncate">{api.name}</p>

@@ -7,7 +7,7 @@ import { Activity } from 'lucide-react';
 describe('block icons — every catalog API has a real UI icon', () => {
     it('maps every catalog provider icon name', () => {
         for (const provider of API_CATALOG) {
-            expect(BLOCK_ICON_COMPONENTS[provider.icon], provider.id).toBeTypeOf('function');
+            expect(provider.icon in BLOCK_ICON_COMPONENTS, provider.id).toBe(true);
             // USGS legitimately uses Activity; every other catalog icon must be distinct.
             if (provider.icon !== 'Activity') {
                 expect(resolveBlockIcon(provider.icon), provider.id).not.toBe(Activity);
@@ -23,7 +23,7 @@ describe('block icons — every catalog API has a real UI icon', () => {
         for (const blockId of keylessBlocks) {
             const schema = blockRegistry.get(blockId);
             expect(schema, blockId).toBeTruthy();
-            expect(BLOCK_ICON_COMPONENTS[schema!.icon ?? ''], blockId).toBeTypeOf('function');
+            expect(schema!.icon && schema!.icon in BLOCK_ICON_COMPONENTS, blockId).toBe(true);
         }
     });
 

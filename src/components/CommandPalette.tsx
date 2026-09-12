@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import { useUIStore, useShellStore, useBlockStore, useSettingsStore } from '@/core/stores';
 import { blockRegistry } from '@/core/registry/BlockRegistry';
-import { resolveBlockIcon } from '@/components/blockIcons';
+import { BlockGlyph } from '@/components/blockIcons';
 
 export function CommandPalette() {
     const { commandPaletteOpen, closeCommandPalette, toggleCommandPalette } = useUIStore();
@@ -147,7 +147,7 @@ export function CommandPalette() {
                                     {blocks.map(block => (
                                         <CommandItem
                                             key={block.block_id}
-                                            icon={<BlockCommandIcon name={block.icon} />}
+                                            icon={<BlockGlyph name={block.icon} className="w-4 h-4" />}
                                             label={block.display_name}
                                             description={block.description}
                                             onSelect={() => handleAddBlock(block.block_id)}
@@ -226,11 +226,6 @@ interface CommandItemProps {
     description?: string;
     shortcut?: string;
     onSelect: () => void;
-}
-
-function BlockCommandIcon({ name }: { name?: string }) {
-    const Icon = resolveBlockIcon(name);
-    return <Icon className="w-4 h-4" />;
 }
 
 function CommandItem({ icon, label, description, shortcut, onSelect }: CommandItemProps) {

@@ -38,7 +38,10 @@ describe('keyless demo APIs land in an existing Command Center vault', () => {
             }
         };
 
-        const next = withMissingKeylessInstalled(persisted) as typeof persisted;
+        const next = withMissingKeylessInstalled(persisted) as {
+            installedApis: string[];
+            configs: Record<string, { providerId: string; status: string; requestCount: number }>;
+        };
         expect(next.installedApis.sort()).toEqual(keylessIds.slice().sort());
         expect(next.configs.polymarket.requestCount).toBe(4);
         expect(next.configs.usgs).toEqual({ providerId: 'usgs', status: 'idle', requestCount: 0 });

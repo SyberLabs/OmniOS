@@ -1,7 +1,8 @@
 // Shared Lucide map for Armory, canvas cards, command palette, and the
 // API Command Center. A provider that is on the canvas but missing here
-// falls back to Activity / Plus and looks unsupported.
+// falls back to Activity and looks unsupported.
 
+import { createElement } from 'react';
 import {
     Activity,
     BookOpen,
@@ -86,4 +87,9 @@ export function resolveBlockIcon(iconName?: string): LucideIcon {
         return BLOCK_ICON_COMPONENTS[iconName];
     }
     return Activity;
+}
+
+/** Look up a Lucide icon by catalog / block name without creating a component in render. */
+export function BlockGlyph({ name, className }: { name?: string; className?: string }) {
+    return createElement(BLOCK_ICON_COMPONENTS[name ?? ''] ?? Activity, { className });
 }

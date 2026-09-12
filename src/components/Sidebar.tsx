@@ -27,7 +27,7 @@ import { blockRegistry } from '@/core/registry/BlockRegistry';
 import { OmniBlockSchema, BlockCategory } from '@/core/schemas/block.schema';
 import { useBlockStore, useUIStore } from '@/core/stores';
 import { cn } from '@/lib/utils';
-import { resolveBlockIcon } from '@/components/blockIcons';
+import { BlockGlyph } from '@/components/blockIcons';
 
 // Icon mapping
 const CATEGORY_ICONS: Record<BlockCategory, React.ReactNode> = {
@@ -197,8 +197,6 @@ function BlockItem({ block }: BlockItemProps) {
     const { addBlock } = useBlockStore();
     const { setDraggingBlock } = useUIStore();
 
-    const Icon = resolveBlockIcon(block.icon);
-
     const handleDragStart = (e: React.DragEvent) => {
         setDraggingBlock(block.block_id);
         e.dataTransfer.setData('text/plain', block.block_id);
@@ -234,7 +232,7 @@ function BlockItem({ block }: BlockItemProps) {
                 )}
             >
                 <div className="w-8 h-8 rounded-lg bg-[var(--citadel-primary)]/10 flex items-center justify-center text-[var(--citadel-primary)]">
-                    <Icon className="w-4 h-4" />
+                    <BlockGlyph name={block.icon} className="w-4 h-4" />
                 </div>
                 <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-[var(--text-primary)] truncate">
