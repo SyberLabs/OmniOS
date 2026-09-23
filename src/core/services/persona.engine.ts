@@ -105,6 +105,8 @@ export interface PersonaTurnResult {
     error?: string;
     /** User halted the stream. Partial `content` is kept. */
     stopped?: boolean;
+    /** Inference-ledger row id for this turn, when one was recorded. */
+    runId?: string;
 }
 
 /**
@@ -119,7 +121,13 @@ export async function* streamPersonaTurn(
 
     // The Cognition Kernel owns the turn lifecycle (availability, registry
     // token floor, streaming, fail-closed errors) — apex A4.
-    const turn = runTurnStream(messages, { maxTokens: MAX_TOKENS, signal: input.abortSignal });
+    // `sources` rides along for the server-side ledger: the provenance the
+    // canvas shows in a chip is the provenance the run is recorded with.
+    const turn = runTurnStream(messages, {
+        maxTokens: MAX_TOKENS,
+        signal: input.abortSignal,
+        sources
+    });
     let step = await turn.next();
     while (!step.done) {
         yield step.value;
@@ -127,11 +135,13 @@ export async function* streamPersonaTurn(
     }
     const result = step.value;
 
+    const { runId } = result;
+
     if (result.stopped) {
-        return { success: true, content: result.content, sourceIds, sources, stopped: true };
+        return { success: true, content: result.content, sourceIds, sources, stopped: true, runId };
     }
 
     return result.success
-        ? { success: true, content: result.content, sourceIds, sources }
-        : { success: false, sourceIds, sources, error: result.error };
+        ? { success: true, content: result.content, sourceIds, sources, runId }
+        : { success: false, sourceIds, sources, error: result.error, runId };
 }

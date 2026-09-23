@@ -15,15 +15,29 @@ import {
     type LLMMessage
 } from '@/core/services/server/llm.adapters';
 import { resolveModel } from '@/core/models.registry';
+import { openRun, MAX_SOURCES, type RunSource, type SourceKind } from '@/core/services/server/inference.ledger';
 
 export const runtime = 'nodejs';
 
+/**
+ * Carries the ledger row id back to the client, which needs it to record that
+ * a later persona turn consumed THIS answer (see INFERENCE_LEDGER.md,
+ * "Lineage"). A header rather than the body because the streaming response is
+ * plain text: adding a field to it would change the stream contract that
+ * llm.service and the e2e golden path depend on.
+ *
+ * Absent when nothing was recorded — no database, or a failed open.
+ */
+export const RUN_ID_HEADER = 'X-Omni-Run-Id';
+
 const VALID_PROVIDERS: ServerLLMProvider[] = ['local', 'anthropic', 'google'];
 const VALID_ROLES = new Set(['system', 'user', 'assistant']);
+const VALID_SOURCE_KINDS = new Set<string>(['wire', 'memory', 'inference']);
 
 const MAX_MESSAGES = 100;
 const MAX_TOTAL_CHARS = 200_000;
 const MAX_OUTPUT_TOKENS = 8192;
+const MAX_SOURCE_FIELD_CHARS = 200;
 
 interface ParsedBody {
     provider: ServerLLMProvider;
@@ -32,6 +46,41 @@ interface ParsedBody {
     options?: { temperature?: number; maxTokens?: number };
     baseUrl?: string;
     stream?: boolean;
+    /**
+     * What fed this turn, as the caller computed it. Recorded in the ledger
+     * only — it never reaches a provider, so a bad value costs a record and
+     * nothing else. Column widths are enforced here, not by a 400.
+     */
+    sources: RunSource[];
+}
+
+/**
+ * Provenance the client volunteered. Anything malformed is dropped rather
+ * than rejected: a wrong label must not cost the user their answer.
+ */
+function parseSources(raw: unknown): RunSource[] {
+    if (!Array.isArray(raw)) return [];
+    const out: RunSource[] = [];
+    for (const entry of raw.slice(0, MAX_SOURCES)) {
+        if (!entry || typeof entry !== 'object') continue;
+        const s = entry as Record<string, unknown>;
+        if (typeof s.id !== 'string' || !s.id.trim()) continue;
+        if (typeof s.kind !== 'string' || !VALID_SOURCE_KINDS.has(s.kind)) continue;
+        const label = typeof s.label === 'string' && s.label.trim() ? s.label : s.id;
+        // A parent run id is a bigint key, so only digits can be one. Anything
+        // else is dropped rather than handed to the driver to reject.
+        const parentRunId =
+            typeof s.parentRunId === 'string' && /^\d{1,19}$/.test(s.parentRunId)
+                ? s.parentRunId
+                : undefined;
+        out.push({
+            id: s.id.slice(0, MAX_SOURCE_FIELD_CHARS),
+            kind: s.kind as SourceKind,
+            label: label.slice(0, MAX_SOURCE_FIELD_CHARS),
+            ...(parentRunId ? { parentRunId } : {})
+        });
+    }
+    return out;
 }
 
 /** Validate + clamp the request body. Returns an error string on failure. */
@@ -88,7 +137,11 @@ function parseBody(raw: unknown): { ok: true; body: ParsedBody } | { ok: false; 
 
     return {
         ok: true,
-        body: { provider, model, messages, options, baseUrl, stream: b.stream === true }
+        body: {
+            provider, model, messages, options, baseUrl,
+            stream: b.stream === true,
+            sources: parseSources(b.sources)
+        }
     };
 }
 
@@ -122,6 +175,11 @@ function e2eDouble(rawObj: Record<string, unknown>): Response {
         });
     }
     return NextResponse.json({ content: E2E_RESPONSE, tokensUsed: 42, finishReason: 'stop' });
+}
+
+/** Omitted entirely when nothing was recorded, rather than sent as 'null'. */
+function runIdHeader(id: string | null): Record<string, string> {
+    return id ? { [RUN_ID_HEADER]: id } : {};
 }
 
 export async function POST(request: NextRequest) {
@@ -158,7 +216,7 @@ export async function POST(request: NextRequest) {
     if (!parsed.ok) {
         return NextResponse.json({ error: parsed.error }, { status: 400 });
     }
-    const { provider, messages, options, baseUrl, stream } = parsed.body;
+    const { provider, messages, options, baseUrl, stream, sources } = parsed.body;
     // Defense in depth: heal known-deprecated model ids server-side so stale
     // clients (old persisted configs) don't 404 against providers (apex A5).
     const model = resolveModel(provider, parsed.body.model);
@@ -172,21 +230,46 @@ export async function POST(request: NextRequest) {
 
     const req: ServerLLMRequest = { provider, model, messages, options, baseUrl };
 
+    // The ledger row opens before the provider is called, so an execution that
+    // never comes back is still visible as a 'running' row. `openRun` never
+    // throws and returns a no-op handle when Postgres is not configured.
+    const run = await openRun({
+        provider,
+        model: model || provider,
+        streamed: Boolean(stream),
+        messageCount: messages.length,
+        promptChars: messages.reduce((n, m) => n + m.content.length, 0),
+        prompt: messages.findLast(m => m.role === 'user')?.content,
+        temperature: options?.temperature,
+        maxTokens: options?.maxTokens,
+        sources
+    });
+
     try {
         if (stream) {
-            const body = await runStream(req);
+            // `meter` passes chunks straight through and closes the row when
+            // the stream ends, is cancelled, or breaks mid-flight.
+            const body = run.meter(await runStream(req));
             return new Response(body, {
                 headers: {
                     'Content-Type': 'text/plain; charset=utf-8',
-                    'Cache-Control': 'no-store'
+                    'Cache-Control': 'no-store',
+                    ...runIdHeader(run.id)
                 }
             });
         }
         const result = await runComplete(req);
-        return NextResponse.json(result);
-    } catch {
-        // Never reflect raw upstream errors (may contain keys/PII).
+        await run.succeeded({
+            output: result.content,
+            tokensUsed: result.tokensUsed,
+            finishReason: result.finishReason
+        });
+        return NextResponse.json(result, { headers: runIdHeader(run.id) });
+    } catch (err) {
+        // Never reflect raw upstream errors to the client (may contain
+        // keys/PII). The ledger keeps a scrubbed copy so a 502 is diagnosable.
         console.error('[api/llm] provider call failed');
+        await run.failed(err);
         return NextResponse.json(
             { error: 'LLM provider request failed. Check server logs.' },
             { status: 502 }

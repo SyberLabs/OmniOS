@@ -18,11 +18,19 @@ import { getLLMService, LLMMessage, LLMOptions } from '@/core/services/llm.servi
 import { useMindStore } from '@/core/stores/mindStore';
 import { minOutputTokensFor } from '@/core/models.registry';
 import type { LLMConfig } from '@/core/schemas/mind.schema';
+import type { ContextSource } from '@/core/schemas/wire.schema';
 
 export interface TurnOptions {
     temperature?: number;
     maxTokens?: number;
     signal?: AbortSignal;
+    /**
+     * What fed this turn. Passed through to the server for the inference
+     * ledger; it does not change the prompt. Only callers that know their
+     * provenance supply it — the persona path does, the shell-snapshot and
+     * skin paths do not.
+     */
+    sources?: ContextSource[];
 }
 
 export interface TurnResult {
@@ -33,6 +41,12 @@ export interface TurnResult {
     tokensUsed?: number;
     /** User halted the stream. Partial `content` is kept. */
     stopped?: boolean;
+    /**
+     * Inference-ledger row id for this turn, when the server recorded one.
+     * A caller that stores it can later be cited as a source by name, which
+     * is what makes a cascade's lineage walkable. Absent without Postgres.
+     */
+    runId?: string;
 }
 
 /** The one actionable "no LLM" message, everywhere. */
@@ -54,7 +68,8 @@ function effectiveOptions(config: LLMConfig, options?: TurnOptions): LLMOptions 
             options?.maxTokens ?? config.maxTokens,
             minOutputTokensFor(config.model)
         ),
-        signal: options?.signal
+        signal: options?.signal,
+        sources: options?.sources
     };
 }
 
@@ -82,10 +97,14 @@ export async function runTurn(messages: LLMMessage[], options?: TurnOptions): Pr
     const avail = await checkLLMAvailable();
     if (!avail.ok) return { success: false, content: '', error: avail.error };
 
+    let runId: string | undefined;
     try {
         const llm = getLLMService(avail.config);
-        const response = await llm.complete(messages, effectiveOptions(avail.config, options));
-        return { success: true, content: response.content, tokensUsed: response.tokensUsed };
+        const response = await llm.complete(messages, {
+            ...effectiveOptions(avail.config, options),
+            onRunId: (id) => { runId = id; }
+        });
+        return { success: true, content: response.content, tokensUsed: response.tokensUsed, runId };
     } catch (err) {
         return {
             success: false,
@@ -108,20 +127,29 @@ export async function* runTurnStream(
 
     const llm = getLLMService(avail.config);
     let full = '';
+    // Captured from the response headers before the first token, so it is
+    // available on every outcome below — including a user Stop, whose partial
+    // answer is kept and can still feed a downstream persona.
+    let runId: string | undefined;
     try {
-        for await (const chunk of llm.stream(messages, effectiveOptions(avail.config, options))) {
+        const streamOptions = {
+            ...effectiveOptions(avail.config, options),
+            onRunId: (id: string) => { runId = id; }
+        };
+        for await (const chunk of llm.stream(messages, streamOptions)) {
             full += chunk;
             yield chunk;
         }
-        return { success: true, content: full };
+        return { success: true, content: full, runId };
     } catch (err) {
         if (isAbortError(err)) {
-            return { success: true, content: full, stopped: true };
+            return { success: true, content: full, stopped: true, runId };
         }
         return {
             success: false,
             content: '',
-            error: err instanceof Error ? err.message : 'LLM request failed.'
+            error: err instanceof Error ? err.message : 'LLM request failed.',
+            runId
         };
     }
 }

@@ -6,6 +6,7 @@
 // ============================================
 
 import { LLMConfig } from '@/core/schemas/mind.schema';
+import type { ContextSource } from '@/core/schemas/wire.schema';
 
 // ============================================
 // TYPES (public interface preserved for callers)
@@ -22,6 +23,20 @@ export interface LLMOptions {
     stream?: boolean;
     /** Abort the in-flight fetch. Never serialized onto the request body. */
     signal?: AbortSignal;
+    /**
+     * What fed this turn. Sent to the server for the inference ledger only —
+     * providers never see it. Omitted when the caller has no provenance to
+     * report (the Mind panel's shell snapshot, skin generation).
+     */
+    sources?: ContextSource[];
+    /**
+     * Called with the ledger row id as soon as the response headers arrive,
+     * before any token. A callback rather than a return value because the
+     * streaming path yields chunks and its consumers use `for await`, which
+     * discards a generator's return. Never called when the server recorded
+     * nothing (no database configured).
+     */
+    onRunId?: (runId: string) => void;
 }
 
 export interface LLMResponse {
@@ -31,6 +46,21 @@ export interface LLMResponse {
 }
 
 const LLM_ENDPOINT = '/api/llm';
+
+/**
+ * Set by /api/llm when the inference ledger recorded this call. Exported so a
+ * test can assert it still matches the route's own constant — the two halves
+ * of this contract cannot import each other, and a silent divergence would
+ * disable cascade lineage without failing anything.
+ */
+export const RUN_ID_HEADER = 'X-Omni-Run-Id';
+
+/** Hand the caller the ledger row id, if the server reported one. */
+function reportRunId(res: Response, onRunId?: (runId: string) => void): void {
+    if (!onRunId) return;
+    const runId = res.headers.get(RUN_ID_HEADER);
+    if (runId) onRunId(runId);
+}
 
 function abortError(): Error {
     const err = new Error('Aborted');
@@ -89,7 +119,8 @@ export class LLMService {
                 options: {
                     temperature: options?.temperature ?? this.config.temperature,
                     maxTokens: options?.maxTokens ?? this.config.maxTokens
-                }
+                },
+                sources: options?.sources
             })
         });
 
@@ -98,11 +129,12 @@ export class LLMService {
             throw new Error(data.error || `LLM request failed: ${res.status}`);
         }
 
+        reportRunId(res, options?.onRunId);
         return res.json();
     }
 
     async *stream(messages: LLMMessage[], options?: LLMOptions): AsyncGenerator<string> {
-        const { signal, ...llmOptions } = options ?? {};
+        const { signal, sources, onRunId, ...llmOptions } = options ?? {};
         const res = await fetch(LLM_ENDPOINT, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -116,6 +148,7 @@ export class LLMService {
                     temperature: llmOptions.temperature ?? this.config.temperature,
                     maxTokens: llmOptions.maxTokens ?? this.config.maxTokens
                 },
+                sources,
                 stream: true
             })
         });
@@ -124,6 +157,11 @@ export class LLMService {
             const data = await res.json().catch(() => ({}));
             throw new Error(data.error || `LLM stream failed: ${res.status}`);
         }
+
+        // Before the first token: a cascade needs this even if the user stops
+        // the stream a moment later, because the partial answer is still kept
+        // and can still be cited by a downstream persona.
+        reportRunId(res, onRunId);
 
         const reader = res.body.getReader();
         const decoder = new TextDecoder();

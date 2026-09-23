@@ -13,12 +13,44 @@ function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function asPersonaMessages(value: unknown): Array<{ role: string; content: string }> {
+interface PersonaSourceMessage {
+    role: string;
+    content: string;
+    /** Inference-ledger row id of the turn that produced this message. */
+    runId?: string;
+}
+
+function asPersonaMessages(value: unknown): PersonaSourceMessage[] {
     if (!Array.isArray(value)) return [];
-    return value.filter(
-        (m): m is { role: string; content: string } =>
-            isRecord(m) && typeof m.role === 'string' && typeof m.content === 'string'
-    );
+    return value
+        .filter(
+            (m): m is Record<string, unknown> =>
+                isRecord(m) && typeof m.role === 'string' && typeof m.content === 'string'
+        )
+        .map(m => ({
+            role: m.role as string,
+            content: m.content as string,
+            ...(typeof m.runId === 'string' ? { runId: m.runId } : {})
+        }));
+}
+
+/**
+ * The single answer a persona-as-source contributes: its last assistant
+ * message, unless that message is an error.
+ *
+ * Shared by the formatter below and the provenance assembly in
+ * `aggregateWireContext`, so the text that gets SENT and the run that gets
+ * CITED can never drift apart — citing run A while sending answer B would be
+ * a provenance lie, which is the one thing this layer exists to prevent.
+ */
+function lastPersonaAnswer(data: unknown): PersonaSourceMessage | null {
+    if (!isRecord(data) || !Array.isArray(data.messages)) return null;
+    const last = [...asPersonaMessages(data.messages)].reverse().find(m => m.role === 'assistant');
+
+    // An error is not analysis. Propagating '⚠️ No LLM available' into a
+    // second persona's context would compound one failure into two.
+    if (!last || last.content.startsWith('⚠️')) return null;
+    return last;
 }
 
 function asMemoryEntries(value: unknown): Array<{ content: string }> {
@@ -72,12 +104,8 @@ export function extractBlockData(
             // internals. This used to fall through to the generic JSON dump,
             // which fed the downstream persona ids, timestamps and isCollapsed
             // flags — a wire that looked connected and delivered noise.
-            const messages = asPersonaMessages(data.messages);
-            const lastAnswer = [...messages].reverse().find(m => m.role === 'assistant');
-
-            // An error is not analysis. Propagating '⚠️ No LLM available' into a
-            // second persona's context would compound one failure into two.
-            if (!lastAnswer || lastAnswer.content.startsWith('⚠️')) return null;
+            const lastAnswer = lastPersonaAnswer(data);
+            if (!lastAnswer) return null;
 
             extracted = filters.summaryOnly
                 ? lastAnswer.content.slice(0, 500) + (lastAnswer.content.length > 500 ? '…' : '')
@@ -340,12 +368,22 @@ export function aggregateWireContext(targetBlockId: string): {
         if (data) {
             contextParts.push(`## ${sourceBlock.schema.display_name}\n\n${data}`);
             sourceIds.push(wire.sourceBlockId);
+            // Recollection and live data are both wired now, but they are
+            // different kinds of evidence and the answer should say which.
+            const kind = sourceKindFor(sourceBlock.schema.block_id);
+
+            // One persona feeding another: cite the RUN whose answer we just
+            // put in the context, not merely the block that holds it. That is
+            // the edge the server walks to reconstruct a cascade's lineage.
+            const parentRunId = kind === 'inference'
+                ? lastPersonaAnswer(sourceBlock.data)?.runId
+                : undefined;
+
             sources.push({
                 id: wire.sourceBlockId,
-                // Recollection and live data are both wired now, but they are
-                // different kinds of evidence and the answer should say which.
-                kind: sourceKindFor(sourceBlock.schema.block_id),
-                label: sourceBlock.schema.display_name
+                kind,
+                label: sourceBlock.schema.display_name,
+                ...(parentRunId ? { parentRunId } : {})
             });
         }
     });

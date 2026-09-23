@@ -107,6 +107,10 @@ export async function runPersonaTurn(
     const assistantId = `msg-${Date.now()}-a`;
     let acc = '';
     let turnSources: ContextSource[] = [];
+    // Ledger row id for this turn. Stored on the committed answer so that when
+    // a downstream persona consumes it, the cascade edge names the run rather
+    // than just the block — see INFERENCE_LEDGER.md, "Lineage".
+    let turnRunId: string | undefined;
 
     const commit = (content: string, isThinking: boolean, extra?: { stopped?: boolean }) => {
         const latest =
@@ -125,6 +129,7 @@ export async function runPersonaTurn(
                     timestamp: Date.now(),
                     sourcedFrom: turnSources.map(x => x.id),
                     sources: turnSources,
+                    ...(turnRunId ? { runId: turnRunId } : {}),
                     ...(extra?.stopped ? { stopped: true } : {})
                 }
             ]
@@ -165,6 +170,7 @@ export async function runPersonaTurn(
 
         const final = result.value;
         turnSources = final.sources;
+        turnRunId = final.runId;
 
         if (final.stopped) {
             if (acc.trim() || final.content?.trim()) {

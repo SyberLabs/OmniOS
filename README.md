@@ -43,6 +43,31 @@ cp .env.example .env
 | `ANTHROPIC_API_KEY` | Claude for Mind / personas. |
 | `GOOGLE_API_KEY` | Gemini for Mind / personas. |
 | `NEWSAPI_KEY` | NewsAPI blocks. |
+| `DATABASE_URL` | **Optional.** Postgres for the inference ledger. Blank = off. |
+
+### The inference ledger (optional)
+
+Set `DATABASE_URL` and run `npm run db:migrate` to keep a durable server-side
+record of every LLM execution — provider, model, status, latency, token
+counts, and which wired sources actually fed the turn:
+
+```bash
+npm run db:migrate
+curl 'http://localhost:3000/api/inference-runs?limit=5'
+
+# everything that made one answer, however many personas deep
+curl 'http://localhost:3000/api/inference-runs/42/lineage'
+```
+
+When one persona feeds another, the ledger records which *run* was consumed,
+not just which block — so the full chain behind a cascade's answer stays
+walkable long after the upstream blocks have refetched.
+
+Postgres owns **only** that. The canvas — blocks, wires, shells, personas,
+memory — stays in IndexedDB, because it belongs to the person at the keyboard
+and must work with no server at all. A run belongs to the server: it is the
+only party that held the key, called the provider and timed it. Leave
+`DATABASE_URL` blank and the ledger is a no-op. See `INFERENCE_LEDGER.md`.
 
 > **Hosting:** this is local-first and single-user. Keys are shared
 > server-side, so public hosting would hand them to every visitor. Add
@@ -77,4 +102,5 @@ The canvas is the product.
 
 `APEX_PLAN.md` is the live roadmap. `vision.md` is the north star.
 `WIRE_SYSTEM_GUIDE.md`, `TYPED_PORT_SYSTEM.md` and `MEMORY_ARCHITECTURE.md`
-cover the wire, port and memory layers.
+cover the wire, port and memory layers. `INFERENCE_LEDGER.md` covers the one
+thing Postgres owns, and why the rest stays local.
