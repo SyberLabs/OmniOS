@@ -1,0 +1,62 @@
+version: 2
+
+updates:
+  # ============================================
+  # npm
+  #
+  # Grouped on purpose. Ungrouped, this repo's dependency tree opens a dozen
+  # PRs a week for a single maintainer, and a review queue nobody reads is the
+  # same as no review at all. Production and dev are separate groups so a
+  # runtime bump — the kind that can actually reach a user — is never buried
+  # in a pile of tooling churn.
+  # ============================================
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      production:
+        dependency-type: production
+        update-types:
+          - minor
+          - patch
+      development:
+        dependency-type: development
+        update-types:
+          - minor
+          - patch
+    ignore:
+      # Next and React majors change rendering semantics; this app pins them
+      # deliberately and upgrades them as a piece of work, not as a PR to
+      # rubber-stamp. Minor and patch still come through the groups above.
+      - dependency-name: next
+        update-types: [version-update:semver-major]
+      - dependency-name: react
+        update-types: [version-update:semver-major]
+      - dependency-name: react-dom
+        update-types: [version-update:semver-major]
+    labels:
+      - dependencies
+
+  # ============================================
+  # GitHub Actions
+  #
+  # Keeps `uses:` pinned to maintained majors. It does NOT touch `runs-on`
+  # labels or the postgres service image — those are pinned in ci.yml and
+  # raising them is a deliberate manual review.
+  # ============================================
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 3
+    groups:
+      actions:
+        patterns:
+          - "*"
+    labels:
+      - dependencies
+      - ci

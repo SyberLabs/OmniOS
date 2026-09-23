@@ -70,8 +70,12 @@ only party that held the key, called the provider and timed it. Leave
 `DATABASE_URL` blank and the ledger is a no-op. See `INFERENCE_LEDGER.md`.
 
 > **Hosting:** this is local-first and single-user. Keys are shared
-> server-side, so public hosting would hand them to every visitor. Add
-> authentication first. The dev and start scripts bind `127.0.0.1`.
+> server-side, and there is no application authentication, so a public URL
+> would hand every visitor your API credits *and* the prompt and answer
+> excerpts in the ledger. The decision on record is that a deployed OmniOS
+> goes on a private network (Tailscale / WireGuard / IP allowlist), not a
+> public one. The dev and start scripts bind `127.0.0.1`. See
+> `DEPLOYMENT.md` for the checklist that has to clear before that changes.
 
 ## Development
 
@@ -81,9 +85,31 @@ npm run lint        # eslint, 0 errors (warnings are tracked debt)
 npm test            # vitest
 npm run test:e2e    # playwright golden path (needs npm run build first)
 npm run build
+npm run scan:bundle # no secret reached .next/static (build first)
 ```
 
-CI runs all five on every push and pull request.
+Node version comes from `.nvmrc`, which CI reads too, so local and CI cannot
+drift apart.
+
+CI runs four jobs on every push and pull request:
+
+| Job | What it proves |
+|-----|----------------|
+| Typecheck, Test & Build | the five checks above, including the Playwright golden path |
+| Client bundle carries no secrets | builds with a canary value per secret env var, fails if one reaches `.next/static` |
+| Inference Ledger (Postgres) | migrations apply and re-apply against a real `postgres:16`; constraints, foreign keys and the recursive lineage walk execute |
+| Dependency audit | production deps block on `high`; dev-only advisories are advisory |
+
+`npm run scan:bundle` is the interesting one - it is the check that used to be
+a grep someone had to remember. See `DEPLOYMENT.md`.
+
+The ledger's Postgres-backed tests are skipped unless you give them a scratch
+database of their own. They `TRUNCATE`, so never point this at the database in
+your `.env`:
+
+```bash
+OMNI_TEST_DATABASE_URL=postgres://localhost:5432/omni_test npm test
+```
 
 ## Not in this repo
 
@@ -103,4 +129,5 @@ The canvas is the product.
 `APEX_PLAN.md` is the live roadmap. `vision.md` is the north star.
 `WIRE_SYSTEM_GUIDE.md`, `TYPED_PORT_SYSTEM.md` and `MEMORY_ARCHITECTURE.md`
 cover the wire, port and memory layers. `INFERENCE_LEDGER.md` covers the one
-thing Postgres owns, and why the rest stays local.
+thing Postgres owns, and why the rest stays local. `DEPLOYMENT.md` records the
+hosting decision and what CI guarantees.

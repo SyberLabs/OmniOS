@@ -18,6 +18,7 @@
 
 import 'server-only';
 import { query, transaction, isDatabaseConfigured } from '@/core/db/client';
+import { SECRET_ENV_VARS, MIN_SECRET_LENGTH } from '@/core/secrets';
 
 // ============================================
 // TYPES
@@ -97,28 +98,19 @@ const ERROR_LIMIT = 500;
 // ============================================
 
 /**
- * Env vars whose values must never appear in a stored row. An upstream error
- * can carry the URL it was built from, and two of the data providers put
- * their key in a query string (see FINDINGS.md).
+ * Replace any live env secret found in `text` with a marker.
+ *
+ * The list is shared with the build-time bundle scanner (see core/secrets.ts)
+ * so a newly added provider key cannot be covered by one and missed by the
+ * other. An upstream error can carry the URL it was built from, and two of the
+ * data providers put their key in a query string (see FINDINGS.md).
  */
-const SECRET_ENV_VARS = [
-    'ANTHROPIC_API_KEY',
-    'GOOGLE_API_KEY',
-    'NEWSAPI_KEY',
-    'FRED_API_KEY',
-    'BLS_API_KEY',
-    'ALPHA_VANTAGE_API_KEY',
-    'METACULUS_API_KEY',
-    'DATABASE_URL'
-] as const;
-
-/** Replace any live env secret found in `text` with a marker. */
 export function scrubSecrets(text: string): string {
     let out = text;
     for (const name of SECRET_ENV_VARS) {
         const value = process.env[name];
         // A short value would match half the alphabet; a real key is long.
-        if (!value || value.length < 8) continue;
+        if (!value || value.length < MIN_SECRET_LENGTH) continue;
         while (out.includes(value)) {
             out = out.replace(value, `[redacted:${name}]`);
         }

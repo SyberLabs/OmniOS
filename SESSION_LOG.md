@@ -87,9 +87,16 @@ Gate: tsc / lint (0 errors, same 7 pre-existing warnings) / tests (299, +26) / b
 Notes: Run id travels as a HEADER, not a body field — the streaming response is plain text and adding a field would change the contract llm.service and the golden path depend on. Cycle safety is an explicit `path` array rather than SQL-standard `CYCLE ... SET ... USING`, which needs PG 14; a version bump is a poor price for syntax sugar, and `planCascade` proves cycles are real. `wire.service` picks the cited run with the same `lastPersonaAnswer()` helper that picks the sent text, so citing run A while sending answer B is structurally impossible. `parent_run_id` is `ON DELETE SET NULL`, not CASCADE: losing an upstream run must not erase the downstream run's record of having consumed something. 002 guards its `ADD CONSTRAINT`s on `pg_constraint`, since those have no IF NOT EXISTS.
 
 ## SUMMARY
-Shipped: items 1–8, item 9 skipped (img), security audit a–d, inference ledger + run lineage.
+Shipped: items 1–8, item 9 skipped (img), security audit a–d, inference ledger + run lineage, production CI.
 Blocked: none.
 Next: the empty-array `'(No data)'` citation in `wire.service.ts` is the remaining honesty bug — a connected-but-empty source still pulses and still gets a chip. After that, stop treating the whole-shell Mind snapshot as a second context path. The ledger's next step is a UI that reads it — the lineage tree behind a source chip.
+
+## PRODUCTION CI - SHIPPED
+Commit: (pending)
+What: Four CI jobs instead of one. New `bundle` job builds with a canary value for every secret env var and fails if one reaches `.next/static`. New `audit` job blocks on high-severity production advisories and reports dev-only ones without blocking. Added concurrency cancellation (except on main), least-privilege `permissions`, per-job timeouts, pinned `ubuntu-24.04`, actions v5, a Playwright browser cache, failure artifacts, `.nvmrc` (Node 22) as the single Node source of truth, `engines`, pinned `tsx`, and `.github/dependabot.yml` with grouped npm + actions updates. `src/core/secrets.ts` is now the one secret-env-var list, read by both the ledger's scrubber and the bundle scanner.
+Why: The property the whole server-proxy architecture exists for - no provider key reaches the browser - was asserted by hand, with a grep run after a build, which means it held only on the days someone remembered. It is now a gate. Scanning for canary VALUES rather than variable names matters: a name proves nothing, and CI has no real keys.
+Gate: tsc / lint (0 errors, same 7 pre-existing warnings) / tests (347, +21) / build / e2e - all green. The bundle gate was verified in both directions: it passes a clean build, and a deliberately planted leak (a secret renamed to NEXT_PUBLIC_* and read from a client component) made it fail, naming the variable and the chunk. The plant was reverted.
+Notes: CD deliberately NOT built - see DEPLOYMENT.md. The decision on record is private-network-only, because OmniOS has no application auth and the ledger now serves prompt/output excerpts to any caller, so a public URL leaks conversations as well as credits. `OMNI_TEST_DATABASE_URL` joined the secret list, closing the gap flagged in the previous session. Dev-only advisories (eslint's humanfs, vitest's mocker) do not block: they never ship. `npm audit --omit=dev` is 0.
 
 ## LEDGER PROVENANCE NOTE
 The two ledger entries above share one commit. Only the final state was gated
