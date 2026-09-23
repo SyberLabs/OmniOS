@@ -73,23 +73,28 @@ Gate: tsc / lint (0 errors) / tests (215) / build / e2e (6) — all green
 Notes: FRED and Alpha Vantage still put the key in the *upstream* URL because those APIs have no header auth. Turbopack's local compile cache can inline an env value; that is not the client bundle. Settings store gained `version: 1` so the dead `apiKeys` bag is dropped on migrate.
 
 ## INFERENCE LEDGER — SHIPPED
-Commit: (pending)
+Commit: 9950fd0 (shipped together with RUN LINEAGE)
 What: Two Postgres tables (`inference_run`, `inference_source`) written at `/api/llm` and read at `/api/inference-runs`. Provider, model, status, timestamps, latency, token counts, request/output excerpts, and which wired sources actually fed the turn. Migration + runner (`npm run db:migrate`), `DATABASE_URL` read in one server-only module, a CI job against a real `postgres:16`.
 Why: The canvas belongs to the person at the keyboard and stays in IndexedDB. A run belongs to the server — the only party that held the key, called the provider, and timed it. That knowledge existed only in a `console.error` line. Postgres earns this one boundary and nothing else.
 Gate: tsc / lint (0 errors, same 7 pre-existing warnings) / tests (274, +59) / build / e2e (6) — all green. The 12 Postgres integration tests were SKIPPED locally (no Postgres or Docker on this machine); they run in the new CI job.
 Notes: Postgres is optional — no `DATABASE_URL` means a no-op handle, not a branch at the call site. Two writes per run so a crashed process leaves a visible 'running' row; the closing UPDATE carries `WHERE status = 'running'` so the first terminal state wins. Streaming is metered through a pass-through wrapper, never buffered, and a consumer cancel is recorded as `canceled` — matching the canvas, which already treats a stopped turn as a kept partial rather than an error. A failed open pauses the ledger 30s so an unreachable database cannot tax every inference. Stored text is scrubbed against the server's own env values, because rows are served back to the browser.
 
 ## RUN LINEAGE — SHIPPED
-Commit: (pending)
+Commit: 9950fd0 (shipped together with INFERENCE LEDGER)
 What: `inference_source.parent_run_id` turns the ledger into a DAG: when one persona feeds another, the edge names the RUN whose answer was consumed. `GET /api/inference-runs/:id/lineage` walks it with a recursive CTE — every upstream run, the chip it was cited under, and the raw sources at every level. `/api/llm` now returns `X-Omni-Run-Id`, which the kernel carries into `TurnResult`, personaTurn stores on the answer, and `aggregateWireContext` reads back as `ContextSource.parentRunId`.
 Why: The canvas answers "what does this persona know?" one hop deep. In a cascade the real grounding is several hops back, and it is unrecoverable afterwards — block data is live and the upstream evidence has been overwritten by the time you ask. The server kept the snapshot; nothing could reach it.
 Gate: tsc / lint (0 errors, same 7 pre-existing warnings) / tests (299, +26) / build / e2e (6) — all green. The 23 Postgres integration tests were SKIPPED locally (still no Postgres or Docker on this machine); the CI ledger job runs them, including a real chain, diamond and cycle.
 Notes: Run id travels as a HEADER, not a body field — the streaming response is plain text and adding a field would change the contract llm.service and the golden path depend on. Cycle safety is an explicit `path` array rather than SQL-standard `CYCLE ... SET ... USING`, which needs PG 14; a version bump is a poor price for syntax sugar, and `planCascade` proves cycles are real. `wire.service` picks the cited run with the same `lastPersonaAnswer()` helper that picks the sent text, so citing run A while sending answer B is structurally impossible. `parent_run_id` is `ON DELETE SET NULL`, not CASCADE: losing an upstream run must not erase the downstream run's record of having consumed something. 002 guards its `ADD CONSTRAINT`s on `pg_constraint`, since those have no IF NOT EXISTS.
 
 ## SUMMARY
-Shipped: items 1–8, item 9 skipped (img), security audit a–d.
+Shipped: items 1–8, item 9 skipped (img), security audit a–d, inference ledger + run lineage.
 Blocked: none.
-Next: the empty-array `'(No data)'` citation in `wire.service.ts` is the remaining honesty bug — a connected-but-empty source still pulses and still gets a chip. After that, stop treating the whole-shell Mind snapshot as a second context path.
+Next: the empty-array `'(No data)'` citation in `wire.service.ts` is the remaining honesty bug — a connected-but-empty source still pulses and still gets a chip. After that, stop treating the whole-shell Mind snapshot as a second context path. The ledger's next step is a UI that reads it — the lineage tree behind a source chip.
+
+## LEDGER PROVENANCE NOTE
+The two ledger entries above share one commit. Only the final state was gated
+green; splitting them afterwards would have recorded an intermediate commit
+that was never actually verified.
 
 
 

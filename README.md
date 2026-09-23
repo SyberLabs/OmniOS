@@ -48,7 +48,7 @@ cp .env.example .env
 ### The inference ledger (optional)
 
 Set `DATABASE_URL` and run `npm run db:migrate` to keep a durable server-side
-record of every LLM execution — provider, model, status, latency, token
+record of every LLM execution - provider, model, status, latency, token
 counts, and which wired sources actually fed the turn:
 
 ```bash
@@ -60,11 +60,11 @@ curl 'http://localhost:3000/api/inference-runs/42/lineage'
 ```
 
 When one persona feeds another, the ledger records which *run* was consumed,
-not just which block — so the full chain behind a cascade's answer stays
+not just which block - so the full chain behind a cascade's answer stays
 walkable long after the upstream blocks have refetched.
 
-Postgres owns **only** that. The canvas — blocks, wires, shells, personas,
-memory — stays in IndexedDB, because it belongs to the person at the keyboard
+Postgres owns **only** that. The canvas - blocks, wires, shells, personas,
+memory - stays in IndexedDB, because it belongs to the person at the keyboard
 and must work with no server at all. A run belongs to the server: it is the
 only party that held the key, called the provider and timed it. Leave
 `DATABASE_URL` blank and the ledger is a no-op. See `INFERENCE_LEDGER.md`.
