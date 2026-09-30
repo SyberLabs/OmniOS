@@ -7,6 +7,7 @@ import { defaultSpeechCatalog, parseSpeech, type SpeechCatalog, type SpeechInten
 import { describeCommand } from './speechReply';
 import { resolveReferents } from './referent';
 import { point } from './coordinates';
+import { isSpeechObservationV1, type SpeechObservationV1 } from './speechObservation';
 import type {
     CanvasBlockView,
     CommandLifecycle,
@@ -14,7 +15,8 @@ import type {
     InputModality,
     InteractionTrace,
     MultimodalInteractionProposal,
-    SpatialCommand
+    SpatialCommand,
+    SpeechEvidence
 } from './types';
 
 export interface CanvasMutator {
@@ -48,6 +50,32 @@ function nextId(prefix: string): string {
     return `${prefix}_${sequence}`;
 }
 
+const CONSUMED_SESSION_LIMIT = 512;
+
+function speechEvidence(observation: SpeechObservationV1): SpeechEvidence {
+    const evidence: SpeechEvidence = {
+        observationId: observation.observationId,
+        sessionId: observation.sessionId,
+        adapterId: observation.provider.adapterId,
+        startedAtMs: observation.startedAtMs,
+        receivedAtMs: observation.receivedAtMs
+    };
+    if (observation.provider.providerName) evidence.providerName = observation.provider.providerName;
+    if (observation.provider.model) evidence.model = observation.provider.model;
+    if (observation.locale) evidence.locale = observation.locale;
+    if (observation.endedAtMs !== undefined) evidence.endedAtMs = observation.endedAtMs;
+    if (observation.confidence !== undefined) evidence.confidence = observation.confidence;
+    return evidence;
+}
+
+function provenanceEvidence(speech: SpeechEvidence): string[] {
+    return [
+        `speech-observation:${speech.observationId}`,
+        `speech-session:${speech.sessionId}`,
+        `speech-provider:${speech.adapterId}`
+    ];
+}
+
 export class InteractionEngine {
     private commands: SpatialCommand[] = [];
     private traces: InteractionTrace[] = [];
@@ -58,6 +86,8 @@ export class InteractionEngine {
     private recentInteraction: string[] = [];
     private recentDiscourse: string[] = [];
     private points: Array<{ at: FramedPoint; timestampMs: number }> = [];
+    private consumedSpeechSessions: string[] = [];
+    private speechContext: SpeechEvidence | null = null;
 
     constructor(
         private readonly canvas: CanvasMutator,
@@ -66,7 +96,14 @@ export class InteractionEngine {
 
     snapshot(): EngineSnapshot {
         return {
-            commands: this.commands.map(command => ({ ...command, subjects: [...command.subjects], evidence: [...command.evidence], modalities: [...command.modalities], summary: command.summary })),
+            commands: this.commands.map(command => ({
+                ...command,
+                subjects: [...command.subjects],
+                evidence: [...command.evidence],
+                modalities: [...command.modalities],
+                summary: command.summary,
+                ...(command.speech ? { speech: { ...command.speech } } : {})
+            })),
             traces: this.traces.map(trace => ({ ...trace })),
             preview: this.preview ? { ...this.preview } : null,
             held: this.held ? { ...this.held } : null
@@ -104,9 +141,57 @@ export class InteractionEngine {
         ids.forEach(id => this.remember(id));
     }
 
+    /** Scripted transcript with no capture provenance. Tests and the harness use it. */
     speak(transcript: string, timestampMs = Date.now()): SpatialCommand {
+        return this.described(() => this.interpretSpeech(transcript, timestampMs));
+    }
+
+    /**
+     * The speech commit path. Only a valid final observation is interpreted,
+     * and each speech session yields at most one interpretation.
+     */
+    hear(observation: SpeechObservationV1, timestampMs = Date.now()): SpatialCommand {
+        const gate = this.admitObservation(observation, timestampMs);
+        if (gate) return gate;
+        return this.withSpeech(observation, () => this.described(() => this.interpretSpeech(observation.transcript, timestampMs)));
+    }
+
+    private admitObservation(observation: SpeechObservationV1, timestampMs: number): SpatialCommand | null {
+        if (!isSpeechObservationV1(observation)) {
+            const proposal = this.proposal('select', [], {
+                modalities: ['speech'], confidence: 0, timestampMs, evidence: ['speech-observation:invalid']
+            });
+            return this.described(() => this.refuse(proposal, 'invalid-observation'));
+        }
+        const refuseWith = (reason: string) => this.withSpeech(observation, () => {
+            const proposal = this.proposal('select', [], {
+                modalities: ['speech'], confidence: 0, timestampMs, evidence: this.transcriptEvidence(observation.transcript)
+            });
+            return this.described(() => this.refuse(proposal, reason));
+        });
+        if (!observation.final) return refuseWith('not-final');
+        if (this.consumedSpeechSessions.includes(observation.sessionId)) return refuseWith('duplicate-final');
+        this.consumedSpeechSessions = [observation.sessionId, ...this.consumedSpeechSessions].slice(0, CONSUMED_SESSION_LIMIT);
+        return null;
+    }
+
+    private withSpeech<T>(observation: SpeechObservationV1, run: () => T): T {
+        const previous = this.speechContext;
+        this.speechContext = speechEvidence(observation);
+        try {
+            return run();
+        } finally {
+            this.speechContext = previous;
+        }
+    }
+
+    private transcriptEvidence(transcript: string): string[] {
+        return [`speech:${transcript}`, ...(this.speechContext ? provenanceEvidence(this.speechContext) : [])];
+    }
+
+    private described(run: () => SpatialCommand): SpatialCommand {
         const names = new Map(this.canvas.listBlocks().map(block => [block.id, block.name]));
-        const command = this.interpretSpeech(transcript, timestampMs);
+        const command = run();
         for (const block of this.canvas.listBlocks()) names.set(block.id, block.name);
         command.summary = describeCommand(command, id => names.get(id) ?? 'that block');
         return command;
@@ -119,7 +204,7 @@ export class InteractionEngine {
             modalities: ['speech'],
             confidence: intent ? 0.9 : 0,
             timestampMs,
-            evidence: [`speech:${transcript}`]
+            evidence: this.transcriptEvidence(transcript)
         });
         if (!intent) return this.refuse(proposal, 'unrecognized-speech');
         if (intent.ambiguous) return this.refuse(proposal, `ambiguous-${intent.ambiguous}`);
@@ -170,7 +255,9 @@ export class InteractionEngine {
             target: pending.target ? { id: pending.target } : undefined,
             create: pending.create,
             geometry: pending.geometry,
-            evidence: pending.evidence,
+            evidence: this.speechContext
+                ? [...new Set([...pending.evidence, ...provenanceEvidence(this.speechContext)])]
+                : pending.evidence,
             confidence: pending.confidence,
             timestampMs
         };
@@ -427,7 +514,8 @@ export class InteractionEngine {
             lifecycle,
             reason,
             shellId: this.canvas.activeShell(),
-            timestampMs: proposal.timestampMs
+            timestampMs: proposal.timestampMs,
+            ...(this.speechContext ? { speech: { ...this.speechContext } } : {})
         };
     }
 
@@ -435,7 +523,14 @@ export class InteractionEngine {
         const command = this.stage(proposal, 'committed');
         command.modalities = trace.modalities;
         this.commands.push(command);
-        this.traces.push(trace);
+        this.traces.push(this.speechContext
+            ? {
+                ...trace,
+                speechObservationId: this.speechContext.observationId,
+                speechSessionId: this.speechContext.sessionId,
+                speechAdapterId: this.speechContext.adapterId
+            }
+            : trace);
         this.preview = null;
         this.held = null;
         return command;
