@@ -4,6 +4,7 @@ import { blockRegistry } from '@/core/registry/BlockRegistry';
 import { useBlockStore } from '@/core/stores/blockStore';
 import { useShellStore } from '@/core/stores/shellStore';
 import { useWireStore } from '@/core/stores/wireStore';
+import { wireService } from '@/core/services/wire.service';
 import { getShellTemplate, SHELL_TEMPLATES } from '@/core/shells/templates';
 import type { BlockInstance } from '@/core/schemas/block.schema';
 import { InteractionEngine, type CanvasMutator } from './engine';
@@ -56,7 +57,7 @@ function createStoreMutator(): CanvasMutator {
             useBlockStore.setState(state => ({ blocks: [...state.blocks, block] }));
         },
         connect(sourceId, targetId) {
-            const wireId = useWireStore.getState().addWire(sourceId, targetId);
+            const wireId = wireService.createWire(sourceId, targetId);
             if (!wireId) {
                 return { ok: false, reason: useWireStore.getState().lastAdmissionRefusal ?? 'refused' };
             }

@@ -21,6 +21,8 @@ export const SECRET_ENV_VARS = [
     'GOOGLE_API_KEY',
     'OPENROUTER_API_KEY',
     'KEV_API_KEY',
+    // Remote speech transcription (mints ephemeral Realtime secrets)
+    'OPENAI_API_KEY',
     // Keyed data providers (proxied through /api/data)
     'NEWSAPI_KEY',
     'FRED_API_KEY',
